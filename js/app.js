@@ -1,369 +1,327 @@
-// ============================================
-// 2026 대입 상담카드 - GitHub Pages 버전
-// ============================================
+// =============================================
+// 2026 대입 상담카드 - 메인 앱
+// =============================================
 
-const DATA_DIR = 'data';
-const state = {
-  students: [],
-  meta: null,
-  data: {
-    mock: null, grades: null, sewtuk: null, behavior: null,
-    autonomy: null, career: null, club: null, volunteer: null,
-    award: null, reading: null, applications: null, checklist: null,
-    attendance: null
-  },
-  currentStudent: null,
-  currentTab: 'basic',
-  filter: { grade: 'all', search: '' },
-  mockChart: null
-};
+const DATA = { students: [], mock: null, grades: null, sewtuk: null, behavior: null,
+  autonomy: null, career: null, club: null, volunteer: null,
+  award: null, reading: null, applications: null, checklist: null, attendance: null };
 
-// ============================================
-// 초기화
-// ============================================
-async function init() {
+let currentStudent = null;
+let currentTab = 'basic';
+let currentScoreType = '등급'; // 등급/원점수/표점/백분위
+let chartInstance = null;
+
+// 데이터 로더
+async function loadJSON(name) {
+  if (DATA[name] !== null && DATA[name] !== undefined && (Array.isArray(DATA[name]) ? DATA[name].length>0 : Object.keys(DATA[name]).length>0)) return DATA[name];
   try {
-    // 메타정보
-    state.meta = await fetchJSON('meta.json');
-    document.getElementById('meta-updated').textContent = 
-      `📅 ${state.meta.updated} · 총 ${state.meta.total_students}명`;
-
-    // 학생 마스터
-    state.students = await fetchJSON('students.json');
-
-    // 나머지 데이터는 lazy-load (모의고사만 미리 로드)
-    state.data.mock = await fetchJSON('mock.json');
-
-    renderStudentList();
-    setupEventListeners();
+    const res = await fetch(`data/${name}.json`);
+    if (!res.ok) throw new Error(res.status);
+    DATA[name] = await res.json();
   } catch (e) {
-    console.error('초기화 실패', e);
-    document.getElementById('emptyState').innerHTML = 
-      `<div class="empty-icon">⚠️</div><h2>데이터 로드 실패</h2><p>${e.message}</p>`;
+    console.warn(`${name}.json 로드 실패:`, e);
+    DATA[name] = null;
   }
+  return DATA[name];
 }
 
-async function fetchJSON(name) {
-  const res = await fetch(`${DATA_DIR}/${name}`);
-  if (!res.ok) throw new Error(`${name} 로드 실패 (${res.status})`);
-  return res.json();
+// 초기화
+async function init() {
+  const meta = await (await fetch('data/meta.json')).json();
+  document.getElementById('metaInfo').textContent = 
+    `전체 ${meta.total_students}명 · 1학년 ${meta.by_grade['1']||0} · 2학년 ${meta.by_grade['2']||0} · 3학년 ${meta.by_grade['3']||0} · Updated ${meta.updated}`;
+
+  DATA.students = await (await fetch('data/students.json')).json();
+
+  setupFilters();
+  setupSearch();
+  setupTabs();
+  renderStudentList();
 }
 
-async function lazyLoad(key) {
-  if (state.data[key]) return state.data[key];
-  state.data[key] = await fetchJSON(`${key}.json`);
-  return state.data[key];
-}
+// 필터 세팅
+function setupFilters() {
+  const gradeSel = document.getElementById('gradeFilter');
+  const classSel = document.getElementById('classFilter');
+  const classBox = document.getElementById('classFilterBox');
 
-// ============================================
-// 학생 목록 렌더링
-// ============================================
-function renderStudentList() {
-  const list = document.getElementById('studentList');
-  const filtered = state.students.filter(s => {
-    if (state.filter.grade !== 'all' && s.grade !== parseInt(state.filter.grade)) return false;
-    if (state.filter.search) {
-      const q = state.filter.search.toLowerCase();
-      return s.name.toLowerCase().includes(q) || String(s.hak).includes(q);
+  gradeSel.addEventListener('change', () => {
+    const g = gradeSel.value;
+    classSel.innerHTML = '<option value="all">전체 반</option>';
+    if (g === 'all') {
+      classBox.style.display = 'none';
+    } else {
+      classBox.style.display = 'block';
+      // 해당 학년의 반 목록 추출
+      const classes = [...new Set(DATA.students.filter(s=>s.grade==+g).map(s=>s.class))].sort((a,b)=>a-b);
+      classes.forEach(c => {
+        classSel.innerHTML += `<option value="${c}">${c}반</option>`;
+      });
     }
-    return true;
+    renderStudentList();
   });
 
-  // 정렬: 학년, 반, 번호
-  filtered.sort((a,b) => a.hak - b.hak);
+  classSel.addEventListener('change', renderStudentList);
+}
 
-  list.innerHTML = filtered.map(s => `
-    <div class="student-item ${state.currentStudent?.hak === s.hak ? 'active' : ''}" 
-         data-hak="${s.hak}">
-      <span>${s.grade}-${s.class}반 ${s.num}번 · ${s.name}</span>
+function setupSearch() {
+  document.getElementById('searchBox').addEventListener('input', renderStudentList);
+}
+
+// 학생 목록 렌더
+function renderStudentList() {
+  const g = document.getElementById('gradeFilter').value;
+  const c = document.getElementById('classFilter').value;
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+
+  let list = DATA.students.slice();
+  if (g !== 'all') list = list.filter(s => s.grade == +g);
+  if (c !== 'all') list = list.filter(s => s.class == +c);
+  if (q) list = list.filter(s => s.name.toLowerCase().includes(q) || String(s.hak).includes(q));
+
+  // 정렬: 학번
+  list.sort((a,b) => a.hak - b.hak);
+
+  document.getElementById('listStats').textContent = `${list.length}명 표시`;
+
+  const ul = document.getElementById('studentList');
+  ul.innerHTML = list.map(s => `
+    <li data-hak="${s.hak}" ${currentStudent && currentStudent.hak===s.hak?'class="active"':''}>
+      <span>${s.name}</span>
       <span class="hak">${s.hak}</span>
-    </div>
+    </li>
   `).join('');
 
-  document.getElementById('studentCount').textContent = `${filtered.length}명`;
-
-  list.querySelectorAll('.student-item').forEach(el => {
-    el.addEventListener('click', () => selectStudent(parseInt(el.dataset.hak)));
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => selectStudent(+li.dataset.hak));
   });
 }
 
-// ============================================
-// 이벤트 리스너
-// ============================================
-function setupEventListeners() {
-  // 학년 필터
-  document.querySelectorAll('.grade-btn').forEach(btn => {
+// 학생 선택
+async function selectStudent(hak) {
+  currentStudent = DATA.students.find(s => s.hak === hak);
+  if (!currentStudent) return;
+
+  document.querySelectorAll('.student-list li').forEach(li => {
+    li.classList.toggle('active', +li.dataset.hak === hak);
+  });
+
+  document.getElementById('welcomePanel').style.display = 'none';
+  document.getElementById('studentPanel').style.display = 'block';
+  document.getElementById('studentName').textContent = currentStudent.name;
+
+  const s = currentStudent;
+  const gBadge = `<span class="badge">${s.grade}학년 ${s.class}반 ${s.no}번</span>`;
+  const gender = s.gender ? `<span class="badge" style="background:#636e72">${s.gender}</span>` : '';
+  document.getElementById('studentMeta').innerHTML = `${gBadge}${gender}현재 학번: <strong>${s.hak}</strong>`;
+
+  renderTab(currentTab);
+}
+
+// 탭 세팅
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.filter.grade = btn.dataset.grade;
-      renderStudentList();
+      currentTab = btn.dataset.tab;
+      renderTab(currentTab);
+    });
+  });
+}
+
+// 탭 렌더 분기
+async function renderTab(tab) {
+  const box = document.getElementById('tabContent');
+  box.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div class="msg">Loading...</div></div>';
+
+  const renderers = {
+    basic: renderBasic,
+    grades: renderGrades,
+    mock: renderMock,
+    award: renderAward,
+    autonomy: renderAutonomy,
+    club: renderClub,
+    volunteer: renderVolunteer,
+    career: renderCareer,
+    reading: renderReading,
+    sewtuk: renderSewtuk,
+    behavior: renderBehavior,
+    attendance: renderAttendance,
+    applications: renderApplications,
+    checklist: renderChecklist
+  };
+
+  if (renderers[tab]) await renderers[tab](box);
+  else box.innerHTML = '<div class="empty-state"><div class="msg">준비 중</div></div>';
+}
+
+// ---- 기본정보 ----
+function renderBasic(box) {
+  const s = currentStudent;
+  const rows = [
+    ['이름', s.name],
+    ['성별', s.gender || '-'],
+    ['현재 학년/반/번호', `${s.grade}학년 ${s.class}반 ${s.no}번`],
+    ['현재 학번', s.hak],
+    ['1학년 학번', s.g1_hak || '-'],
+    ['2학년 학번', s.g2_hak || '-'],
+    ['3학년 학번', s.g3_hak || '-']
+  ];
+  box.innerHTML = '<div class="info-grid">' + 
+    rows.map(([l,v]) => `<div class="info-card"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('') +
+    '</div>';
+}
+
+// ---- 모의고사 ----
+async function renderMock(box) {
+  const data = await loadJSON('mock');
+  const recs = (data && data[currentStudent.hak]) || [];
+  if (recs.length === 0) { box.innerHTML = emptyMsg('모의고사 기록 없음'); return; }
+
+  box.innerHTML = `
+    <div class="score-toggle" id="scoreToggle">
+      <button data-type="등급" class="${currentScoreType==='등급'?'active':''}">등급</button>
+      <button data-type="백분위" class="${currentScoreType==='백분위'?'active':''}">백분위</button>
+      <button data-type="표점" class="${currentScoreType==='표점'?'active':''}">표준점수</button>
+      <button data-type="원점수" class="${currentScoreType==='원점수'?'active':''}">원점수</button>
+    </div>
+    <div id="mockTable"></div>
+    <div class="chart-wrap"><canvas id="mockChart"></canvas></div>
+  `;
+
+  document.querySelectorAll('#scoreToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentScoreType = btn.dataset.type;
+      document.querySelectorAll('#scoreToggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      drawMockTable(recs);
+      drawMockChart(recs);
     });
   });
 
-  // 검색
-  document.getElementById('searchInput').addEventListener('input', e => {
-    state.filter.search = e.target.value;
-    renderStudentList();
-  });
-
-  // 탭 전환
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
+  drawMockTable(recs);
+  drawMockChart(recs);
 }
 
-// ============================================
-// 학생 선택
-// ============================================
-function selectStudent(hak) {
-  const student = state.students.find(s => s.hak === hak);
-  if (!student) return;
-  state.currentStudent = student;
-
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('studentCard').style.display = 'block';
-
-  // 학생 헤더 업데이트
-  document.getElementById('stuName').textContent = student.name;
-  document.getElementById('stuHak').textContent = `학번 ${student.hak}`;
-  document.getElementById('stuGender').textContent = student.gender;
-  document.getElementById('stuClassInfo').textContent = 
-    `${student.grade}학년 ${student.class}반 ${student.num}번`;
-
-  // 학번 이력
-  const hist = [];
-  if (student.g1_hak) hist.push(`1학년: ${student.g1_hak}`);
-  if (student.g2_hak) hist.push(`2학년: ${student.g2_hak}`);
-  if (student.g3_hak) hist.push(`3학년: ${student.g3_hak}`);
-  document.getElementById('stuHistory').textContent = '🔗 ' + hist.join(' → ');
-
-  renderStudentList();
-  renderTab(state.currentTab);
+function getScore(subj, type) {
+  if (!subj) return null;
+  // 영어, 한국사는 등급/원점수만
+  if (type === '등급') return subj.등급;
+  if (type === '원점수') return subj.원점수;
+  if (type === '표점') return subj.표점 ?? null;
+  if (type === '백분위') return subj.백분위 ?? null;
+  return null;
 }
 
-// ============================================
-// 탭 전환
-// ============================================
-async function switchTab(tabName) {
-  state.currentTab = tabName;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === `tab-${tabName}`));
-  renderTab(tabName);
-}
-
-async function renderTab(tabName) {
-  if (!state.currentStudent) return;
-  const container = document.getElementById(`tab-${tabName}`);
-  const s = state.currentStudent;
-
-  switch (tabName) {
-    case 'basic': renderBasic(container, s); break;
-    case 'mock': renderMock(container, s); break;
-    case 'grades': await renderText(container, s, 'grades', '내신'); break;
-    case 'award': await renderText(container, s, 'award', '수상경력', true); break;
-    case 'autonomy': await renderText(container, s, 'autonomy', '자율활동'); break;
-    case 'club': await renderText(container, s, 'club', '동아리활동'); break;
-    case 'volunteer': await renderText(container, s, 'volunteer', '봉사활동'); break;
-    case 'career': await renderText(container, s, 'career', '진로활동'); break;
-    case 'reading': await renderText(container, s, 'reading', '독서활동', true); break;
-    case 'sewtuk': await renderText(container, s, 'sewtuk', '세부능력 및 특기사항'); break;
-    case 'behavior': await renderText(container, s, 'behavior', '행동특성 및 종합의견'); break;
-    case 'attendance': await renderText(container, s, 'attendance', '출결상황'); break;
-    case 'applications': await renderText(container, s, 'applications', '지원대학'); break;
-    case 'checklist': await renderText(container, s, 'checklist', '평가 체크리스트'); break;
+function fmtCell(subj, type, isEngOrHistory=false) {
+  if (!subj) return '-';
+  // 영어/한국사는 등급 외 선택 시에도 등급만 노출
+  if (isEngOrHistory && (type === '백분위' || type === '표점')) {
+    return subj.등급 != null ? `<span class="grade-${subj.등급}" style="padding:3px 8px;border-radius:3px">${subj.등급}</span>` : '-';
   }
+  const v = getScore(subj, type);
+  if (v == null) return '-';
+  if (type === '등급') return `<span class="grade-${v}" style="padding:3px 8px;border-radius:3px">${v}</span>`;
+  return typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v;
 }
 
-// ============================================
-// 기본정보 탭
-// ============================================
-function renderBasic(el, s) {
-  const hist = [];
-  if (s.g1_hak) hist.push({year: '2024' === null ? '' : computeYear(s, 1), grade: '1학년', hak: s.g1_hak});
-  if (s.g2_hak) hist.push({year: computeYear(s, 2), grade: '2학년', hak: s.g2_hak});
-  if (s.g3_hak) hist.push({year: computeYear(s, 3), grade: '3학년', hak: s.g3_hak});
-
-  el.innerHTML = `
-    <div class="section">
-      <h3 class="section-title">📋 인적사항</h3>
-      <div class="info-grid">
-        <div class="info-item"><div class="info-label">성명</div><div class="info-value">${s.name}</div></div>
-        <div class="info-item"><div class="info-label">성별</div><div class="info-value">${s.gender}</div></div>
-        <div class="info-item"><div class="info-label">현 학번</div><div class="info-value">${s.hak}</div></div>
-        <div class="info-item"><div class="info-label">현 학년/반/번호</div><div class="info-value">${s.grade}-${s.class}-${s.num}</div></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3 class="section-title">🔗 학년별 학번 이력</h3>
-      <table class="data-table">
-        <thead><tr><th>학년도</th><th>학년</th><th>학번</th><th>반</th><th>번호</th></tr></thead>
-        <tbody>
-          ${hist.map(h => {
-            const cls = Math.floor((h.hak % 10000) / 100);
-            const num = h.hak % 100;
-            return `<tr><td>${h.year}</td><td>${h.grade}</td><td><b>${h.hak}</b></td><td>${cls}</td><td>${num}</td></tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="section">
-      <h3 class="section-title">ℹ️ 안내</h3>
-      <p style="color:#64748b; font-size:0.9rem;">
-        • 주소, 연락처, 주민번호 등 민감정보는 이 시스템에서 관리되지 않습니다.<br>
-        • 내신·세특·행발·창체 등은 추후 데이터가 연동되면 자동 표시됩니다.
-      </p>
-    </div>
-  `;
+function drawMockTable(recs) {
+  const t = currentScoreType;
+  const header = `
+    <thead><tr>
+      <th>시점</th><th>내신</th>
+      <th>국어</th><th>수학<br><small>선택</small></th><th>영어</th><th>한국사</th>
+      <th>탐구1<br><small>과목</small></th><th>탐구2<br><small>과목</small></th>
+    </tr></thead>`;
+  const body = recs.map(r => {
+    const 국 = fmtCell(r.국어, t);
+    const 수 = fmtCell(r.수학, t);
+    const 영 = fmtCell(r.영어, t, true);
+    const 한 = fmtCell(r.한국사, t, true);
+    const 탐1 = fmtCell(r.탐1, t);
+    const 탐2 = fmtCell(r.탐2, t);
+    const 수선 = r.수학?.선택 ? `<br><small>${r.수학.선택}</small>` : '';
+    const 탐1과 = r.탐1?.과목 ? `<br><small>${r.탐1.과목}</small>` : '';
+    const 탐2과 = r.탐2?.과목 ? `<br><small>${r.탐2.과목}</small>` : '';
+    return `<tr>
+      <td><strong>${r.시점}</strong><br><small>${r.연도}</small></td>
+      <td>${r.내신!=null ? r.내신.toFixed(2) : '-'}</td>
+      <td>${국}</td><td>${수}${수선}</td><td>${영}</td><td>${한}</td>
+      <td>${탐1}${탐1과}</td><td>${탐2}${탐2과}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mockTable').innerHTML = `<table class="data-table">${header}<tbody>${body}</tbody></table>`;
 }
 
-function computeYear(s, gradeTarget) {
-  // 현재 학년/연도에서 역산
-  const baseYear = 2026;
-  return baseYear - (s.grade - gradeTarget);
-}
-
-// ============================================
-// 모의고사 탭
-// ============================================
-function renderMock(el, s) {
-  const records = state.data.mock[String(s.hak)] || [];
-
-  if (records.length === 0) {
-    el.innerHTML = noDataHTML('모의고사 성적 데이터가 없습니다.');
-    return;
-  }
-
-  const gradeCell = v => v === null || v === undefined ? '-' : `<span class="grade-cell grade-${v}">${v}</span>`;
-  const numCell = v => v === null || v === undefined ? '-' : v;
-
-  el.innerHTML = `
-    <div class="section">
-      <h3 class="section-title">📊 모의고사 등급 추이</h3>
-      <div class="chart-container">
-        <canvas id="mockChart"></canvas>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3 class="section-title">📝 회차별 성적</h3>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th rowspan="2">연도</th><th rowspan="2">학년</th><th rowspan="2">구분</th>
-            <th colspan="2">국어</th><th colspan="2">수학</th><th colspan="2">영어</th>
-            <th>한국사</th><th colspan="2">탐구1</th><th colspan="2">탐구2</th>
-          </tr>
-          <tr>
-            <th>원점수</th><th>등급</th>
-            <th>원점수</th><th>등급</th>
-            <th>원점수</th><th>등급</th>
-            <th>등급</th>
-            <th>과목</th><th>등급</th>
-            <th>과목</th><th>등급</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map(r => `
-            <tr>
-              <td>${r.연도}</td>
-              <td>${r.학년}</td>
-              <td><b>${r.구분}</b></td>
-              <td>${numCell(r.kor_raw)}</td><td>${gradeCell(r.kor_grade)}</td>
-              <td>${numCell(r.math_raw)}</td><td>${gradeCell(r.math_grade)}</td>
-              <td>${numCell(r.eng_raw)}</td><td>${gradeCell(r.eng_grade)}</td>
-              <td>${gradeCell(r.kh_grade)}</td>
-              <td style="font-size:0.8rem;">${r.t1_subj || '-'}</td><td>${gradeCell(r.t1_grade)}</td>
-              <td style="font-size:0.8rem;">${r.t2_subj || '-'}</td><td>${gradeCell(r.t2_grade)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  drawMockChart(records);
-}
-
-function drawMockChart(records) {
+function drawMockChart(recs) {
   const ctx = document.getElementById('mockChart');
-  if (!ctx) return;
-  if (state.mockChart) state.mockChart.destroy();
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const t = currentScoreType;
+  const labels = recs.map(r => r.시점);
 
-  const labels = records.map(r => `${String(r.연도).slice(2)}-${r.학년}학년 ${r.구분}`);
-  const mkLine = (label, key, color) => ({
-    label, data: records.map(r => r[key]),
-    borderColor: color, backgroundColor: color + '33',
-    tension: 0.3, spanGaps: true, borderWidth: 2
+  const subjects = [
+    {key:'국어', color:'#e74c3c'},
+    {key:'수학', color:'#3498db'},
+    {key:'영어', color:'#2ecc71'},
+    {key:'한국사', color:'#9b59b6'},
+    {key:'탐1', color:'#f39c12'},
+    {key:'탐2', color:'#1abc9c'}
+  ];
+
+  const datasets = subjects.map(s => {
+    const isEngOrHist = (s.key === '영어' || s.key === '한국사');
+    const useType = (isEngOrHist && (t === '백분위' || t === '표점')) ? '등급' : t;
+    return {
+      label: s.key,
+      data: recs.map(r => getScore(r[s.key], useType)),
+      borderColor: s.color, backgroundColor: s.color+'33',
+      tension: 0.2, spanGaps: true
+    };
   });
 
-  state.mockChart = new Chart(ctx, {
+  const isGrade = (t === '등급');
+  chartInstance = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        mkLine('국어', 'kor_grade', '#3b82f6'),
-        mkLine('수학', 'math_grade', '#ef4444'),
-        mkLine('영어', 'eng_grade', '#10b981'),
-        mkLine('탐구1', 't1_grade', '#f59e0b'),
-        mkLine('탐구2', 't2_grade', '#8b5cf6')
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
+      plugins: { title: { display: true, text: `모의고사 ${t} 추이` } },
       scales: {
-        y: {
-          reverse: true, min: 1, max: 9,
-          ticks: { stepSize: 1 },
-          title: { display: true, text: '등급 (낮을수록 우수)' }
-        }
+        y: isGrade ? { reverse: true, min: 0.5, max: 9.5, ticks: { stepSize: 1 }, title: { display:true, text:'등급(낮을수록 우수)' } } 
+                   : { beginAtZero: false, title: { display:true, text: t } }
       }
     }
   });
 }
 
-// ============================================
-// 텍스트/기본 탭 (데이터 추후 입력)
-// ============================================
-async function renderText(el, s, key, title, notUsed=false) {
-  await lazyLoad(key);
-  const records = state.data[key][String(s.hak)] || [];
+// ---- 기타 탭 (추후 구현) ----
+async function renderGrades(box) { await genericList(box, 'grades', '내신', '학년·학기별 내신 성적이 입력되면 표시됩니다.'); }
+async function renderAward(box) { await genericList(box, 'award', '수상', '수상경력 데이터 입력 시 표시됩니다. (※ 대입 미반영, 참고용)'); }
+async function renderAutonomy(box) { await genericList(box, 'autonomy', '자율활동', '자율활동 특기사항이 입력되면 표시됩니다.'); }
+async function renderClub(box) { await genericList(box, 'club', '동아리활동', '동아리활동 내용이 입력되면 표시됩니다.'); }
+async function renderVolunteer(box) { await genericList(box, 'volunteer', '봉사활동', '봉사활동 기록이 입력되면 표시됩니다.'); }
+async function renderCareer(box) { await genericList(box, 'career', '진로활동', '진로활동 특기사항이 입력되면 표시됩니다.'); }
+async function renderReading(box) { await genericList(box, 'reading', '독서활동', '독서활동 기록 (※ 대입 미반영, 참고용)'); }
+async function renderSewtuk(box) { await genericList(box, 'sewtuk', '세부능력 및 특기사항', '과목별 세특이 입력되면 표시됩니다.'); }
+async function renderBehavior(box) { await genericList(box, 'behavior', '행동특성 및 종합의견', '담임 종합의견이 입력되면 표시됩니다.'); }
+async function renderAttendance(box) { await genericList(box, 'attendance', '출결상황', '학년별 출결 현황이 입력되면 표시됩니다.'); }
+async function renderApplications(box) { await genericList(box, 'applications', '지원대학', '수시·정시 지원 대학 정보가 입력되면 표시됩니다.'); }
+async function renderChecklist(box) { await genericList(box, 'checklist', '학종 체크리스트', '학업역량·진로역량·공동체역량 평가가 입력되면 표시됩니다.'); }
 
-  let note = '';
-  if (notUsed) {
-    note = `<div style="background:#fef3c7; color:#92400e; padding:0.6rem 1rem; border-radius:6px; font-size:0.85rem; margin-bottom:1rem;">
-      ⚠️ ${title}은(는) 2024학번부터 대입에 반영되지 않지만, 학생 지도를 위한 참고 자료로 표시됩니다.
-    </div>`;
-  }
-
-  if (records.length === 0) {
-    el.innerHTML = `
-      <div class="section">
-        <h3 class="section-title">${title}</h3>
-        ${note}
-        ${noDataHTML(`${title} 데이터가 아직 입력되지 않았습니다.<br>추후 <code>data/${key}.json</code>에 데이터가 추가되면 자동으로 표시됩니다.`)}
-      </div>`;
+async function genericList(box, key, title, emptyMsgText) {
+  const data = await loadJSON(key);
+  const recs = (data && data[currentStudent.hak]) || null;
+  if (!recs || (Array.isArray(recs) && recs.length === 0) || (typeof recs === 'object' && Object.keys(recs).length === 0)) {
+    box.innerHTML = `<h3 style="margin-bottom:12px">${title}</h3>` + emptyMsg(emptyMsgText);
     return;
   }
-
-  // 레코드가 있으면 간단히 JSON 표시 (추후 구조에 맞춰 재렌더)
-  el.innerHTML = `
-    <div class="section">
-      <h3 class="section-title">${title}</h3>
-      ${note}
-      <pre style="background:#f8fafc; padding:1rem; border-radius:8px; overflow:auto; font-size:0.85rem;">${JSON.stringify(records, null, 2)}</pre>
-    </div>
-  `;
+  // 기본 JSON 표시
+  box.innerHTML = `<h3 style="margin-bottom:12px">${title}</h3><pre style="background:#f8f9fa;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap">${JSON.stringify(recs, null, 2)}</pre>`;
 }
 
-function noDataHTML(msg) {
-  return `<div class="no-data">
-    <div class="no-data-icon">📭</div>
-    <div>${msg}</div>
-  </div>`;
+function emptyMsg(msg) {
+  return `<div class="empty-state"><div class="icon">📭</div><div class="msg">${msg}</div></div>`;
 }
 
 // 시작
