@@ -3,7 +3,7 @@
 GitHub Pages 기반 대입 상담카드 웹 애플리케이션입니다.  
 현 2학년·3학년 학생들의 **3개년 학번 매핑**과 **모의고사 종단 성적**을 통합하여 제공합니다.
 
-🌐 **Live Site:** https://winterahder.github.io/osang20261/
+🌐 **Live Site:** https://winterahder.github.io/osang2026/
 
 ---
 
