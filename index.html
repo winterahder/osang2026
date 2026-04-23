@@ -102,10 +102,10 @@ const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월
 // 내신 계열 필터 정의
 const GRADE_FILTERS = {
   '전체': null,
+  '국영수사과': ['국어','영어','수학','사회','과학'],
   '국영수': ['국어','영어','수학'],
   '국영수사': ['국어','영어','수학','사회'],
   '국영수과': ['국어','영어','수학','과학'],
-  '국영수사과': ['국어','영어','수학','사회','과학'],
   '영수과': ['영어','수학','과학']
 };
 
@@ -253,7 +253,7 @@ function renderGradeFilterSummary(data){
   });
   // 필터 적용
   const filtered = filter
-    ? allSubjects.filter(s=> filter.includes(s.교과))
+    ? allSubjects.filter(s=> s.교과 && filter.some(k=> s.교과.includes(k)))
     : allSubjects.filter(s=> s.등급!=null); // 전체: 등급 있는 과목만
   // 가중평균
   let totalCredit = 0, weighted = 0;
@@ -292,7 +292,7 @@ function renderSemesterBlock(sem, semData){
   const filter = GRADE_FILTERS[currentGradeFilter];
   
   const rows = subjects.map(s=>{
-    const highlighted = filter && filter.includes(s.교과);
+    const highlighted = filter && s.교과 && filter.some(k=> s.교과.includes(k));
     const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
     return `
       <tr style="${rowStyle}">
