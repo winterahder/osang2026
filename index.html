@@ -2,38 +2,35 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>오상고 상담카드 시스템</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📋%3C/text%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오상고 상담카드 시스템 2026</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<header>
-  <div class="title">📋 오상고 상담카드 시스템 <span class="year">2026</span></div>
+<header class="topbar">
+  <div class="brand"><span class="logo">📋</span> <b>오상고 상담카드 시스템</b> <span class="year">2026</span></div>
   <div id="statusBar" class="status">로딩중...</div>
 </header>
-
-<main>
-  <aside id="sidebar">
-    <input id="searchInput" type="text" placeholder="🔍 이름 또는 학번 검색">
-    <div class="filter-row">
-      <select id="gradeFilter"><option value="">전체 학년</option></select>
+<main class="layout">
+  <aside class="sidebar">
+    <input id="searchBox" class="search" placeholder="🔍 이름 또는 학번 검색" />
+    <div class="filters">
+      <select id="gradeFilter"><option value="">전체 학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
       <select id="classFilter"><option value="">전체 반</option></select>
     </div>
-    <div id="countInfo" class="count-info">-</div>
-    <div id="studentList" class="student-list"></div>
+    <div id="countLabel" class="count">-</div>
+    <ul id="studentList" class="student-list"></ul>
   </aside>
-
-  <section id="content">
-    <div id="empty" class="empty">👈 왼쪽에서 학생을 선택하세요</div>
-    <div id="detail" style="display:none;">
-      <div id="studentHeader" class="student-header"></div>
-      <div id="tabBar" class="tab-bar"></div>
-      <div id="tabBody" class="tab-body"></div>
+  <section class="content">
+    <div id="studentHeader" class="student-header"></div>
+    <nav id="tabBar" class="tabs"></nav>
+    <div id="tabContent" class="tab-content">
+      <div class="empty">👈 왼쪽에서 학생을 선택하세요</div>
     </div>
   </section>
 </main>
-
 <script src="js/app.js"></script>
 </body>
 </html>
