@@ -3,55 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2026학년도 대입 상담카드</title>
+<title>2026 대입 상담카드</title>
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<header>
-  <h1>🎓 2026학년도 대입 상담카드</h1>
-  <div class="meta" id="metaInfo">Loading...</div>
-</header>
-
-<div class="layout">
-  <!-- 사이드바 -->
+<div class="app">
   <aside class="sidebar">
-    <div class="filter-box">
-      <label>학년</label>
-      <select id="gradeFilter">
-        <option value="all">전체</option>
-        <option value="1">1학년</option>
-        <option value="2">2학년</option>
-        <option value="3">3학년</option>
-      </select>
+    <h1>🎓 상담카드</h1>
+    <div class="filters">
+      <input type="text" id="search" placeholder="🔍 이름/학번 검색">
+      <div class="filter-row">
+        <select id="gradeFilter">
+          <option value="all">전체</option>
+          <option value="1">1학년</option>
+          <option value="2">2학년</option>
+          <option value="3">3학년</option>
+        </select>
+        <select id="classFilter" style="display:none;">
+          <option value="all">전체 반</option>
+        </select>
+      </div>
     </div>
-    <div class="filter-box" id="classFilterBox" style="display:none;">
-      <label>반</label>
-      <select id="classFilter">
-        <option value="all">전체 반</option>
-      </select>
-    </div>
-    <div class="filter-box">
-      <input type="text" id="searchBox" placeholder="🔍 이름·학번 검색">
-    </div>
-    <div class="stats" id="listStats"></div>
+    <div class="student-count" id="studentCount"></div>
     <ul class="student-list" id="studentList"></ul>
   </aside>
 
-  <!-- 메인 -->
-  <main class="main">
-    <div id="welcomePanel" class="welcome">
-      <h2>👈 왼쪽에서 학생을 선택하세요</h2>
-      <p>학년/반 필터로 빠르게 찾을 수 있습니다.</p>
+  <main class="content">
+    <div id="emptyState" class="empty-state">
+      <h2>👈 학생을 선택하세요</h2>
+      <p>왼쪽 목록에서 학생을 클릭하면 상담카드가 표시됩니다.</p>
     </div>
-
-    <div id="studentPanel" style="display:none;">
-      <div class="student-header">
+    <div id="cardView" style="display:none;">
+      <header class="student-header">
         <h2 id="studentName"></h2>
-        <div id="studentMeta"></div>
-      </div>
-
-      <nav class="tabs" id="tabs">
+        <div class="student-info" id="studentInfo"></div>
+      </header>
+      <nav class="tabs">
         <button class="tab active" data-tab="basic">기본정보</button>
         <button class="tab" data-tab="grades">내신</button>
         <button class="tab" data-tab="mock">모의고사</button>
@@ -67,12 +55,10 @@
         <button class="tab" data-tab="applications">지원대학</button>
         <button class="tab" data-tab="checklist">체크리스트</button>
       </nav>
-
       <div class="tab-content" id="tabContent"></div>
     </div>
   </main>
 </div>
-
 <script src="js/app.js"></script>
 </body>
 </html>
