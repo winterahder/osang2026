@@ -71,6 +71,20 @@
   .summary-card.highlight { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #93c5fd; }
   .filter-label { display: inline-block; margin-right: 8px; font-weight: 600; color: #475569; font-size: 13px; }
   .no-data { padding: 40px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 8px; }
+  .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .accordion { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+  .accordion-head { padding: 14px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: background 0.15s; }
+  .accordion-head:hover { background: #f8fafc; }
+  .accordion.open .accordion-head { background: #eff6ff; border-bottom: 1px solid #dbeafe; }
+  .accordion-title { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .accordion-title .sub-cat { padding: 3px 8px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .accordion-title .sub-name { font-weight: 700; color: #1e293b; flex-shrink: 0; }
+  .accordion-title .sub-summary { color: #64748b; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .accordion-head .arrow { color: #94a3b8; font-size: 12px; transition: transform 0.2s; }
+  .accordion.open .arrow { transform: rotate(90deg); color: #2563eb; }
+  .accordion-body { padding: 16px 20px; background: #fafbfc; border-top: 1px solid #f1f5f9; line-height: 1.8; font-size: 14px; color: #334155; display: none; white-space: pre-wrap; word-break: keep-all; }
+  .accordion.open .accordion-body { display: block; }
+  .sub-meta { font-size: 11px; color: #94a3b8; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -99,7 +113,6 @@ const COLORS = { '국어':'#3b82f6','수학':'#ef4444','영어':'#10b981','한�
 const ROUND_ORDER = ['g1_3월','g1_6월','g1_9월','g1_11월','g2_3월','g2_6월','g2_9월','g2_11월','g3_3월','g3_6월','g3_9월','g3_11월'];
 const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월':'1학년 9월','g1_11월':'1학년 11월','g2_3월':'2학년 3월','g2_6월':'2학년 6월','g2_9월':'2학년 9월','g2_11월':'2학년 11월','g3_3월':'3학년 3월','g3_6월':'3학년 6월','g3_9월':'3학년 9월','g3_11월':'3학년 11월' };
 
-// 내신 계열 필터 정의
 const GRADE_FILTERS = {
   '전체': null,
   '국영수사과': ['국어','영어','수학','사회','과학'],
@@ -109,7 +122,14 @@ const GRADE_FILTERS = {
   '영수과': ['영어','수학','과학']
 };
 
-let students=[], mock={}, grades={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+// 세특 카테고리 순서
+const SEWTUK_CATEGORIES = ['전체 과목','국어','영어','수학','사회(역사/도덕포함)','과학','예술','체육','교양','제2외국어/한문'];
+const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
+const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
+
+let students=[], mock={}, grades={}, sewtuk={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
+let openAccordions = new Set();
 
 async function init(){
   try{
@@ -119,11 +139,14 @@ async function init(){
     ]);
     students = await sRes.json();
     mock = await mRes.json();
-    // 내신 데이터는 옵셔널 로드 (실패해도 앱은 동작)
     try{
       const gRes = await fetch('data/grades_2_1.json');
       if(gRes.ok) grades = await gRes.json();
     }catch(e){ console.warn('grades_2_1.json 로드 실패:', e); }
+    try{
+      const swRes = await fetch('data/sewtuk_2_1.json');
+      if(swRes.ok) sewtuk = await swRes.json();
+    }catch(e){ console.warn('sewtuk_2_1.json 로드 실패:', e); }
     document.getElementById('status').textContent = `총 ${students.length}명 로드됨`;
     renderList();
   }catch(e){
@@ -149,6 +172,7 @@ function renderList(){
       const hak = el.dataset.hak;
       currentStu = students.find(s=>String(s.hak)===hak);
       currentTab = '기본정보';
+      openAccordions.clear();
       renderList();
       renderMain();
     };
@@ -185,6 +209,7 @@ function renderTab(){
   if(currentTab==='기본정보') renderInfo(el);
   else if(currentTab==='모의고사') renderMock(el);
   else if(currentTab==='내신') renderGrades(el);
+  else if(currentTab==='세특') renderSewtuk(el);
   else el.innerHTML = `<div class="placeholder">${currentTab} 탭 (준비중)</div>`;
 }
 
@@ -195,219 +220,48 @@ function renderInfo(el){
   el.innerHTML = `<table class="info">${keys.map(k=>`<tr><td>${LABELS[k]||k}</td><td>${s[k]}</td></tr>`).join('')}</table>`;
 }
 
-// ========== 내신 탭 ==========
-function renderGrades(el){
-  const s = currentStu;
-  // 학번 매칭: students.json의 g1_hak로 grades 데이터 찾기 (1학년때 학번)
-  // grades_2_1.json은 현재 2학년 1반 학생들의 "1학년 때 성적"
-  // key는 20101, 20102... 형태 (현 2학년 학번)
-  const hak = String(s.hak);
-  let data = grades[hak];
-  // 혹시 g2_hak로도 시도
-  if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
+// ========== 세특 탭 ==========
+function renderSewtuk(el){
+  const hak = String(currentStu.hak);
+  let data = sewtuk[hak];
+  if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
   
-  if(!data || !data.grades){
+  if(!data || !data.subjects){
     el.innerHTML = `
       <div class="no-data">
-        📋 내신 데이터가 없습니다<br>
-        <small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 성적만 등록되어 있습니다)</small>
+        📋 세특 데이터가 없습니다<br>
+        <small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다)</small>
       </div>
     `;
     return;
   }
 
-  // 계열 필터 버튼
-  const filterBtns = Object.keys(GRADE_FILTERS).map(k=>
-    `<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`
-  ).join('');
+  // 3단계 필터
+  const gradeBtns = SEWTUK_GRADES.map(g=>`<button class="toggle-btn ${g===sewtukGrade?'active':''}" data-gfil="${g}">${g}</button>`).join('');
+  const semBtns = SEWTUK_SEMESTERS.map(s=>`<button class="toggle-btn ${s===sewtukSem?'active':''}" data-sfil="${s}">${s}</button>`).join('');
+  const catBtns = SEWTUK_CATEGORIES.map(c=>`<button class="toggle-btn ${c===sewtukCat?'active':''}" data-cfil="${c}">${c}</button>`).join('');
 
-  const semesters = Object.keys(data.grades).sort();
-  let html = `
-    <div style="margin-bottom:16px;">
-      <span class="filter-label">📐 계열별 평균:</span>
-      <div class="toggle-group" style="display:inline-flex;">${filterBtns}</div>
-    </div>
-  `;
-
-  // 학년 전체 요약 (필터 적용)
-  html += renderGradeFilterSummary(data);
-
-  // 학기별 표
-  semesters.forEach(sem=>{
-    html += renderSemesterBlock(sem, data.grades[sem]);
-  });
-
-  el.innerHTML = html;
-  el.querySelectorAll('[data-gfilter]').forEach(b=>{
-    b.onclick = ()=>{ currentGradeFilter = b.dataset.gfilter; renderTab(); };
-  });
-}
-
-function renderGradeFilterSummary(data){
-  const filter = GRADE_FILTERS[currentGradeFilter];
-  const allSubjects = [];
-  Object.entries(data.grades).forEach(([sem, semData])=>{
-    (semData.subjects||[]).forEach(sub=>{
-      allSubjects.push({...sub, sem});
-    });
-  });
   // 필터 적용
-  const filtered = filter
-    ? allSubjects.filter(s=> s.교과 && filter.some(k=> s.교과.includes(k)))
-    : allSubjects.filter(s=> s.등급!=null); // 전체: 등급 있는 과목만
-  // 가중평균
-  let totalCredit = 0, weighted = 0;
-  filtered.forEach(s=>{
-    if(s.등급!=null && s.학점){
-      totalCredit += s.학점;
-      weighted += s.등급 * s.학점;
+  const filtered = data.subjects.filter(s=>{
+    if(sewtukGrade!=='전체 학년'){
+      const g = parseInt(sewtukGrade[0]);
+      if(s.학년 !== g) return false;
     }
-  });
-  const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
-  const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
-  
-  return `
-    <div class="summary-grid">
-      <div class="summary-card highlight">
-        <div class="label">${currentGradeFilter} 평균등급</div>
-        <div class="value">${avg}</div>
-      </div>
-      <div class="summary-card">
-        <div class="label">반영 학점</div>
-        <div class="value">${totalCredit}</div>
-      </div>
-      <div class="summary-card">
-        <div class="label">반영 과목수</div>
-        <div class="value">${filtered.filter(s=>s.등급!=null).length}</div>
-      </div>
-    </div>
-    ${filter ? `<div style="color:#64748b;font-size:12px;margin-bottom:14px;">📌 포함 과목: ${subjNames || '없음'}</div>` : ''}
-  `;
-}
-
-function renderSemesterBlock(sem, semData){
-  const summary = semData.summary || {};
-  const subjects = semData.subjects || [];
-  const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
-  const filter = GRADE_FILTERS[currentGradeFilter];
-  
-  const rows = subjects.map(s=>{
-    const highlighted = filter && s.교과 && filter.some(k=> s.교과.includes(k));
-    const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
-    return `
-      <tr style="${rowStyle}">
-        <td>${s.교과||'-'}</td>
-        <td class="subj">${s.과목}</td>
-        <td>${s.학점||'-'}</td>
-        <td>${s.원점수!=null?s.원점수:'-'}</td>
-        <td>${s.과목평균!=null?s.과목평균:'-'}</td>
-        <td>${s.성취도||'-'}</td>
-        <td class="${s.등급?'grade-'+s.등급:''}">${s.등급!=null?s.등급:'-'}</td>
-        <td>${s.수강자수||'-'}</td>
-      </tr>
-    `;
-  }).join('');
-
-  return `
-    <div class="semester-block">
-      <div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${summary.평균등급||'-'}등급 · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div>
-      <table class="grade">
-        <thead>
-          <tr>
-            <th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>수강자</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  `;
-}
-
-// ========== 모의고사 탭 ==========
-function renderMock(el){
-  const hak = String(currentStu.hak);
-  const rounds = mock[hak] || [];
-  if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
-  rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
-  el.innerHTML = `
-    <div class="toggle-group">
-      ${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}
-    </div>
-    <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <table class="mock">
-      <thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
-      <tbody>
-        ${rounds.map(r=>`<tr><td>${ROUND_LABEL[r.round]||r.round}</td>${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}</tr>`).join('')}
-      </tbody>
-    </table>
-  `;
-  el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
-  drawChart(rounds);
-}
-
-function getVal(r, sub, mode){
-  const d = r[sub]; if(!d) return null;
-  if((sub==='영어'||sub==='한국사') && (mode==='백분위'||mode==='표준점수')) return d['등급'];
-  return d[mode] != null ? d[mode] : null;
-}
-
-function renderCell(r, sub){
-  const d = r[sub]; if(!d) return '<td>-</td>';
-  const mode = currentMode;
-  if(mode==='등급'){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
-  if(mode==='원점수'){ const v = d['원점수']; if(v==null) return '<td>-</td>'; const g = d['등급']; return `<td class="big bg-${g}">${v}</td>`; }
-  if((sub==='영어'||sub==='한국사')){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
-  const v = d[mode]; return `<td>${v!=null?v:'-'}</td>`;
-}
-
-function drawChart(rounds){
-  if(chartInst){ chartInst.destroy(); chartInst=null; }
-  const ctx = document.getElementById('chart'); if(!ctx) return;
-  const labels = rounds.map(r=>ROUND_LABEL[r.round]||r.round);
-  const datasets = SUBJECTS.map(sub=>({
-    label: sub, data: rounds.map(r=>getVal(r,sub,currentMode)),
-    borderColor: COLORS[sub], backgroundColor: COLORS[sub], tension: 0.25, spanGaps: true
-  }));
-  const cfg = getAxisConfig(currentMode);
-  chartInst = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: `${currentMode} 추이`, font:{size:14, weight:'bold'} }, legend: { position: 'bottom' } },
-      scales: {
-        y: {
-          reverse: cfg.reverse, min: cfg.min, max: cfg.max,
-          title: { display: true, text: currentMode, font:{weight:'bold'} },
-          afterBuildTicks: (axis) => { axis.ticks = cfg.ticks.map(v=>({value:v})); },
-          ticks: { callback: v=>v, stepSize: cfg.step }
-        }
-      }
+    if(sewtukSem!=='전체 학기'){
+      const sem = sewtukSem[0]; // "1" or "2"
+      // "both"는 1학기, 2학기 양쪽에 표시
+      if(s.학기 !== 'both' && String(s.학기) !== sem) return false;
     }
+    if(sewtukCat!=='전체 과목'){
+      if(s.교과 !== sewtukCat) return false;
+    }
+    return true;
   });
-}
 
-function getAxisConfig(mode){
-  if(mode==='등급') return { min:0.5, max:9.5, reverse:true, ticks:[1,2,3,4,5,6,7,8,9], step:1 };
-  if(mode==='백분위') return { min:0, max:100, reverse:false, ticks:[0,10,20,30,40,50,60,70,80,90,100], step:10 };
-  if(mode==='표준점수') return { min:0, max:200, reverse:false, ticks:[0,20,40,60,80,100,120,140,160,180,200], step:20 };
-  return { min:0, max:100, reverse:false, ticks:[0,10,20,30,40,50,60,70,80,90,100], step:10 };
-}
-
-document.getElementById('gradeFilter').onchange = (e)=>{
-  const g = e.target.value;
-  const cf = document.getElementById('classFilter');
-  cf.innerHTML = '<option value="">전체 반</option>';
-  if(g){
-    const classes = new Set(students.filter(s=>String(s.hak)[0]===g).map(s=>String(s.hak).substring(1,3)));
-    [...classes].sort().forEach(c=>{ cf.innerHTML += `<option value="${c}">${parseInt(c)}반</option>`; });
-  }
-  renderList();
-};
-document.getElementById('classFilter').onchange = renderList;
-document.getElementById('search').oninput = renderList;
-
-init();
-</script>
-</body>
-</html>
+  let html = `
+    <div class="filter-row">
+      <span class="filter-label">📚 학년</span>
+      <div class="toggle-group" style="margin:0;">${gradeBtns}</div>
+    </div>
+    <div class="filter-row">
+      
