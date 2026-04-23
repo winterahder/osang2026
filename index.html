@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 대입 상담카드 | 오상고등학교</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <h1>🎓 2026 대입 상담카드</h1>
+      <p class="subtitle">오상고등학교 · 2학년 / 3학년</p>
+    </div>
+    <div class="meta-info">
+      <span id="meta-updated">Loading...</span>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 사이드바 (학생 목록) -->
+  <aside class="sidebar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="🔍 이름/학번 검색">
+    </div>
+    <div class="grade-filter">
+      <button class="grade-btn active" data-grade="all">전체</button>
+      <button class="grade-btn" data-grade="3">3학년</button>
+      <button class="grade-btn" data-grade="2">2학년</button>
+    </div>
+    <div id="studentList" class="student-list"></div>
+    <div class="sidebar-footer">
+      <span id="studentCount">0명</span>
+    </div>
+  </aside>
+
+  <!-- 메인 컨텐츠 -->
+  <section class="content">
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">👈</div>
+      <h2>학생을 선택해주세요</h2>
+      <p>왼쪽 목록에서 학생을 클릭하면 상담카드가 표시됩니다.</p>
+    </div>
+
+    <div id="studentCard" class="student-card" style="display:none;">
+      <!-- 학생 헤더 -->
+      <div class="student-header">
+        <div class="student-info">
+          <h2 id="stuName">-</h2>
+          <div class="student-meta">
+            <span id="stuHak" class="badge badge-primary">-</span>
+            <span id="stuGender" class="badge">-</span>
+            <span id="stuClassInfo" class="badge">-</span>
+          </div>
+          <div class="student-history" id="stuHistory"></div>
+        </div>
+      </div>
+
+      <!-- 탭 네비게이션 -->
+      <nav class="tabs">
+        <button class="tab active" data-tab="basic">기본정보</button>
+        <button class="tab" data-tab="grades">내신</button>
+        <button class="tab" data-tab="mock">모의고사</button>
+        <button class="tab" data-tab="award">수상</button>
+        <button class="tab" data-tab="autonomy">자율</button>
+        <button class="tab" data-tab="club">동아리</button>
+        <button class="tab" data-tab="volunteer">봉사</button>
+        <button class="tab" data-tab="career">진로</button>
+        <button class="tab" data-tab="reading">독서</button>
+        <button class="tab" data-tab="sewtuk">세특</button>
+        <button class="tab" data-tab="behavior">행발</button>
+        <button class="tab" data-tab="attendance">출결</button>
+        <button class="tab" data-tab="applications">지원대학</button>
+        <button class="tab" data-tab="checklist">체크리스트</button>
+      </nav>
+
+      <!-- 탭 컨텐츠 -->
+      <div class="tab-content-area">
+        <div class="tab-content active" id="tab-basic"></div>
+        <div class="tab-content" id="tab-grades"></div>
+        <div class="tab-content" id="tab-mock"></div>
+        <div class="tab-content" id="tab-award"></div>
+        <div class="tab-content" id="tab-autonomy"></div>
+        <div class="tab-content" id="tab-club"></div>
+        <div class="tab-content" id="tab-volunteer"></div>
+        <div class="tab-content" id="tab-career"></div>
+        <div class="tab-content" id="tab-reading"></div>
+        <div class="tab-content" id="tab-sewtuk"></div>
+        <div class="tab-content" id="tab-behavior"></div>
+        <div class="tab-content" id="tab-attendance"></div>
+        <div class="tab-content" id="tab-applications"></div>
+        <div class="tab-content" id="tab-checklist"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 오상고등학교 · 대입 상담카드 시스템 v1.0</p>
+  <p class="disclaimer">⚠️ 본 자료는 교내 상담 목적으로만 사용되며, 외부 유출을 금합니다.</p>
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>

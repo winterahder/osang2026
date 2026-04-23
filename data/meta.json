@@ -1,0 +1,28 @@
+{
+  "school": "오상고등학교",
+  "year": 2026,
+  "updated": "2026-04-23",
+  "grades": [
+    2,
+    3
+  ],
+  "total_students": 483,
+  "version": "1.0.0",
+  "description": "2026학년도 대입 상담카드 데이터",
+  "data_structure": {
+    "students.json": "학생 기본정보 마스터 (주소·주민번호 제외)",
+    "mock.json": "모의고사 성적 (학번별 레코드 배열)",
+    "grades.json": "내신 성적 (추후 입력)",
+    "sewtuk.json": "과목별 세부능력 및 특기사항 (추후 입력)",
+    "behavior.json": "행동특성 및 종합의견 (추후 입력)",
+    "autonomy.json": "자율활동 (추후 입력)",
+    "career.json": "진로활동 (추후 입력)",
+    "club.json": "동아리활동 (추후 입력)",
+    "volunteer.json": "봉사활동 (추후 입력)",
+    "award.json": "수상경력 (참고용, 대입 미반영)",
+    "reading.json": "독서활동 (참고용, 대입 미반영)",
+    "applications.json": "지원대학 (추후 입력)",
+    "checklist.json": "평가 체크리스트 (추후 입력)",
+    "attendance.json": "출결상황 (추후 입력)"
+  }
+}
