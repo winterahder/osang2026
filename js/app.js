@@ -1,366 +1,283 @@
-
-// ==========================================
-// 오상고 상담카드 시스템 v2.6
-// - DOM null-safe
-// - mock.json: key=현재학번, value=배열, round=g1_3월
-// ==========================================
+// 오상고 상담카드 v2.6.1 - 기본정보 한글화 + y축 정수 눈금
+const STATE = { students: [], mock: {}, current: null, chart: null, scoreMode: 'grade' };
 
 const $ = (id) => document.getElementById(id);
 const setText = (id, t) => { const el = $(id); if (el) el.textContent = t; };
 const setHTML = (id, h) => { const el = $(id); if (el) el.innerHTML = h; };
 
-const STATE = {
-  students: [],
-  mock: {},
-  selected: null,
-  filterGrade: '',
-  filterClass: '',
-  search: '',
-  scoreMode: '등급',
-  activeTab: '기본정보'
+// 필드명 한글 라벨 매핑
+const FIELD_LABELS = {
+  hak: '학번', grade: '학년', class: '반', cls: '반', no: '번호',
+  name: '이름', gender: '성별', sex: '성별',
+  g1_hak: '1학년 학번', g2_hak: '2학년 학번', g3_hak: '3학년 학번',
+  birth: '생년월일', phone: '연락처', address: '주소',
+  parent: '보호자', parent_phone: '보호자 연락처',
+  email: '이메일', school: '출신학교', note: '비고'
 };
+const labelOf = (k) => FIELD_LABELS[k] || k;
 
 const ROUND_ORDER = {
   'g1_3월': 1, 'g1_6월': 2, 'g1_9월': 3, 'g1_11월': 4,
   'g2_3월': 5, 'g2_6월': 6, 'g2_9월': 7, 'g2_11월': 8,
   'g3_3월': 9, 'g3_6월': 10, 'g3_9월': 11, 'g3_11월': 12
 };
-function roundLabel(r) {
-  const m = /g(\d)_(.+)/.exec(r || '');
-  return m ? `${m[1]}학년 ${m[2]}` : (r || '-');
-}
+const roundLabel = (r) => {
+  if (!r) return '';
+  const m = String(r).match(/g(\d)_(\d+)월/);
+  if (m) return `${m[1]}학년 ${m[2]}월`;
+  return r;
+};
+
+const GRADE_COLOR = (g) => {
+  if (!g) return '#999';
+  if (g == 1) return '#1e40af';
+  if (g == 2) return '#2563eb';
+  if (g == 3) return '#059669';
+  if (g == 4) return '#ca8a04';
+  if (g == 5) return '#ea580c';
+  if (g == 6) return '#dc2626';
+  if (g == 7) return '#b91c1c';
+  if (g == 8) return '#991b1b';
+  if (g == 9) return '#7f1d1d';
+  return '#999';
+};
 
 function parseHak(hak) {
   const s = String(hak || '').padStart(5, '0');
   return { grade: +s[0] || 0, cls: +s.slice(1, 3) || 0, num: +s.slice(3, 5) || 0 };
 }
 
-function getField(obj, ...keys) {
-  for (const k of keys) {
-    if (obj && obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k];
-  }
-  return '';
-}
-
-// ---------- 데이터 로드 ----------
 async function init() {
   try {
-    setText('statusBar', '데이터 로드중...');
-
-    const [studentsRes, mockRes] = await Promise.all([
-      fetch('data/students.json'),
-      fetch('data/mock.json')
+    setText('statusBar', '데이터 로드 중...');
+    const [stuRes, mockRes] = await Promise.all([
+      fetch('data/students.json').then(r => { if (!r.ok) throw new Error('students.json ' + r.status); return r.json(); }),
+      fetch('data/mock.json').then(r => { if (!r.ok) throw new Error('mock.json ' + r.status); return r.json(); })
     ]);
-    if (!studentsRes.ok) throw new Error('students.json 로드 실패 (' + studentsRes.status + ')');
-    if (!mockRes.ok) throw new Error('mock.json 로드 실패 (' + mockRes.status + ')');
 
-    const studentsData = await studentsRes.json();
-    STATE.mock = await mockRes.json();
-
-    // students.json: 배열이든 딕셔너리든 처리
     let arr = [];
-    if (Array.isArray(studentsData)) {
-      arr = studentsData;
-    } else if (typeof studentsData === 'object') {
-      arr = Object.entries(studentsData).map(([k, v]) => ({ hak: k, ...v }));
-    }
+    if (Array.isArray(stuRes)) arr = stuRes;
+    else arr = Object.entries(stuRes).map(([k, v]) => ({ hak: k, ...v }));
 
-    // 정규화
-    STATE.students = arr.map(s => {
-      const hak = getField(s, 'hak', '학번') || '';
-      const p = parseHak(hak);
-      return {
-        hak: String(hak),
-        name: getField(s, 'name', '이름', '성명') || '(이름없음)',
-        sex: getField(s, 'sex', 'gender', '성별') || '',
-        grade: Number(getField(s, 'grade', '학년')) || p.grade,
-        cls: Number(getField(s, 'cls', '반')) || p.cls,
-        num: Number(getField(s, 'num', '번호')) || p.num,
-        g1_hak: getField(s, 'g1_hak', '1학년학번') || '',
-        g2_hak: getField(s, 'g2_hak', '2학년학번') || '',
-        raw: s
-      };
+    arr = arr.map(s => {
+      const p = parseHak(s.hak);
+      return { ...s, grade: s.grade || p.grade, class: s.class || p.cls, no: s.no || p.num };
     });
+    arr.sort((a, b) => String(a.hak).localeCompare(String(b.hak)));
 
-    // 학번 오름차순
-    STATE.students.sort((a, b) => String(a.hak).localeCompare(String(b.hak)));
+    STATE.students = arr;
+    STATE.mock = mockRes;
 
-    setText('statusBar', `총 ${STATE.students.length}명 로드됨`);
+    setText('statusBar', `총 ${arr.length}명 로드됨`);
     buildFilters();
     renderList();
-    attachEvents();
   } catch (e) {
-    console.error(e);
     setText('statusBar', '오류: ' + e.message);
-    const sl = $('studentList');
-    if (sl) sl.innerHTML = `<div class="err-box">❌ ${e.message}</div>`;
+    console.error(e);
   }
 }
 
-// ---------- 필터 드롭다운 ----------
 function buildFilters() {
-  const grades = [...new Set(STATE.students.map(s => s.grade).filter(Boolean))].sort();
-  const gf = $('gradeFilter');
-  if (gf) {
-    gf.innerHTML = '<option value="">전체 학년</option>' +
-      grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+  const gSel = $('gradeFilter');
+  if (gSel) gSel.addEventListener('change', onFilter);
+  const cSel = $('classFilter');
+  if (cSel) cSel.addEventListener('change', onFilter);
+  const search = $('searchBox');
+  if (search) search.addEventListener('input', onFilter);
+}
+
+function onFilter() {
+  const g = $('gradeFilter')?.value || '';
+  const cSel = $('classFilter');
+  if (g && cSel) {
+    const classes = [...new Set(STATE.students.filter(s => String(s.grade) === g).map(s => s.class))].sort((a, b) => a - b);
+    cSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+    cSel.style.display = 'inline-block';
+  } else if (cSel) {
+    cSel.innerHTML = '<option value="">전체 반</option>';
+    cSel.style.display = 'none';
   }
-  updateClassFilter();
+  renderList();
 }
 
-function updateClassFilter() {
-  const cf = $('classFilter');
-  if (!cf) return;
-  const pool = STATE.filterGrade
-    ? STATE.students.filter(s => String(s.grade) === String(STATE.filterGrade))
-    : STATE.students;
-  const classes = [...new Set(pool.map(s => s.cls).filter(Boolean))].sort((a, b) => a - b);
-  cf.innerHTML = '<option value="">전체 반</option>' +
-    classes.map(c => `<option value="${c}">${c}반</option>`).join('');
-}
-
-// ---------- 이벤트 ----------
-function attachEvents() {
-  const si = $('searchInput');
-  if (si) si.addEventListener('input', (e) => { STATE.search = e.target.value.trim(); renderList(); });
-  const gf = $('gradeFilter');
-  if (gf) gf.addEventListener('change', (e) => {
-    STATE.filterGrade = e.target.value;
-    STATE.filterClass = '';
-    updateClassFilter();
-    renderList();
-  });
-  const cf = $('classFilter');
-  if (cf) cf.addEventListener('change', (e) => { STATE.filterClass = e.target.value; renderList(); });
-}
-
-// ---------- 학생 목록 ----------
 function renderList() {
-  let list = STATE.students;
-  if (STATE.filterGrade) list = list.filter(s => String(s.grade) === String(STATE.filterGrade));
-  if (STATE.filterClass) list = list.filter(s => String(s.cls) === String(STATE.filterClass));
-  if (STATE.search) {
-    const q = STATE.search.toLowerCase();
-    list = list.filter(s => s.name.toLowerCase().includes(q) || String(s.hak).includes(q));
-  }
+  const g = $('gradeFilter')?.value || '';
+  const c = $('classFilter')?.value || '';
+  const q = ($('searchBox')?.value || '').trim().toLowerCase();
 
-  setText('countInfo', `${list.length}명`);
-  const html = list.map(s => `
-    <div class="student-item ${STATE.selected?.hak === s.hak ? 'active' : ''}" data-hak="${s.hak}">
-      <span class="hak">${String(s.hak).padStart(5, '0').slice(-4)}</span>
-      <span class="name">${s.name}</span>
-      <span class="sex">${s.sex}</span>
-    </div>
-  `).join('');
-  setHTML('studentList', html || '<div style="padding:20px;text-align:center;color:#999;">결과 없음</div>');
-  const sl = $('studentList');
-  if (sl) {
-    sl.querySelectorAll('.student-item').forEach(el => {
-      el.addEventListener('click', () => selectStudent(el.dataset.hak));
-    });
-  }
+  let list = STATE.students;
+  if (g) list = list.filter(s => String(s.grade) === g);
+  if (c) list = list.filter(s => String(s.class) === c);
+  if (q) list = list.filter(s => (s.name || '').toLowerCase().includes(q) || String(s.hak).includes(q));
+
+  const ul = $('studentList');
+  if (!ul) return;
+  if (!list.length) { ul.innerHTML = '<li class="empty">검색 결과 없음</li>'; return; }
+
+  ul.innerHTML = list.map(s => `
+    <li class="stu-item" data-hak="${s.hak}">
+      <span class="stu-hak">${String(s.hak).slice(-4)}</span>
+      <span class="stu-name">${s.name || ''}</span>
+      <span class="stu-sex">${s.gender || s.sex || ''}</span>
+    </li>`).join('');
+
+  ul.querySelectorAll('.stu-item').forEach(li => {
+    li.addEventListener('click', () => selectStudent(li.dataset.hak));
+  });
+  setText('listCount', `${list.length}명`);
 }
 
-// ---------- 학생 선택 ----------
 function selectStudent(hak) {
   const s = STATE.students.find(x => String(x.hak) === String(hak));
   if (!s) return;
-  STATE.selected = s;
-  renderList();
-  const empty = $('empty');
-  const detail = $('detail');
-  if (empty) empty.style.display = 'none';
-  if (detail) detail.style.display = 'block';
-  renderHeader();
+  STATE.current = s;
+
+  document.querySelectorAll('.stu-item').forEach(li => {
+    li.classList.toggle('active', li.dataset.hak === String(hak));
+  });
+
+  renderHeader(s);
   renderTabs();
-  renderTabBody();
+  switchTab('basic');
 }
 
-function renderHeader() {
-  const s = STATE.selected;
-  const html = `
-    <h2>${s.name} <span style="font-size:14px;color:#6b7280;font-weight:400;">(${s.hak})</span></h2>
-    <div class="badges">
-      <span class="badge">${s.grade}학년 ${s.cls}반 ${s.num}번</span>
-      ${s.sex ? `<span class="badge sex">${s.sex}</span>` : ''}
-      ${s.g1_hak ? `<span class="badge">1학년 학번: ${s.g1_hak}</span>` : ''}
-      ${s.g2_hak ? `<span class="badge">2학년 학번: ${s.g2_hak}</span>` : ''}
-    </div>
-  `;
-  setHTML('studentHeader', html);
-}
+function renderHeader(s) {
+  setText('studentName', s.name || '');
+  setText('studentHak', `(${s.hak})`);
 
-// ---------- 탭 ----------
-const TABS = ['기본정보', '모의고사', '내신', '세특', '행발', '수상', '독서'];
+  const badges = [];
+  badges.push(`<span class="badge badge-grade">${s.grade}학년 ${s.class}반 ${s.no}번</span>`);
+  badges.push(`<span class="badge">${s.gender || s.sex || ''}</span>`);
+  if (s.g1_hak) badges.push(`<span class="badge badge-mini">1학년 학번: ${s.g1_hak}</span>`);
+  if (s.g2_hak) badges.push(`<span class="badge badge-mini">2학년 학번: ${s.g2_hak}</span>`);
+  setHTML('studentBadges', badges.join(''));
+}
 
 function renderTabs() {
-  const html = TABS.map(t => `
-    <button class="tab-btn ${STATE.activeTab === t ? 'active' : ''}" data-tab="${t}">${t}</button>
-  `).join('');
-  setHTML('tabBar', html);
-  const tb = $('tabBar');
-  if (tb) tb.querySelectorAll('.tab-btn').forEach(b => {
-    b.addEventListener('click', () => {
-      STATE.activeTab = b.dataset.tab;
-      renderTabs();
-      renderTabBody();
-    });
+  const tabs = [
+    { id: 'basic', name: '기본정보' },
+    { id: 'mock', name: '모의고사' },
+    { id: 'naesin', name: '내신' },
+    { id: 'sewtuk', name: '세특' },
+    { id: 'haengbal', name: '행발' },
+    { id: 'award', name: '수상' },
+    { id: 'reading', name: '독서' }
+  ];
+  setHTML('tabBar', tabs.map(t =>
+    `<button class="tab-btn" data-tab="${t.id}">${t.name}</button>`
+  ).join(''));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.addEventListener('click', () => switchTab(b.dataset.tab));
   });
 }
 
-function renderTabBody() {
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === id);
+  });
+  const content = $('tabContent');
+  if (!content) return;
   try {
-    const t = STATE.activeTab;
-    if (t === '기본정보') renderBasic();
-    else if (t === '모의고사') renderMock();
-    else setHTML('tabBody', `<div class="info-box">📝 ${t} 탭은 준비 중입니다.</div>`);
+    if (id === 'basic') renderBasic();
+    else if (id === 'mock') renderMock();
+    else content.innerHTML = `<div class="empty-box">📋 ${id} 탭은 준비 중입니다.</div>`;
   } catch (e) {
+    content.innerHTML = `<div class="error-box">렌더 오류: ${e.message}</div>`;
     console.error(e);
-    setHTML('tabBody', `<div class="err-box">렌더 오류: ${e.message}</div>`);
   }
 }
 
 function renderBasic() {
-  const s = STATE.selected;
-  const raw = s.raw || {};
-  const items = Object.entries(raw)
-    .filter(([k, v]) => v !== '' && v !== null && v !== undefined && typeof v !== 'object')
-    .map(([k, v]) => `<tr><th style="text-align:left;padding:6px 10px;background:#f9fafb;">${k}</th><td style="padding:6px 10px;">${v}</td></tr>`)
-    .join('');
-  setHTML('tabBody', `<table style="width:100%;border-collapse:collapse;">${items}</table>`);
-}
-
-// ---------- 모의고사 ----------
-function getMockRecords(student) {
-  // key 후보
-  const keys = [student.hak, String(student.hak), Number(student.hak), student.g1_hak, student.g2_hak]
-    .filter(Boolean);
-  for (const k of keys) {
-    const v = STATE.mock[k] ?? STATE.mock[String(k)] ?? STATE.mock[Number(k)];
-    if (Array.isArray(v) && v.length) return v;
+  const s = STATE.current;
+  if (!s) return;
+  // 표시 우선순위
+  const preferred = ['hak', 'grade', 'class', 'no', 'name', 'gender', 'sex',
+    'g1_hak', 'g2_hak', 'g3_hak', 'birth', 'phone', 'address',
+    'parent', 'parent_phone', 'email', 'school', 'note'];
+  const seen = new Set();
+  const rows = [];
+  for (const k of preferred) {
+    if (s[k] !== undefined && s[k] !== null && s[k] !== '') {
+      rows.push(`<tr><th>${labelOf(k)}</th><td>${s[k]}</td></tr>`);
+      seen.add(k);
+    }
   }
-  return [];
+  // 기타 필드
+  for (const [k, v] of Object.entries(s)) {
+    if (seen.has(k)) continue;
+    if (v === undefined || v === null || v === '') continue;
+    if (typeof v === 'object') continue;
+    rows.push(`<tr><th>${labelOf(k)}</th><td>${v}</td></tr>`);
+  }
+  setHTML('tabContent', `<table class="info-table">${rows.join('')}</table>`);
 }
 
 function renderMock() {
-  const s = STATE.selected;
-  const records = getMockRecords(s);
+  const s = STATE.current;
+  const records = STATE.mock[s.hak] || STATE.mock[String(s.hak)] || STATE.mock[Number(s.hak)] || [];
 
-  if (!records || records.length === 0) {
-    setHTML('tabBody', `
-      <div class="info-box">📊 모의고사 데이터가 없습니다.<br>조회한 학번: ${s.hak}</div>
-    `);
+  if (!records.length) {
+    setHTML('tabContent', `<div class="empty-box">📊 모의고사 데이터 없음 (학번: ${s.hak})</div>`);
     return;
   }
 
-  // 정렬
   const sorted = [...records].sort((a, b) => (ROUND_ORDER[a.round] || 99) - (ROUND_ORDER[b.round] || 99));
 
-  const modes = ['등급', '백분위', '표준점수', '원점수'];
-  const modeBtns = modes.map(m => `
-    <button class="mode-btn ${STATE.scoreMode === m ? 'active' : ''}" data-mode="${m}">${m}</button>
-  `).join('');
-
-  setHTML('tabBody', `
-    <div class="mode-buttons">${modeBtns}</div>
-    <div class="chart-card">
-      <h3>📈 등급 추이</h3>
-      <div class="chart-wrap"><canvas id="mockChart"></canvas></div>
+  setHTML('tabContent', `
+    <div class="mock-toolbar">
+      <button class="score-btn active" data-mode="grade">등급</button>
+      <button class="score-btn" data-mode="백분위">백분위</button>
+      <button class="score-btn" data-mode="표준점수">표준점수</button>
+      <button class="score-btn" data-mode="원점수">원점수</button>
     </div>
-    <div class="section-title">회차별 세부 성적</div>
-    <div style="overflow-x:auto;">${buildMockTable(sorted)}</div>
+    <div class="chart-box"><h3>📈 등급 추이</h3><canvas id="mockChart" height="110"></canvas></div>
+    <div class="mock-table-box"><h3>회차별 세부 성적</h3><div id="mockTable"></div></div>
   `);
 
-  // 모드 버튼 이벤트
-  const tb = $('tabBody');
-  if (tb) tb.querySelectorAll('.mode-btn').forEach(b => {
+  document.querySelectorAll('.score-btn').forEach(b => {
     b.addEventListener('click', () => {
+      document.querySelectorAll('.score-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
       STATE.scoreMode = b.dataset.mode;
-      renderMock();
+      drawChart(sorted);
+      drawMockTable(sorted);
     });
   });
 
-  // 차트
+  STATE.scoreMode = 'grade';
   drawChart(sorted);
+  drawMockTable(sorted);
 }
 
-function gradeClass(g) {
-  const n = Number(g);
-  if (!n) return '';
-  if (n <= 9) return 'g' + n;
-  return '';
-}
-
-function renderCell(sub, record, mode, showSel) {
-  if (!sub || typeof sub !== 'object') return '-';
-  const selLabel = showSel && sub.선택 ? `<span class="sel-label">${sub.선택}</span>` : '';
-  if (mode === '등급') {
-    const g = sub.등급;
-    if (g == null) return '-';
-    return `<span class="${gradeClass(g)}">${g}등급</span>${selLabel}`;
-  }
-  // 영어/한국사는 표준점수/백분위 없음 → 등급 유지
-  if (mode === '표준점수' && sub.표준점수 != null) {
-    return `<span class="big-num pyo">${sub.표준점수}</span>${selLabel}`;
-  }
-  if (mode === '백분위' && sub.백분위 != null) {
-    return `<span class="big-num paek">${sub.백분위}</span>${selLabel}`;
-  }
-  if (mode === '원점수' && sub.원점수 != null) {
-    return `<span class="big-num won">${sub.원점수}</span>${selLabel}`;
-  }
-  // fallback: 등급
-  if (sub.등급 != null) {
-    return `<span class="${gradeClass(sub.등급)}">${sub.등급}등급</span>${selLabel}`;
-  }
-  return '-';
-}
-
-function buildMockTable(records) {
-  const header = `
-    <tr>
-      <th>회차</th><th>국어</th><th>수학</th><th>영어</th><th>한국사</th><th>탐구1</th><th>탐구2</th>
-    </tr>
-  `;
-  const rows = records.map(r => {
-    const is3 = r.grade_at === 3;  // 3학년만 선택과목 표시
-    return `
-      <tr>
-        <td class="round-label">${roundLabel(r.round)}</td>
-        <td>${renderCell(r['국어'], r, STATE.scoreMode, false)}</td>
-        <td>${renderCell(r['수학'], r, STATE.scoreMode, is3)}</td>
-        <td>${renderCell(r['영어'], r, STATE.scoreMode, false)}</td>
-        <td>${renderCell(r['한국사'], r, STATE.scoreMode, false)}</td>
-        <td>${renderCell(r['탐구1'], r, STATE.scoreMode, is3)}</td>
-        <td>${renderCell(r['탐구2'], r, STATE.scoreMode, is3)}</td>
-      </tr>
-    `;
-  }).join('');
-  return `<table class="score-table">${header}${rows}</table>`;
-}
-
-// ---------- 차트 ----------
-let chartInst = null;
 function drawChart(records) {
-  const canvas = $('mockChart');
-  if (!canvas || !window.Chart) return;
-  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const ctx = document.getElementById('mockChart');
+  if (!ctx) return;
+  if (STATE.chart) { STATE.chart.destroy(); STATE.chart = null; }
+
+  const subjects = [
+    { key: '국어', color: '#3b82f6' },
+    { key: '수학', color: '#ef4444' },
+    { key: '영어', color: '#10b981' },
+    { key: '한국사', color: '#8b5cf6' },
+    { key: '탐구1', color: '#f59e0b' },
+    { key: '탐구2', color: '#06b6d4' }
+  ];
 
   const labels = records.map(r => roundLabel(r.round));
-  const subjects = ['국어', '수학', '영어', '한국사', '탐구1', '탐구2'];
-  const colors = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#0891b2'];
-
-  const datasets = subjects.map((sub, i) => ({
-    label: sub,
-    data: records.map(r => r[sub] && r[sub].등급 != null ? r[sub].등급 : null),
-    borderColor: colors[i],
-    backgroundColor: colors[i] + '33',
-    tension: 0.2,
-    spanGaps: true,
-    pointRadius: 4
+  const datasets = subjects.map(sub => ({
+    label: sub.key,
+    data: records.map(r => {
+      const v = r[sub.key];
+      if (!v) return null;
+      return v.등급 || null;
+    }),
+    borderColor: sub.color,
+    backgroundColor: sub.color,
+    tension: 0.3,
+    spanGaps: true
   }));
 
-  chartInst = new Chart(canvas, {
+  STATE.chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options: {
@@ -372,7 +289,13 @@ function drawChart(records) {
           reverse: true,
           min: 0.5,
           max: 9.5,
-          ticks: { stepSize: 1 },
+          ticks: {
+            stepSize: 1,
+            callback: function(value) {
+              // 정수만 표시
+              return Number.isInteger(value) ? value : '';
+            }
+          },
           title: { display: true, text: '등급' }
         }
       },
@@ -383,9 +306,57 @@ function drawChart(records) {
   });
 }
 
-// ---------- 시작 ----------
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+function drawMockTable(records) {
+  const s = STATE.current;
+  const isG3 = String(s.grade) === '3';
+  const subjects = ['국어', '수학', '영어', '한국사', '탐구1', '탐구2'];
+  const mode = STATE.scoreMode;
+
+  const cell = (v, subject, round) => {
+    if (!v || typeof v !== 'object') return '<td class="empty-cell">-</td>';
+    const grade = v.등급;
+    const gradeColor = GRADE_COLOR(grade);
+
+    // 영어, 한국사는 원점수/표준/백분위 모드에서도 등급 표시
+    if ((subject === '영어' || subject === '한국사') && mode !== 'grade') {
+      if (grade) return `<td><span class="grade-text" style="color:${gradeColor}">${grade}등급</span></td>`;
+      return '<td class="empty-cell">-</td>';
+    }
+
+    if (mode === 'grade') {
+      if (grade) return `<td><span class="grade-text" style="color:${gradeColor}">${grade}등급</span></td>`;
+      return '<td class="empty-cell">-</td>';
+    }
+
+    // 점수 모드
+    const val = v[mode];
+    if (val === null || val === undefined) return '<td class="empty-cell">-</td>';
+
+    const bgClass = mode === '원점수' ? 'score-raw' : mode === '표준점수' ? 'score-std' : 'score-pct';
+    let html = `<span class="score-big ${bgClass}">${val}</span>`;
+
+    // 3학년 선택과목 표시
+    if (isG3 && (subject === '수학' || subject === '탐구1' || subject === '탐구2') && v.선택) {
+      html += `<br><small class="select-name">${v.선택}</small>`;
+    }
+    return `<td>${html}</td>`;
+  };
+
+  let html = '<table class="mock-table"><thead><tr><th>회차</th>';
+  subjects.forEach(sub => html += `<th>${sub}</th>`);
+  html += '</tr></thead><tbody>';
+
+  records.forEach(r => {
+    html += `<tr><td class="round-label">${roundLabel(r.round)}</td>`;
+    subjects.forEach(sub => {
+      html += cell(r[sub], sub, r.round);
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  const box = document.getElementById('mockTable');
+  if (box) box.innerHTML = html;
 }
+
+document.addEventListener('DOMContentLoaded', init);
