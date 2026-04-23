@@ -115,9 +115,9 @@ const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월
 
 const GRADE_FILTERS = {
   '전체': null,
-  '국영수사과': ['국어','영어','수학','사회','과학'],
+  '국영수사과': ['국어','영어','수학','사회(역사/도덕포함)','과학'],
   '국영수': ['국어','영어','수학'],
-  '국영수사': ['국어','영어','수학','사회'],
+  '국영수사': ['국어','영어','수학','사회(역사/도덕포함)'],
   '국영수과': ['국어','영어','수학','과학'],
   '영수과': ['영어','수학','과학']
 };
@@ -344,7 +344,7 @@ function renderGradeFilterSummary(data){
   const allSubjects = [];
   Object.entries(data.grades).forEach(([sem, semData])=>{ (semData.subjects||[]).forEach(sub=>{ allSubjects.push({...sub, sem}); }); });
   const filtered = filter
-    ? allSubjects.filter(s=> s.교과 && filter.some(k=> s.교과.includes(k)))
+    ? allSubjects.filter(s=> filter.includes(s.교과))
     : allSubjects.filter(s=> s.등급!=null);
   let totalCredit = 0, weighted = 0;
   filtered.forEach(s=>{ if(s.등급!=null && s.학점){ totalCredit += s.학점; weighted += s.등급 * s.학점; } });
@@ -366,7 +366,7 @@ function renderSemesterBlock(sem, semData){
   const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
   const filter = GRADE_FILTERS[currentGradeFilter];
   const rows = subjects.map(s=>{
-    const highlighted = filter && s.교과 && filter.some(k=> s.교과.includes(k));
+    const highlighted = filter && filter.includes(s.교과);
     const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
     return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${s.등급?'grade-'+s.등급:''}">${s.등급!=null?s.등급:'-'}</td><td>${s.수강자수||'-'}</td></tr>`;
   }).join('');
