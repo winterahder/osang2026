@@ -3,256 +3,409 @@
 <head>
 <meta charset="UTF-8">
 <title>오상고 상담카드 시스템 2026</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; }
-  .app { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: 60px 1fr; height: 100vh; }
-  header { grid-column: 1 / -1; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; }
-  .logo { font-size: 18px; font-weight: 700; }
-  .logo .year { color: #6b7280; font-weight: 500; margin-left: 8px; font-size: 14px; }
-  .counter { color: #6b7280; font-size: 13px; }
-  aside { background: #fff; border-right: 1px solid #e5e7eb; padding: 16px; overflow-y: auto; }
-  aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 8px; }
-  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .student-list { margin-top: 12px; }
-  .student-item { display: grid; grid-template-columns: 60px 1fr auto; gap: 8px; padding: 8px 10px; cursor: pointer; border-radius: 6px; font-size: 14px; align-items: center; }
-  .student-item:hover { background: #f3f4f6; }
-  .student-item.active { background: #fef3c7; font-weight: 600; }
-  .student-item .hak { color: #6b7280; font-variant-numeric: tabular-nums; }
-  .student-item .gender { font-size: 11px; color: #9ca3af; }
-  main { padding: 20px; overflow-y: auto; }
-  .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-  .student-header h2 { font-size: 22px; margin-bottom: 10px; }
+  body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; font-size: 14px; }
+  header { background: #fff; padding: 14px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  header h1 span.year { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 4px; }
+  #status { color: #64748b; font-size: 13px; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+  aside { background: #fff; border-radius: 8px; padding: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
+  aside .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .stu-list { flex: 1; overflow-y: auto; margin-top: 6px; }
+  .stu-item { display: grid; grid-template-columns: 55px 1fr; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; align-items: center; }
+  .stu-item:hover { background: #f1f5f9; }
+  .stu-item.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
+  .stu-item .hak { color: #64748b; font-variant-numeric: tabular-nums; }
+  .stu-item.active .hak { color: #1e40af; }
+  main { background: transparent; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: #fff; border-radius: 8px; padding: 18px 22px; }
+  .stu-header h2 { font-size: 20px; margin-bottom: 8px; }
   .badges { display: flex; gap: 6px; flex-wrap: wrap; }
-  .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+  .badge { padding: 4px 10px; background: #eff6ff; color: #1e40af; border-radius: 12px; font-size: 12px; }
   .badge.gender-m { background: #dbeafe; color: #1e40af; }
-  .badge.gender-f { background: #fce7f3; color: #9d174d; }
-  .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; }
-  .tab { padding: 10px 16px; cursor: pointer; border: none; background: none; font-size: 14px; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; }
-  .tab.active { color: #1e40af; border-bottom-color: #1e40af; font-weight: 700; background: #eff6ff; border-radius: 6px 6px 0 0; }
-  .empty { text-align: center; color: #9ca3af; padding: 60px 20px; }
-  table.info-table { width: 100%; border-collapse: collapse; }
-  table.info-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-  table.info-table td.label { background: #f9fafb; font-weight: 600; color: #374151; width: 160px; }
-  .toolbar { display: flex; gap: 6px; margin-bottom: 12px; }
-  .toolbar button { padding: 6px 14px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
-  .toolbar button.active { background: #1e40af; color: #fff; border-color: #1e40af; }
-  table.mock-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.mock-table th, table.mock-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #f3f4f6; }
-  table.mock-table th { background: #f9fafb; font-weight: 600; color: #374151; }
-  table.mock-table td.round { color: #1e40af; font-weight: 600; }
-  .grade-1 { color: #1e40af; font-weight: 700; }
-  .grade-2 { color: #2563eb; font-weight: 600; }
-  .grade-3 { color: #059669; font-weight: 600; }
-  .grade-4 { color: #ca8a04; }
-  .grade-5 { color: #d97706; }
-  .grade-6, .grade-7, .grade-8, .grade-9 { color: #dc2626; }
-  .chart-wrap { height: 400px; margin-bottom: 16px; }
-  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: #111827; }
+  .badge.gender-f { background: #fce7f3; color: #9f1239; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb; padding: 0 12px; background: #fff; border-radius: 8px 8px 0 0; }
+  .tab { padding: 12px 18px; cursor: pointer; font-size: 14px; color: #64748b; border-bottom: 2px solid transparent; }
+  .tab.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; background: #eff6ff; border-radius: 6px 6px 0 0; }
+  .tab-content { background: #fff; border-radius: 0 0 8px 8px; padding: 20px; min-height: 300px; }
+  .placeholder { text-align: center; color: #94a3b8; padding: 80px 0; font-size: 15px; }
+  table.info { width: 100%; border-collapse: collapse; }
+  table.info td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+  table.info td:first-child { width: 180px; background: #f8fafc; font-weight: 600; color: #475569; }
+  .toggle-group { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+  .toggle-btn { padding: 6px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .toggle-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .chart-wrap { position: relative; height: 340px; margin-bottom: 18px; }
+  table.mock, table.grade { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.mock th, table.mock td, table.grade th, table.grade td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+  table.mock th, table.grade th { background: #f8fafc; font-weight: 600; color: #475569; }
+  table.grade td.subj { text-align: left; font-weight: 500; }
+  table.grade td.grade-1 { color: #1e40af; font-weight: 700; }
+  table.grade td.grade-2 { color: #2563eb; font-weight: 600; }
+  table.grade td.grade-3 { color: #10b981; font-weight: 500; }
+  table.grade td.grade-7, table.grade td.grade-8, table.grade td.grade-9 { color: #dc2626; font-weight: 600; }
+  table.mock td.grade-1 { color: #2563eb; font-weight: 700; }
+  table.mock td.grade-2 { color: #2563eb; }
+  table.mock td.grade-9 { color: #dc2626; font-weight: 700; }
+  table.mock td.grade-8 { color: #dc2626; }
+  table.mock td.big { font-size: 15px; font-weight: 600; padding: 6px; }
+  table.mock td.bg-1 { background: #1e40af; color: #fff; }
+  table.mock td.bg-2 { background: #3b82f6; color: #fff; }
+  table.mock td.bg-3 { background: #60a5fa; color: #fff; }
+  table.mock td.bg-4 { background: #93c5fd; }
+  table.mock td.bg-5 { background: #fde68a; }
+  table.mock td.bg-6 { background: #fdba74; }
+  table.mock td.bg-7 { background: #fb923c; color: #fff; }
+  table.mock td.bg-8 { background: #ef4444; color: #fff; }
+  table.mock td.bg-9 { background: #991b1b; color: #fff; }
+  .semester-block { margin-bottom: 24px; }
+  .semester-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 10px; padding: 8px 12px; background: #f1f5f9; border-left: 4px solid #2563eb; border-radius: 4px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+  .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; text-align: center; }
+  .summary-card .label { color: #64748b; font-size: 12px; margin-bottom: 4px; }
+  .summary-card .value { font-size: 20px; font-weight: 700; color: #1e40af; }
+  .summary-card.highlight { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #93c5fd; }
+  .filter-label { display: inline-block; margin-right: 8px; font-weight: 600; color: #475569; font-size: 13px; }
+  .no-data { padding: 40px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 8px; }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="logo">📋 오상고 상담카드 시스템 <span class="year">2026</span></div>
-    <div class="counter" id="counter">-</div>
-  </header>
+<header>
+  <h1>📋 오상고 상담카드 시스템 <span class="year">2026</span></h1>
+  <div id="status">로딩중...</div>
+</header>
+<div class="layout">
   <aside>
-    <input type="text" id="search" placeholder="🔍 이름 또는 학번 검색">
+    <input id="search" placeholder="🔍 이름 또는 학번 검색">
     <div class="filters">
       <select id="gradeFilter"><option value="">전체 학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
       <select id="classFilter"><option value="">전체 반</option></select>
     </div>
-    <div class="student-list" id="studentList"></div>
+    <div class="stu-list" id="stuList"></div>
   </aside>
   <main id="main">
-    <div class="empty">👈 왼쪽에서 학생을 선택하세요</div>
+    <div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>
   </main>
 </div>
-
 <script>
 const LABELS = { hak:'학번', grade:'학년', class:'반', no:'번호', name:'이름', gender:'성별', g1_hak:'1학년 학번', g2_hak:'2학년 학번', g3_hak:'3학년 학번' };
 const ORDER = ['hak','grade','class','no','name','gender','g1_hak','g2_hak','g3_hak'];
-const ROUND_ORDER = {'g1_3월':1,'g1_6월':2,'g1_9월':3,'g1_11월':4,'g2_3월':5,'g2_6월':6,'g2_9월':7,'g2_11월':8,'g3_3월':9,'g3_6월':10,'g3_9월':11,'g3_11월':12};
-const ROUND_LABEL = {'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월':'1학년 9월','g1_11월':'1학년 11월','g2_3월':'2학년 3월','g2_6월':'2학년 6월','g2_9월':'2학년 9월','g2_11월':'2학년 11월','g3_3월':'3학년 3월','g3_6월':'3학년 6월','g3_9월':'3학년 9월','g3_11월':'3학년 11월'};
 const SUBJECTS = ['국어','수학','영어','한국사','탐구1','탐구2'];
-const COLORS = { '국어':'#3b82f6', '수학':'#ef4444', '영어':'#10b981', '한국사':'#8b5cf6', '탐구1':'#f97316', '탐구2':'#06b6d4' };
+const COLORS = { '국어':'#3b82f6','수학':'#ef4444','영어':'#10b981','한국사':'#8b5cf6','탐구1':'#f97316','탐구2':'#06b6d4' };
+const ROUND_ORDER = ['g1_3월','g1_6월','g1_9월','g1_11월','g2_3월','g2_6월','g2_9월','g2_11월','g3_3월','g3_6월','g3_9월','g3_11월'];
+const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월':'1학년 9월','g1_11월':'1학년 11월','g2_3월':'2학년 3월','g2_6월':'2학년 6월','g2_9월':'2학년 9월','g2_11월':'2학년 11월','g3_3월':'3학년 3월','g3_6월':'3학년 6월','g3_9월':'3학년 9월','g3_11월':'3학년 11월' };
 
-let students = [], mock = {}, current = null, mode = '등급', chart = null;
+// 내신 계열 필터 정의
+const GRADE_FILTERS = {
+  '전체': null,
+  '국영수': ['국어','영어','수학'],
+  '국영수사': ['국어','영어','수학','사회'],
+  '국영수과': ['국어','영어','수학','과학'],
+  '국영수사과': ['국어','영어','수학','사회','과학'],
+  '영수과': ['영어','수학','과학']
+};
 
-async function init() {
-  try {
-    const [sRes, mRes] = await Promise.all([fetch('data/students.json'), fetch('data/mock.json')]);
-    const sData = await sRes.json();
-    students = Array.isArray(sData) ? sData : (sData.students || Object.values(sData));
+let students=[], mock={}, grades={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+
+async function init(){
+  try{
+    const [sRes,mRes] = await Promise.all([
+      fetch('data/students.json'),
+      fetch('data/mock.json')
+    ]);
+    students = await sRes.json();
     mock = await mRes.json();
-    document.getElementById('counter').textContent = `총 ${students.length}명 로드됨`;
+    // 내신 데이터는 옵셔널 로드 (실패해도 앱은 동작)
+    try{
+      const gRes = await fetch('data/grades_2_1.json');
+      if(gRes.ok) grades = await gRes.json();
+    }catch(e){ console.warn('grades_2_1.json 로드 실패:', e); }
+    document.getElementById('status').textContent = `총 ${students.length}명 로드됨`;
     renderList();
-  } catch(e) {
-    document.getElementById('counter').textContent = '오류: ' + e.message;
-    console.error(e);
+  }catch(e){
+    document.getElementById('status').textContent = '오류: '+e.message;
   }
-  document.getElementById('search').addEventListener('input', renderList);
-  document.getElementById('gradeFilter').addEventListener('change', () => { updateClassFilter(); renderList(); });
-  document.getElementById('classFilter').addEventListener('change', renderList);
 }
 
-function updateClassFilter() {
-  const g = document.getElementById('gradeFilter').value;
-  const sel = document.getElementById('classFilter');
-  sel.innerHTML = '<option value="">전체 반</option>';
-  if (!g) return;
-  const classes = [...new Set(students.filter(s => String(s.hak||'').startsWith(g)).map(s => String(s.hak).substring(1,3)))].sort();
-  classes.forEach(c => { sel.innerHTML += `<option value="${c}">${parseInt(c)}반</option>`; });
-}
-
-function renderList() {
-  const q = document.getElementById('search').value.toLowerCase();
-  const g = document.getElementById('gradeFilter').value;
-  const c = document.getElementById('classFilter').value;
-  const filtered = students.filter(s => {
-    const hak = String(s.hak||'');
-    if (g && !hak.startsWith(g)) return false;
-    if (c && hak.substring(1,3) !== c) return false;
-    if (q && !(s.name||'').toLowerCase().includes(q) && !hak.includes(q)) return false;
+function renderList(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const gf = document.getElementById('gradeFilter').value;
+  const cf = document.getElementById('classFilter').value;
+  const filtered = students.filter(s=>{
+    const hak = String(s.hak);
+    if(gf && hak[0]!==gf) return false;
+    if(cf && hak.substring(1,3)!==cf) return false;
+    if(q && !s.name.toLowerCase().includes(q) && !hak.includes(q)) return false;
     return true;
   });
-  const list = document.getElementById('studentList');
-  list.innerHTML = filtered.map(s => `
-    <div class="student-item ${current && current.hak===s.hak?'active':''}" data-hak="${s.hak}">
-      <span class="hak">${s.hak}</span>
-      <span class="name">${s.name||''}</span>
-      <span class="gender">${s.gender||''}</span>
-    </div>`).join('');
-  list.querySelectorAll('.student-item').forEach(el => {
-    el.addEventListener('click', () => {
-      current = students.find(s => String(s.hak) === el.dataset.hak);
-      document.querySelector('.tabs .tab.active')?.classList.remove('active');
-      window._activeTab = '기본정보';
+  const list = document.getElementById('stuList');
+  list.innerHTML = filtered.map(s=>`<div class="stu-item ${currentStu && currentStu.hak===s.hak?'active':''}" data-hak="${s.hak}"><span class="hak">${s.hak}</span><span>${s.name}</span></div>`).join('');
+  list.querySelectorAll('.stu-item').forEach(el=>{
+    el.onclick = ()=>{
+      const hak = el.dataset.hak;
+      currentStu = students.find(s=>String(s.hak)===hak);
+      currentTab = '기본정보';
       renderList();
       renderMain();
-    });
+    };
   });
 }
 
-function renderMain() {
-  if (!current) return;
-  const activeTab = window._activeTab || '기본정보';
+function renderMain(){
+  if(!currentStu){ document.getElementById('main').innerHTML='<div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>'; return; }
+  const s = currentStu;
+  const genderClass = s.gender==='남'?'gender-m':'gender-f';
   const tabs = ['기본정보','모의고사','내신','세특','행발','수상','독서'];
-  const hak = String(current.hak||'');
-  const grade = hak[0], cls = parseInt(hak.substring(1,3)), no = parseInt(hak.substring(3,5));
-  const genderClass = current.gender === '남' ? 'gender-m' : 'gender-f';
   document.getElementById('main').innerHTML = `
-    <div class="card student-header">
-      <h2>${current.name} (${current.hak})</h2>
+    <div class="card stu-header">
+      <h2>${s.name} (${s.hak})</h2>
       <div class="badges">
-        <span class="badge">${grade}학년 ${cls}반 ${no}번</span>
-        <span class="badge ${genderClass}">${current.gender||''}</span>
-        ${current.g1_hak?`<span class="badge">1학년 학번: ${current.g1_hak}</span>`:''}
-        ${current.g2_hak?`<span class="badge">2학년 학번: ${current.g2_hak}</span>`:''}
-        ${current.g3_hak?`<span class="badge">3학년 학번: ${current.g3_hak}</span>`:''}
+        <span class="badge">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
+        <span class="badge ${genderClass}">${s.gender}</span>
+        ${s.g1_hak?`<span class="badge">1학년 학번: ${s.g1_hak}</span>`:''}
+        ${s.g2_hak?`<span class="badge">2학년 학번: ${s.g2_hak}</span>`:''}
       </div>
     </div>
-    <div class="card">
-      <div class="tabs">
-        ${tabs.map(t => `<button class="tab ${t===activeTab?'active':''}" data-tab="${t}">${t}</button>`).join('')}
-      </div>
-      <div id="tabContent"></div>
-    </div>
+    <div class="tabs">${tabs.map(t=>`<div class="tab ${t===currentTab?'active':''}" data-tab="${t}">${t}</div>`).join('')}</div>
+    <div class="tab-content" id="tabContent"></div>
   `;
-  document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      window._activeTab = btn.dataset.tab;
-      renderMain();
-    });
+  document.querySelectorAll('.tab').forEach(el=>{
+    el.onclick = ()=>{ currentTab = el.dataset.tab; renderMain(); };
   });
-  renderTab(activeTab);
+  renderTab();
 }
 
-function renderTab(tab) {
+function renderTab(){
   const el = document.getElementById('tabContent');
-  if (tab === '기본정보') {
-    const rows = ORDER.filter(k => current[k] !== undefined && current[k] !== null && current[k] !== '')
-      .map(k => `<tr><td class="label">${LABELS[k]||k}</td><td>${current[k]}</td></tr>`);
-    const extras = Object.keys(current).filter(k => !ORDER.includes(k))
-      .map(k => `<tr><td class="label">${LABELS[k]||k}</td><td>${current[k]}</td></tr>`);
-    el.innerHTML = `<table class="info-table"><tbody>${rows.join('')}${extras.join('')}</tbody></table>`;
-  } else if (tab === '모의고사') {
-    renderMock(el);
-  } else {
-    el.innerHTML = `<div class="empty">🚧 ${tab} 탭은 준비 중입니다</div>`;
-  }
+  if(!el) return;
+  if(currentTab==='기본정보') renderInfo(el);
+  else if(currentTab==='모의고사') renderMock(el);
+  else if(currentTab==='내신') renderGrades(el);
+  else el.innerHTML = `<div class="placeholder">${currentTab} 탭 (준비중)</div>`;
 }
 
-function renderMock(el) {
-  const data = mock[current.hak] || mock[String(current.hak)] || mock[Number(current.hak)] || [];
-  if (!data.length) {
-    el.innerHTML = `<div class="empty">📊 모의고사 데이터가 없습니다</div>`;
+function renderInfo(el){
+  const s = currentStu;
+  const keys = ORDER.filter(k=>s[k]!==undefined && s[k]!==null && s[k]!=='');
+  Object.keys(s).forEach(k=>{ if(!ORDER.includes(k) && s[k]) keys.push(k); });
+  el.innerHTML = `<table class="info">${keys.map(k=>`<tr><td>${LABELS[k]||k}</td><td>${s[k]}</td></tr>`).join('')}</table>`;
+}
+
+// ========== 내신 탭 ==========
+function renderGrades(el){
+  const s = currentStu;
+  // 학번 매칭: students.json의 g1_hak로 grades 데이터 찾기 (1학년때 학번)
+  // grades_2_1.json은 현재 2학년 1반 학생들의 "1학년 때 성적"
+  // key는 20101, 20102... 형태 (현 2학년 학번)
+  const hak = String(s.hak);
+  let data = grades[hak];
+  // 혹시 g2_hak로도 시도
+  if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
+  
+  if(!data || !data.grades){
+    el.innerHTML = `
+      <div class="no-data">
+        📋 내신 데이터가 없습니다<br>
+        <small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 성적만 등록되어 있습니다)</small>
+      </div>
+    `;
     return;
   }
-  const sorted = [...data].sort((a,b) => (ROUND_ORDER[a.round]||99) - (ROUND_ORDER[b.round]||99));
-  const modes = ['등급','백분위','표준점수','원점수'];
-  el.innerHTML = `
-    <div class="toolbar">
-      ${modes.map(m => `<button class="${m===mode?'active':''}" data-mode="${m}">${m}</button>`).join('')}
+
+  // 계열 필터 버튼
+  const filterBtns = Object.keys(GRADE_FILTERS).map(k=>
+    `<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`
+  ).join('');
+
+  const semesters = Object.keys(data.grades).sort();
+  let html = `
+    <div style="margin-bottom:16px;">
+      <span class="filter-label">📐 계열별 평균:</span>
+      <div class="toggle-group" style="display:inline-flex;">${filterBtns}</div>
     </div>
-    <div class="section-title">📈 ${mode} 추이</div>
+  `;
+
+  // 학년 전체 요약 (필터 적용)
+  html += renderGradeFilterSummary(data);
+
+  // 학기별 표
+  semesters.forEach(sem=>{
+    html += renderSemesterBlock(sem, data.grades[sem]);
+  });
+
+  el.innerHTML = html;
+  el.querySelectorAll('[data-gfilter]').forEach(b=>{
+    b.onclick = ()=>{ currentGradeFilter = b.dataset.gfilter; renderTab(); };
+  });
+}
+
+function renderGradeFilterSummary(data){
+  const filter = GRADE_FILTERS[currentGradeFilter];
+  const allSubjects = [];
+  Object.entries(data.grades).forEach(([sem, semData])=>{
+    (semData.subjects||[]).forEach(sub=>{
+      allSubjects.push({...sub, sem});
+    });
+  });
+  // 필터 적용
+  const filtered = filter
+    ? allSubjects.filter(s=> filter.includes(s.교과))
+    : allSubjects.filter(s=> s.등급!=null); // 전체: 등급 있는 과목만
+  // 가중평균
+  let totalCredit = 0, weighted = 0;
+  filtered.forEach(s=>{
+    if(s.등급!=null && s.학점){
+      totalCredit += s.학점;
+      weighted += s.등급 * s.학점;
+    }
+  });
+  const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
+  const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
+  
+  return `
+    <div class="summary-grid">
+      <div class="summary-card highlight">
+        <div class="label">${currentGradeFilter} 평균등급</div>
+        <div class="value">${avg}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">반영 학점</div>
+        <div class="value">${totalCredit}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">반영 과목수</div>
+        <div class="value">${filtered.filter(s=>s.등급!=null).length}</div>
+      </div>
+    </div>
+    ${filter ? `<div style="color:#64748b;font-size:12px;margin-bottom:14px;">📌 포함 과목: ${subjNames || '없음'}</div>` : ''}
+  `;
+}
+
+function renderSemesterBlock(sem, semData){
+  const summary = semData.summary || {};
+  const subjects = semData.subjects || [];
+  const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
+  const filter = GRADE_FILTERS[currentGradeFilter];
+  
+  const rows = subjects.map(s=>{
+    const highlighted = filter && filter.includes(s.교과);
+    const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
+    return `
+      <tr style="${rowStyle}">
+        <td>${s.교과||'-'}</td>
+        <td class="subj">${s.과목}</td>
+        <td>${s.학점||'-'}</td>
+        <td>${s.원점수!=null?s.원점수:'-'}</td>
+        <td>${s.과목평균!=null?s.과목평균:'-'}</td>
+        <td>${s.성취도||'-'}</td>
+        <td class="${s.등급?'grade-'+s.등급:''}">${s.등급!=null?s.등급:'-'}</td>
+        <td>${s.수강자수||'-'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="semester-block">
+      <div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${summary.평균등급||'-'}등급 · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div>
+      <table class="grade">
+        <thead>
+          <tr>
+            <th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>수강자</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ========== 모의고사 탭 ==========
+function renderMock(el){
+  const hak = String(currentStu.hak);
+  const rounds = mock[hak] || [];
+  if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
+  rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
+  el.innerHTML = `
+    <div class="toggle-group">
+      ${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}
+    </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <div class="section-title">회차별 세부 성적</div>
-    <table class="mock-table">
+    <table class="mock">
       <thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
       <tbody>
-        ${sorted.map(r => `<tr>
-          <td class="round">${ROUND_LABEL[r.round]||r.round}</td>
-          ${SUBJECTS.map(s => {
-            const v = r[s]; if (!v) return '<td>-</td>';
-            let val = mode==='등급'?v.등급 : mode==='백분위'?v.백분위 : mode==='표준점수'?v.표준점수 : v.원점수;
-            if (val === undefined || val === null) val = v.등급;
-            const cls = mode==='등급' && v.등급 ? `grade-${v.등급}` : '';
-            const sel = v.선택 ? `<small style="color:#6b7280">(${v.선택})</small> ` : '';
-            return `<td class="${cls}">${sel}${val}</td>`;
-          }).join('')}
-        </tr>`).join('')}
+        ${rounds.map(r=>`<tr><td>${ROUND_LABEL[r.round]||r.round}</td>${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}</tr>`).join('')}
       </tbody>
     </table>
   `;
-  document.querySelectorAll('.toolbar button').forEach(btn => {
-    btn.addEventListener('click', () => { mode = btn.dataset.mode; renderMock(el); });
-  });
-  drawChart(sorted);
+  el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
+  drawChart(rounds);
 }
 
-function drawChart(sorted) {
-  const ctx = document.getElementById('chart'); if (!ctx) return;
-  if (chart) chart.destroy();
-  const labels = sorted.map(r => ROUND_LABEL[r.round] || r.round);
-  const datasets = SUBJECTS.map(sub => ({
-    label: sub,
-    data: sorted.map(r => {
-      const v = r[sub]; if (!v) return null;
-      if (mode === '등급') return v.등급;
-      if (mode === '백분위') return v.백분위 ?? (v.등급 ? (10-v.등급)*10 : null);
-      if (mode === '표준점수') return v.표준점수 ?? null;
-      if (mode === '원점수') return v.원점수 ?? null;
-    }),
-    borderColor: COLORS[sub], backgroundColor: COLORS[sub],
-    tension: 0.3, pointRadius: 4, borderWidth: 2, spanGaps: true
+function getVal(r, sub, mode){
+  const d = r[sub]; if(!d) return null;
+  if((sub==='영어'||sub==='한국사') && (mode==='백분위'||mode==='표준점수')) return d['등급'];
+  return d[mode] != null ? d[mode] : null;
+}
+
+function renderCell(r, sub){
+  const d = r[sub]; if(!d) return '<td>-</td>';
+  const mode = currentMode;
+  if(mode==='등급'){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
+  if(mode==='원점수'){ const v = d['원점수']; if(v==null) return '<td>-</td>'; const g = d['등급']; return `<td class="big bg-${g}">${v}</td>`; }
+  if((sub==='영어'||sub==='한국사')){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
+  const v = d[mode]; return `<td>${v!=null?v:'-'}</td>`;
+}
+
+function drawChart(rounds){
+  if(chartInst){ chartInst.destroy(); chartInst=null; }
+  const ctx = document.getElementById('chart'); if(!ctx) return;
+  const labels = rounds.map(r=>ROUND_LABEL[r.round]||r.round);
+  const datasets = SUBJECTS.map(sub=>({
+    label: sub, data: rounds.map(r=>getVal(r,sub,currentMode)),
+    borderColor: COLORS[sub], backgroundColor: COLORS[sub], tension: 0.25, spanGaps: true
   }));
-  let yOpts;
-  if (mode === '등급') {
-    yOpts = { reverse: true, min: 0.5, max: 9.5, afterBuildTicks: (axis) => { axis.ticks = [1,2,3,4,5,6,7,8,9].map(v=>({value:v})); }, title: { display: true, text: '등급', font:{weight:'bold'} } };
-  } else if (mode === '백분위' || mode === '원점수') {
-    yOpts = { min: 0, max: 100, ticks: { stepSize: 10 }, title: { display: true, text: mode, font:{weight:'bold'} } };
-  } else {
-    yOpts = { min: 0, max: 200, ticks: { stepSize: 20 }, title: { display: true, text: '표준점수', font:{weight:'bold'} } };
-  }
-  chart = new Chart(ctx, {
+  const cfg = getAxisConfig(currentMode);
+  chartInst = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: yOpts }, plugins: { legend: { position: 'bottom' } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: `${currentMode} 추이`, font:{size:14, weight:'bold'} }, legend: { position: 'bottom' } },
+      scales: {
+        y: {
+          reverse: cfg.reverse, min: cfg.min, max: cfg.max,
+          title: { display: true, text: currentMode, font:{weight:'bold'} },
+          afterBuildTicks: (axis) => { axis.ticks = cfg.ticks.map(v=>({value:v})); },
+          ticks: { callback: v=>v, stepSize: cfg.step }
+        }
+      }
+    }
   });
 }
+
+function getAxisConfig(mode){
+  if(mode==='등급') return { min:0.5, max:9.5, reverse:true, ticks:[1,2,3,4,5,6,7,8,9], step:1 };
+  if(mode==='백분위') return { min:0, max:100, reverse:false, ticks:[0,10,20,30,40,50,60,70,80,90,100], step:10 };
+  if(mode==='표준점수') return { min:0, max:200, reverse:false, ticks:[0,20,40,60,80,100,120,140,160,180,200], step:20 };
+  return { min:0, max:100, reverse:false, ticks:[0,10,20,30,40,50,60,70,80,90,100], step:10 };
+}
+
+document.getElementById('gradeFilter').onchange = (e)=>{
+  const g = e.target.value;
+  const cf = document.getElementById('classFilter');
+  cf.innerHTML = '<option value="">전체 반</option>';
+  if(g){
+    const classes = new Set(students.filter(s=>String(s.hak)[0]===g).map(s=>String(s.hak).substring(1,3)));
+    [...classes].sort().forEach(c=>{ cf.innerHTML += `<option value="${c}">${parseInt(c)}반</option>`; });
+  }
+  renderList();
+};
+document.getElementById('classFilter').onchange = renderList;
+document.getElementById('search').oninput = renderList;
 
 init();
 </script>
