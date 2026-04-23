@@ -85,6 +85,8 @@
   .accordion-body { padding: 16px 20px; background: #fafbfc; border-top: 1px solid #f1f5f9; line-height: 1.8; font-size: 14px; color: #334155; display: none; white-space: pre-wrap; word-break: keep-all; }
   .accordion.open .accordion-body { display: block; }
   .sub-meta { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+  .scale-btn { margin-left: 12px; border-color: #a855f7 !important; color: #a855f7; }
+  .scale-btn.active { background: #a855f7 !important; color: #fff !important; border-color: #a855f7 !important; }
 </style>
 </head>
 <body>
@@ -122,14 +124,20 @@ const GRADE_FILTERS = {
   '영수과': ['영어','수학','과학']
 };
 
-// 세특 카테고리 순서
 const SEWTUK_CATEGORIES = ['전체 과목','국어','영어','수학','사회(역사/도덕포함)','과학','예술','체육','교양','제2외국어/한문'];
 const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
+// 5→9 등급 환산표 (이론값: 5등급제 각 등급의 백분위 범위에서 9등급 컷과의 가중평균)
+const CONV_5_TO_9 = { 1: 1.60, 2: 3.42, 3: 5.00, 4: 6.58, 5: 8.40 };
+
 let students=[], mock={}, grades={}, sewtuk={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
 let openAccordions = new Set();
+let gradeScale = 5; // 5 or 9
+
+function convG(g){ if(g==null) return null; return gradeScale===9 ? CONV_5_TO_9[g] : g; }
+function fmtG(g){ if(g==null) return '-'; const v = convG(g); return gradeScale===9 ? v.toFixed(2) : v; }
 
 async function init(){
   try{
@@ -225,31 +233,20 @@ function renderSewtuk(el){
   const hak = String(currentStu.hak);
   let data = sewtuk[hak];
   if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
-  
   if(!data || !data.subjects){
-    el.innerHTML = `
-      <div class="no-data">
-        📋 세특 데이터가 없습니다<br>
-        <small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다)</small>
-      </div>
-    `;
+    el.innerHTML = `<div class="no-data">📋 세특 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다)</small></div>`;
     return;
   }
-
-  // 3단계 필터
   const gradeBtns = SEWTUK_GRADES.map(g=>`<button class="toggle-btn ${g===sewtukGrade?'active':''}" data-gfil="${g}">${g}</button>`).join('');
   const semBtns = SEWTUK_SEMESTERS.map(s=>`<button class="toggle-btn ${s===sewtukSem?'active':''}" data-sfil="${s}">${s}</button>`).join('');
   const catBtns = SEWTUK_CATEGORIES.map(c=>`<button class="toggle-btn ${c===sewtukCat?'active':''}" data-cfil="${c}">${c}</button>`).join('');
-
-  // 필터 적용
   const filtered = data.subjects.filter(s=>{
     if(sewtukGrade!=='전체 학년'){
       const g = parseInt(sewtukGrade[0]);
       if(s.학년 !== g) return false;
     }
     if(sewtukSem!=='전체 학기'){
-      const sem = sewtukSem[0]; // "1" or "2"
-      // "both"는 1학기, 2학기 양쪽에 표시
+      const sem = sewtukSem[0];
       if(s.학기 !== 'both' && String(s.학기) !== sem) return false;
     }
     if(sewtukCat!=='전체 과목'){
@@ -257,29 +254,16 @@ function renderSewtuk(el){
     }
     return true;
   });
-
   let html = `
-    <div class="filter-row">
-      <span class="filter-label">📚 학년</span>
-      <div class="toggle-group" style="margin:0;">${gradeBtns}</div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">🗓 학기</span>
-      <div class="toggle-group" style="margin:0;">${semBtns}</div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">📖 과목</span>
-      <div class="toggle-group" style="margin:0;">${catBtns}</div>
-    </div>
-    <div style="color:#64748b;font-size:12px;margin-bottom:12px;">
-      총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다
-    </div>
+    <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
+    <div class="filter-row"><span class="filter-label">🗓 학기</span><div class="toggle-group" style="margin:0;">${semBtns}</div></div>
+    <div class="filter-row"><span class="filter-label">📖 과목</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
+    <div style="color:#64748b;font-size:12px;margin-bottom:12px;">총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다</div>
   `;
-
   if(filtered.length===0){
     html += `<div class="no-data">🔍 필터 조건에 해당하는 세특이 없습니다</div>`;
   }else{
-    filtered.forEach((s, idx)=>{
+    filtered.forEach((s)=>{
       const key = `${s.학년}-${s.학기}-${s.과목}`;
       const isOpen = openAccordions.has(key);
       html += `
@@ -298,14 +282,10 @@ function renderSewtuk(el){
       `;
     });
   }
-
   el.innerHTML = html;
-
-  // 필터 이벤트
   el.querySelectorAll('[data-gfil]').forEach(b=>b.onclick=()=>{ sewtukGrade=b.dataset.gfil; renderTab(); });
   el.querySelectorAll('[data-sfil]').forEach(b=>b.onclick=()=>{ sewtukSem=b.dataset.sfil; renderTab(); });
   el.querySelectorAll('[data-cfil]').forEach(b=>b.onclick=()=>{ sewtukCat=b.dataset.cfil; renderTab(); });
-  // 아코디언 토글
   el.querySelectorAll('.accordion-head').forEach(h=>{
     h.onclick = ()=>{
       const acc = h.parentElement;
@@ -331,12 +311,14 @@ function renderGrades(el){
     return;
   }
   const filterBtns = Object.keys(GRADE_FILTERS).map(k=>`<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`).join('');
+  const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급제 환산</button>`;
   const semesters = Object.keys(data.grades).sort();
-  let html = `<div style="margin-bottom:16px;"><span class="filter-label">📐 계열별 평균:</span><div class="toggle-group" style="display:inline-flex;">${filterBtns}</div></div>`;
+  let html = `<div style="margin-bottom:16px;"><span class="filter-label">📐 계열별 평균:</span><div class="toggle-group" style="display:inline-flex;">${filterBtns}${scaleBtn}</div></div>`;
   html += renderGradeFilterSummary(data);
   semesters.forEach(sem=>{ html += renderSemesterBlock(sem, data.grades[sem]); });
   el.innerHTML = html;
   el.querySelectorAll('[data-gfilter]').forEach(b=>{ b.onclick = ()=>{ currentGradeFilter = b.dataset.gfilter; renderTab(); }; });
+  el.querySelectorAll('[data-scale]').forEach(b=>{ b.onclick = ()=>{ gradeScale = gradeScale===5 ? 9 : 5; renderTab(); }; });
 }
 
 function renderGradeFilterSummary(data){
@@ -347,16 +329,18 @@ function renderGradeFilterSummary(data){
     ? allSubjects.filter(s=> filter.includes(s.교과))
     : allSubjects.filter(s=> s.등급!=null);
   let totalCredit = 0, weighted = 0;
-  filtered.forEach(s=>{ if(s.등급!=null && s.학점){ totalCredit += s.학점; weighted += s.등급 * s.학점; } });
+  filtered.forEach(s=>{ if(s.등급!=null && s.학점){ totalCredit += s.학점; weighted += convG(s.등급) * s.학점; } });
   const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
   const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
+  const scaleLabel = gradeScale===9 ? ' (9등급 환산)' : '';
   return `
     <div class="summary-grid">
-      <div class="summary-card highlight"><div class="label">${currentGradeFilter} 평균등급</div><div class="value">${avg}</div></div>
+      <div class="summary-card highlight"><div class="label">${currentGradeFilter} 평균등급${scaleLabel}</div><div class="value">${avg}</div></div>
       <div class="summary-card"><div class="label">반영 학점</div><div class="value">${totalCredit}</div></div>
       <div class="summary-card"><div class="label">반영 과목수</div><div class="value">${filtered.filter(s=>s.등급!=null).length}</div></div>
     </div>
     ${filter ? `<div style="color:#64748b;font-size:12px;margin-bottom:14px;">📌 포함 과목: ${subjNames || '없음'}</div>` : ''}
+    ${gradeScale===9 ? `<div style="color:#a855f7;font-size:12px;margin-bottom:14px;font-weight:600;">🔄 9등급 환산값: 1→1.60, 2→3.42, 3→5.00, 4→6.58, 5→8.40</div>` : ''}
   `;
 }
 
@@ -365,12 +349,17 @@ function renderSemesterBlock(sem, semData){
   const subjects = semData.subjects || [];
   const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
   const filter = GRADE_FILTERS[currentGradeFilter];
+  let semCredit = 0, semWeighted = 0;
+  subjects.forEach(s=>{ if(s.등급!=null && s.학점){ semCredit += s.학점; semWeighted += convG(s.등급) * s.학점; } });
+  const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
   const rows = subjects.map(s=>{
     const highlighted = filter && filter.includes(s.교과);
     const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
-    return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${s.등급?'grade-'+s.등급:''}">${s.등급!=null?s.등급:'-'}</td><td>${s.수강자수||'-'}</td></tr>`;
+    const gradeColor = s.등급!=null ? 'grade-'+Math.round(convG(s.등급)) : '';
+    return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeColor}">${fmtG(s.등급)}</td><td>${s.수강자수||'-'}</td></tr>`;
   }).join('');
-  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${summary.평균등급||'-'}등급 · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const scaleTag = gradeScale===9 ? ' <span style="color:#a855f7;font-weight:600;">[9등급 환산]</span>' : '';
+  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ========== 모의고사 탭 ==========
