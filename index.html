@@ -870,7 +870,40 @@ function getHeatClass(val, mode, sub){
   return '';
 }
 
-// 한국사 제외 평균 등급 계산
+// 모드별 평균/합계 계산 (한국사·영어 제외 기준 다름)
+function calcMockSummary(r, mode){
+  if(mode === '등급'){
+    // 한국사 제외 5과목 평균등급
+    const targets = SUBJECTS.filter(s => s !== '한국사');
+    let sum=0, cnt=0;
+    targets.forEach(sub=>{ const d=r[sub]; if(d&&d['등급']!=null){sum+=d['등급'];cnt++;} });
+    return cnt>0 ? { val: (sum/cnt).toFixed(2), label: '평균등급' } : null;
+  }
+  if(mode === '백분위'){
+    // 영어·한국사 제외 4과목 평균백분위
+    const targets = SUBJECTS.filter(s => s!=='영어' && s!=='한국사');
+    let sum=0, cnt=0;
+    targets.forEach(sub=>{ const d=r[sub]; if(d&&d['백분위']!=null){sum+=d['백분위'];cnt++;} });
+    return cnt>0 ? { val: (sum/cnt).toFixed(1), label: '평균백분위' } : null;
+  }
+  if(mode === '표준점수'){
+    // 영어·한국사 제외: 국어+수학+탐구1+탐구2 합계
+    const targets = ['국어','수학','탐구1','탐구2'];
+    let sum=0, cnt=0;
+    targets.forEach(sub=>{ const d=r[sub]; if(d&&d['표준점수']!=null){sum+=d['표준점수'];cnt++;} });
+    return cnt>0 ? { val: sum, label: '합계' } : null;
+  }
+  if(mode === '원점수'){
+    // 한국사 제외: 국어+수학+영어+탐구1+탐구2 합계
+    const targets = SUBJECTS.filter(s => s!=='한국사');
+    let sum=0, cnt=0;
+    targets.forEach(sub=>{ const d=r[sub]; if(d&&d['원점수']!=null){sum+=d['원점수'];cnt++;} });
+    return cnt>0 ? { val: sum, label: '합계' } : null;
+  }
+  return null;
+}
+
+// 한국사 제외 평균 등급 (그래프용 - 기존 유지)
 function calcMockAvgGrade(r){
   const targets = SUBJECTS.filter(s=>s!=='한국사');
   let sum=0, cnt=0;
@@ -884,18 +917,52 @@ function renderMock(el){
   if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
   rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
 
+  // 모드별 평균/합계 열 헤더 텍스트
+  const summaryHeaders = {
+    '등급':    '평균등급<br><span style="font-weight:400;font-size:11px;">(한국사 제외)</span>',
+    '백분위':  '평균백분위<br><span style="font-weight:400;font-size:11px;">(영어·한국사 제외)</span>',
+    '표준점수': '합계<br><span style="font-weight:400;font-size:11px;">(국·수·탐1·탐2)</span>',
+    '원점수':  '합계<br><span style="font-weight:400;font-size:11px;">(국·수·영·탐1·탐2)</span>',
+  };
+
+  // 모드별 히트맵 기준
+  const summaryHeatMode = {
+    '등급': '등급', '백분위': '백분위', '표준점수': 'sum표준', '원점수': 'sum원점',
+  };
+
+  function getSummaryHeatClass(val, mode){
+    if(val == null) return '';
+    if(mode === '등급')   return getHeatClass(Math.round(parseFloat(val)), '등급', '국어');
+    if(mode === '백분위') return getHeatClass(parseFloat(val), '백분위', '국어');
+    if(mode === '표준점수'){
+      // 합계 기준 (국수탐1탐2, 만점 400점대)
+      const s = parseFloat(val);
+      if(s>=360) return 'heat-1'; if(s>=330) return 'heat-2'; if(s>=300) return 'heat-3';
+      if(s>=270) return 'heat-4'; if(s>=240) return 'heat-5'; if(s>=210) return 'heat-6';
+      if(s>=180) return 'heat-7'; if(s>=150) return 'heat-8'; return 'heat-9';
+    }
+    if(mode === '원점수'){
+      // 합계 기준 (국수영탐1탐2, 만점 500점)
+      const s = parseFloat(val);
+      if(s>=450) return 'heat-1'; if(s>=400) return 'heat-2'; if(s>=350) return 'heat-3';
+      if(s>=300) return 'heat-4'; if(s>=250) return 'heat-5'; if(s>=200) return 'heat-6';
+      if(s>=150) return 'heat-7'; if(s>=100) return 'heat-8'; return 'heat-9';
+    }
+    return '';
+  }
+
   // 회차별 행
   const roundRows = rounds.map(r=>{
-    const avg = calcMockAvgGrade(r);
-    const hc  = avg ? getHeatClass(Math.round(parseFloat(avg)),'등급','국어') : '';
-    const avgCell = avg!=null
-      ? `<td style="text-align:center;"><span class="heat-badge ${hc}" style="font-size:13px;">${avg}</span></td>`
+    const summary = calcMockSummary(r, currentMode);
+    const hc = summary ? getSummaryHeatClass(summary.val, currentMode) : '';
+    const summaryCell = summary
+      ? `<td style="text-align:center;"><span class="heat-badge ${hc}" style="font-size:13px;">${summary.val}</span></td>`
       : '<td style="color:#cbd5e1;">-</td>';
     return `<tr>
       <td style="text-align:center;">
         <div style="font-size:13px;font-weight:600;color:#334155;">${ROUND_LABEL[r.round]||r.round}</div>
       </td>
-      ${avgCell}
+      ${summaryCell}
       ${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}
     </tr>`;
   }).join('');
@@ -905,7 +972,7 @@ function renderMock(el){
     <table class="mock">
       <thead><tr>
         <th>회차</th>
-        <th style="color:#6d28d9;">평균<br><span style="font-weight:400;font-size:11px;">(한국사 제외)</span></th>
+        <th style="color:#6d28d9;">${summaryHeaders[currentMode]||''}</th>
         ${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}
       </tr></thead>
       <tbody>${roundRows}</tbody>
