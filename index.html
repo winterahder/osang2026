@@ -130,6 +130,13 @@
   .sub-meta { font-size: 11px; color: #94a3b8; margin-left: 4px; }
   .scale-btn { margin-left: 12px; border: 1px solid #a855f7 !important; color: #a855f7; background: #fff; }
   .scale-btn.active { background: #a855f7 !important; color: #fff !important; border-color: #a855f7 !important; }
+  .rank-btn { margin-left: 4px; border: 1px solid #10b981 !important; color: #10b981; background: #fff; }
+  .rank-btn.active { background: #10b981 !important; color: #fff !important; border-color: #10b981 !important; }
+  .grade-stat-card.rank-card { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: #86efac; grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
+  .grade-stat-card.rank-card .sc-label { text-align: left; font-size: 12px; color: #16a34a; font-weight: 600; }
+  .grade-stat-card.rank-card .rank-val { font-size: 22px; font-weight: 800; color: #15803d; }
+  .grade-stat-card.rank-card .rank-sub { font-size: 12px; color: #4ade80; margin-left: 4px; font-weight: 500; }
+  .grade-stat-card.rank-card .rank-right { display: flex; align-items: baseline; gap: 2px; }
   .est-info { background: linear-gradient(135deg, #faf5ff, #f3e8ff); border: 1px solid #e9d5ff; color: #6b21a8; padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
   .est-info strong { color: #a855f7; }
   .est-tag { display: inline-block; padding: 2px 6px; background: #f3e8ff; color: #a855f7; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 4px; }
@@ -191,6 +198,7 @@ const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
 let students=[], mock={}, grades={}, sewtuk={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
 let currentPassword = '';
+let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
 let openAccordions = new Set();
 let gradeScale = 5; // 5 or 9
@@ -459,6 +467,33 @@ function renderInfo(el){
 // ========== 내신 탭 ==========
 let gradeChartInst = null;
 
+// 학생 한 명의 필터 기준 가중평균 계산
+function calcStudentAvg(studentData, filter){
+  if(!studentData || !studentData.grades) return null;
+  const allSubjects = [];
+  Object.values(studentData.grades).forEach(semData=>{
+    (semData.subjects||[]).forEach(sub=>allSubjects.push(sub));
+  });
+  const filtered = filter
+    ? allSubjects.filter(s=>filter.includes(s.교과))
+    : allSubjects.filter(s=>s.등급!=null);
+  let totalCredit=0, weighted=0;
+  filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; } });
+  return totalCredit>0 ? weighted/totalCredit : null;
+}
+
+// 전체 학생 중 현재 학생의 등수 계산
+function calcRank(currentData, filter){
+  const myAvg = calcStudentAvg(currentData, filter);
+  if(myAvg===null) return null;
+  let rank=1, total=0;
+  Object.values(grades).forEach(data=>{
+    const avg = calcStudentAvg(data, filter);
+    if(avg!==null){ total++; if(avg < myAvg) rank++; }
+  });
+  return { rank, total };
+}
+
 function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
@@ -470,9 +505,10 @@ function renderGrades(el){
   }
   const filterBtns = Object.keys(GRADE_FILTERS).map(k=>`<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`).join('');
   const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
+  const rankBtn  = `<button class="toggle-btn rank-btn ${showRank?'active':''}" data-rank="toggle">🏅 학교 등수</button>`;
   const semesters = Object.keys(data.grades).sort();
 
-  let html = `<div style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;"><span class="filter-label">📐 계열:</span><div class="toggle-group" style="margin:0;">${filterBtns}${scaleBtn}</div></div>`;
+  let html = `<div style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;"><span class="filter-label">📐 계열:</span><div class="toggle-group" style="margin:0;">${filterBtns}${scaleBtn}${rankBtn}</div></div>`;
 
   if(gradeScale === 9){
     html += `<div class="est-info">
@@ -489,6 +525,7 @@ function renderGrades(el){
   // 이벤트
   el.querySelectorAll('[data-gfilter]').forEach(b=>{ b.onclick = ()=>{ currentGradeFilter = b.dataset.gfilter; renderTab(); }; });
   el.querySelectorAll('[data-scale]').forEach(b=>{ b.onclick = ()=>{ gradeScale = gradeScale===5 ? 9 : 5; renderTab(); }; });
+  el.querySelectorAll('[data-rank]').forEach(b=>{ b.onclick = ()=>{ showRank = !showRank; renderTab(); }; });
 
   // 학기별 추이 차트 그리기
   drawGradeChart(data, semesters);
@@ -513,6 +550,25 @@ function renderGradeFilterSummary(data, semesters){
   const is9 = gradeScale===9;
   const scaleLabel = is9 ? ' (9등급)' : '';
 
+  // 등수 카드
+  let rankCardHtml = '';
+  if(showRank){
+    const rankInfo = calcRank(data, filter);
+    if(rankInfo){
+      const pct = ((rankInfo.rank / rankInfo.total)*100).toFixed(0);
+      rankCardHtml = `
+        <div class="grade-stat-card rank-card">
+          <div class="sc-label">🏅 ${currentGradeFilter} 학교 등수${scaleLabel}</div>
+          <div class="rank-right">
+            <span class="rank-val">${rankInfo.rank}위</span>
+            <span class="rank-sub">/ ${rankInfo.total}명 (상위 ${pct}%)</span>
+          </div>
+        </div>`;
+    } else {
+      rankCardHtml = `<div class="grade-stat-card rank-card"><div class="sc-label">🏅 등수</div><div class="rank-right"><span class="rank-val" style="font-size:14px;color:#94a3b8;">산출 불가</span></div></div>`;
+    }
+  }
+
   return `
     <div class="grade-summary-panel">
       <div class="grade-stats">
@@ -524,6 +580,7 @@ function renderGradeFilterSummary(data, semesters){
         <div class="grade-stat-row">
           <div class="grade-stat-card"><div class="sc-label">반영 학점</div><div class="sc-val">${totalCredit}</div></div>
           <div class="grade-stat-card"><div class="sc-label">반영 과목수</div><div class="sc-val">${cntWithGrade}</div></div>
+          ${rankCardHtml}
         </div>
       </div>
       <div class="grade-chart-panel">
