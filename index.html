@@ -118,15 +118,11 @@
   .acc-top-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .accordion-title .sub-cat { padding: 3px 8px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; flex-shrink: 0; }
-  .key-points { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-  .key-points li { color: #475569; font-size: 12px; line-height: 1.6; display: flex; align-items: flex-start; gap: 6px; }
-  .key-points li .kp-bullet { color: #2563eb; flex-shrink: 0; font-size: 11px; margin-top: 1px; background: #dbeafe; border-radius: 3px; padding: 1px 5px; font-weight: 700; }
-  .accordion.open .key-points li { color: #1e3a8a; }
-  .kp-loading { display: flex; align-items: center; gap: 7px; color: #94a3b8; font-size: 12px; padding: 4px 0; }
-  .kp-spinner { width: 13px; height: 13px; border: 2px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: kp-spin 0.75s linear infinite; flex-shrink: 0; }
-  @keyframes kp-spin { to { transform: rotate(360deg); } }
-  .kp-error { color: #f87171; font-size: 12px; cursor: pointer; }
-  .kp-error:hover { text-decoration: underline; }
+
+  .sewtuk-summary { color: #475569; font-size: 12.5px; line-height: 1.65; padding: 5px 0 2px; display: flex; align-items: flex-start; gap: 7px; }
+  .sewtuk-summary .sum-bullet { flex-shrink: 0; background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-top: 1px; }
+  .accordion.open .sewtuk-summary { color: #1e3a8a; }
+  .accordion.open .sewtuk-summary .sum-bullet { background: #bfdbfe; }
   .accordion-head .arrow { color: #94a3b8; font-size: 12px; transition: transform 0.2s; }
   .accordion.open .arrow { transform: rotate(90deg); color: #2563eb; }
   .accordion-body { padding: 16px 20px; background: #fafbfc; border-top: 1px solid #f1f5f9; line-height: 1.8; font-size: 14px; color: #334155; display: none; white-space: pre-wrap; word-break: keep-all; }
@@ -678,89 +674,23 @@ function renderSemesterBlock(sem, semData){
   return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-// ========== 세특 AI 키포인트 ==========
-const kpCache = {};   // 메모리 캐시
-const KP_LS_KEY = 'sewtuk_kp_v1';
-
-(function loadKPCache(){
-  try{ const s = localStorage.getItem(KP_LS_KEY); if(s) Object.assign(kpCache, JSON.parse(s)); }catch(e){}
-})();
-
-function saveKPCache(){
-  try{ localStorage.setItem(KP_LS_KEY, JSON.stringify(kpCache)); }catch(e){}
-}
-
-function kpCacheKey(hak, subj){
-  return `${hak}||${subj.학년}||${subj.학기}||${subj.과목}`;
-}
-
-async function fetchKeyPoints(hak, subj){
-  const ck = kpCacheKey(hak, subj);
-  if(kpCache[ck]) return kpCache[ck];
-
-  const prompt = `다음은 고등학생의 세부능력 및 특기사항(세특)입니다.
-글 전체를 읽고, 학생이 실제로 수행한 핵심 활동·탐구·역량을 3가지로 정리하세요.
-각 항목은 반드시 다음 형식을 지켜주세요:
-"활동/주제 요약 (핵심 역량 키워드)"
-
-예시:
-["'비트코인 화폐 인정 여부' 토론 및 '민생지원금 정책' 분석 (비판적 사고·논리적 분석 역량)", "토론 연계 카드뉴스 2회 제작 및 협력적 소통 실천 (디지털·미디어·의사소통 역량)", "소설 '철의 사랑' 감상을 통한 소외계층 공감 (공동체·자기성찰 역량)"]
-
-규칙:
-- 반드시 JSON 배열만 출력 (다른 텍스트, 마크다운 코드블록 금지)
-- 3개 항목, 각 항목은 한 문장
-- 구체적 활동명·작품명·주제어를 포함할 것
-- 추상적이거나 일반적인 표현 지양
-
-세특 내용:
-${subj.내용}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 400,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-  if(!res.ok) throw new Error(`API ${res.status}`);
-  const data = await res.json();
-  const raw = (data.content?.[0]?.text || '').replace(/```json|```/g,'').trim();
-  const points = JSON.parse(raw);
-  kpCache[ck] = points;
-  saveKPCache();
-  return points;
-}
-
-function renderKPLoading(){ return `<div class="kp-loading"><span class="kp-spinner"></span>AI 핵심 분석 중…</div>`; }
-function renderKPPoints(points){
-  const labels = ['①','②','③'];
-  return `<ul class="key-points">${points.map((p,i)=>`<li><span class="kp-bullet">${labels[i]||'·'}</span>${escapeHtml(p)}</li>`).join('')}</ul>`;
-}
-
-async function loadKPForSubjects(filtered, hak, tabEl){
-  for(const s of filtered){
-    const ck = kpCacheKey(hak, s);
-    const slot = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
-    if(!slot) continue;
-    if(kpCache[ck]){ slot.outerHTML = renderKPPoints(kpCache[ck]); continue; }
-    try{
-      const points = await fetchKeyPoints(hak, s);
-      const fresh = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
-      if(fresh) fresh.outerHTML = renderKPPoints(points);
-    }catch(err){
-      const fresh = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
-      if(fresh) fresh.innerHTML = `<span class="kp-error" title="클릭하여 재시도">⚠ 분석 실패 — 재시도</span>`;
-    }
+// ========== 세특 요약 렌더링 ==========
+function renderSummary(summary){
+  if(!summary) return '';
+  if(Array.isArray(summary)){
+    const labels = ['①','②','③'];
+    const items = summary.map((p,i) =>
+      `<div class="sewtuk-summary"><span class="sum-bullet">${labels[i]||'·'}</span>${escapeHtml(p)}</div>`
+    ).join('');
+    return items;
   }
+  return `<div class="sewtuk-summary"><span class="sum-bullet">요약</span>${escapeHtml(summary)}</div>`;
 }
 
 // ========== 세특 탭 ==========
 function renderSewtuk(el){
   const hak = String(currentStu.hak);
   let data = sewtuk[hak];
-  const hakForKP = (data && data.subjects) ? hak : (currentStu.g2_hak ? String(currentStu.g2_hak) : hak);
   if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
   if(!data || !data.subjects){
     el.innerHTML = `<div class="no-data">📋 세특 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다 — 다른 반은 추후 업데이트 예정)</small></div>`;
@@ -786,11 +716,7 @@ function renderSewtuk(el){
   }else{
     filtered.forEach(s=>{
       const key = `${s.학년}-${s.학기}-${s.과목}`;
-      const ck = kpCacheKey(hakForKP, s);
       const isOpen = openAccordions.has(key);
-      const kpSlot = kpCache[ck]
-        ? renderKPPoints(kpCache[ck])
-        : `<div class="kp-loading" data-kpslot="${escapeHtml(ck)}"><span class="kp-spinner"></span>AI 핵심 분석 중…</div>`;
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
@@ -800,7 +726,7 @@ function renderSewtuk(el){
                 <span class="sub-name">${s.과목}</span>
                 <span class="sub-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
               </div>
-              ${kpSlot}
+              ${renderSummary(s.요약)}
             </div>
             <span class="arrow">▶</span>
           </div>
@@ -810,9 +736,6 @@ function renderSewtuk(el){
     });
   }
   el.innerHTML = html;
-  // 캐시 없는 과목만 순차적으로 AI 분석 (비동기)
-  const needsLoad = filtered.filter(s => !kpCache[kpCacheKey(hakForKP, s)]);
-  if(needsLoad.length > 0) loadKPForSubjects(needsLoad, hakForKP, el);
   el.querySelectorAll('[data-gfil]').forEach(b=>b.onclick=()=>{ sewtukGrade=b.dataset.gfil; renderTab(); });
   el.querySelectorAll('[data-sfil]').forEach(b=>b.onclick=()=>{ sewtukSem=b.dataset.sfil; renderTab(); });
   el.querySelectorAll('[data-cfil]').forEach(b=>b.onclick=()=>{ sewtukCat=b.dataset.cfil; renderTab(); });
