@@ -7,6 +7,23 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; font-size: 14px; }
+  /* ===== 비밀번호 잠금 화면 ===== */
+  #lockScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  #lockScreen.hidden { display: none; }
+  .lock-box { background: #fff; border-radius: 16px; padding: 40px 44px; width: 360px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.35); }
+  .lock-box .lock-icon { font-size: 48px; margin-bottom: 12px; }
+  .lock-box h2 { font-size: 18px; color: #1e293b; margin-bottom: 4px; }
+  .lock-box p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+  .lock-box input[type=password] { width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; outline: none; transition: border 0.2s; margin-bottom: 12px; letter-spacing: 3px; }
+  .lock-box input[type=password]:focus { border-color: #2563eb; }
+  .lock-box button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .lock-box button:hover { background: #1d4ed8; }
+  .lock-box button:active { transform: scale(0.98); }
+  .lock-error { color: #ef4444; font-size: 13px; margin-top: 10px; min-height: 20px; }
+  .lock-remember { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; margin-bottom: 12px; cursor: pointer; justify-content: center; }
+  .lock-spinner { display: none; align-items: center; justify-content: center; gap: 10px; color: #2563eb; font-size: 13px; margin-top: 10px; }
+  .lock-spinner.show { display: flex; }
+  .ls-spin { width: 18px; height: 18px; border: 3px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: kp-spin 0.75s linear infinite; }
   header { background: #fff; padding: 14px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
   header h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
   header h1 span.year { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 4px; }
@@ -81,10 +98,19 @@
   .accordion-head { padding: 14px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: background 0.15s; }
   .accordion-head:hover { background: #f8fafc; }
   .accordion.open .accordion-head { background: #eff6ff; border-bottom: 1px solid #dbeafe; }
-  .accordion-title { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .accordion-title { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+  .acc-top-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .accordion-title .sub-cat { padding: 3px 8px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; flex-shrink: 0; }
-  .accordion-title .sub-summary { color: #64748b; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .key-points { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .key-points li { color: #475569; font-size: 12px; line-height: 1.6; display: flex; align-items: flex-start; gap: 6px; }
+  .key-points li .kp-bullet { color: #2563eb; flex-shrink: 0; font-size: 11px; margin-top: 1px; background: #dbeafe; border-radius: 3px; padding: 1px 5px; font-weight: 700; }
+  .accordion.open .key-points li { color: #1e3a8a; }
+  .kp-loading { display: flex; align-items: center; gap: 7px; color: #94a3b8; font-size: 12px; padding: 4px 0; }
+  .kp-spinner { width: 13px; height: 13px; border: 2px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: kp-spin 0.75s linear infinite; flex-shrink: 0; }
+  @keyframes kp-spin { to { transform: rotate(360deg); } }
+  .kp-error { color: #f87171; font-size: 12px; cursor: pointer; }
+  .kp-error:hover { text-decoration: underline; }
   .accordion-head .arrow { color: #94a3b8; font-size: 12px; transition: transform 0.2s; }
   .accordion.open .arrow { transform: rotate(90deg); color: #2563eb; }
   .accordion-body { padding: 16px 20px; background: #fafbfc; border-top: 1px solid #f1f5f9; line-height: 1.8; font-size: 14px; color: #334155; display: none; white-space: pre-wrap; word-break: keep-all; }
@@ -98,6 +124,21 @@
 </style>
 </head>
 <body>
+<!-- ===== 비밀번호 잠금 화면 ===== -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-icon">🔐</div>
+    <h2>오상고 상담카드 시스템</h2>
+    <p>접근 비밀번호를 입력하세요</p>
+    <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off">
+    <label class="lock-remember">
+      <input type="checkbox" id="rememberPw"> 이 브라우저에서 오늘 하루 기억
+    </label>
+    <button id="unlockBtn" onclick="tryUnlock()">🔓 확인</button>
+    <div class="lock-error" id="lockError"></div>
+    <div class="lock-spinner" id="lockSpinner"><span class="ls-spin"></span>데이터 복호화 중…</div>
+  </div>
+</div>
 <header>
   <h1>📋 오상고 상담카드 시스템 <span class="year">2026</span></h1>
   <div id="status">로딩중...</div>
@@ -187,12 +228,23 @@ function percentileToGrade9(p){
   return 9;
 }
 
-// 과목 객체 → 9등급 추정값
+// 과목 객체 → 9등급 (실제 석차 우선, 없으면 분포 추정)
 function estGrade9(subj){
   if(!subj || subj.등급 == null) return null;
+  // 1순위: 엑셀 석차 기반 실제 9등급
+  if(subj.등급9 != null){
+    return { grade: subj.등급9, percentile: subj.백분위, source: '실제' };
+  }
+  // 2순위: 성취도 분포 기반 추정
   const p = estPercentile(subj.원점수, parseDist(subj.분포));
   if(p == null) return null;
-  return { grade: percentileToGrade9(p), percentile: p };
+  return { grade: percentileToGrade9(p), percentile: p, source: '추정' };
+}
+
+// 과목 객체 → 현재 scale 등급 + 소스(실제/추정)
+function getG9Info(subj){
+  const est = estGrade9(subj);
+  return est;
 }
 
 // 통합: 현재 scale에 맞는 등급 반환
@@ -200,7 +252,7 @@ function getG(subj){
   if(!subj || subj.등급 == null) return null;
   if(gradeScale === 5) return subj.등급;
   const est = estGrade9(subj);
-  return est ? est.grade : subj.등급;
+  return est ? est.grade : null;
 }
 
 function fmtG(subj){
@@ -208,24 +260,113 @@ function fmtG(subj){
   return g != null ? g : '-';
 }
 
-// ========== 메인 로직 ==========
-async function init(){
+// ========== AES-GCM 복호화 ==========
+async function deriveKey(password, salt){
+  const enc = new TextEncoder();
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:100000, hash:'SHA-256' },
+    keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt']
+  );
+}
+
+function b64ToArr(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); }
+
+async function decryptJSON(encObj, key){
+  const iv   = b64ToArr(encObj.iv);
+  const data = b64ToArr(encObj.data);
+  const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, data);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+async function fetchAndDecrypt(url, key){
+  const res = await fetch(url);
+  if(!res.ok) return null;
+  const encObj = await res.json();
+  // 암호화 안 된 일반 JSON이면 그냥 반환 (개발 편의)
+  if(!encObj.iv) return encObj;
+  return decryptJSON(encObj, key);
+}
+
+// ========== 잠금 해제 ==========
+const SESSION_KEY = 'osh_session_pw';
+let derivedKey = null;
+
+async function tryUnlock(){
+  const pw = document.getElementById('pwInput').value;
+  if(!pw){ showLockError('비밀번호를 입력하세요.'); return; }
+  document.getElementById('unlockBtn').disabled = true;
+  document.getElementById('lockSpinner').classList.add('show');
+  document.getElementById('lockError').textContent = '';
   try{
-    const [sRes,mRes] = await Promise.all([
-      fetch('data/students.json'),
-      fetch('data/mock.json')
-    ]);
-    students = await sRes.json();
-    mock = await mRes.json();
-    try{
-      const gRes = await fetch('data/grades_2_1.json');
-      if(gRes.ok) grades = await gRes.json();
-    }catch(e){ console.warn('grades_2_1.json 로드 실패:', e); }
-    try{
-      const swRes = await fetch('data/sewtuk_2_1.json');
-      if(swRes.ok) sewtuk = await swRes.json();
-    }catch(e){ console.warn('sewtuk_2_1.json 로드 실패:', e); }
-    document.getElementById('status').textContent = `총 ${students.length}명 로드됨`;
+    // 첫 번째 파일로 비밀번호 검증
+    const res = await fetch('data/students.json');
+    const encObj = await res.json();
+    let salt;
+    if(encObj.iv){
+      salt = b64ToArr(encObj.salt);
+      const testKey = await deriveKey(pw, salt);
+      await decryptJSON(encObj, testKey); // 틀리면 여기서 throw
+      derivedKey = testKey;
+    } else {
+      // 암호화 미적용 파일 (개발 모드)
+      derivedKey = null;
+    }
+    // 비밀번호 맞음 → 오늘 하루 기억 옵션
+    if(document.getElementById('rememberPw').checked){
+      const exp = Date.now() + 24*60*60*1000;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ pw, exp }));
+    }
+    await init(pw);
+    document.getElementById('lockScreen').classList.add('hidden');
+  }catch(e){
+    console.error(e);
+    showLockError('비밀번호가 올바르지 않습니다.');
+    document.getElementById('unlockBtn').disabled = false;
+    document.getElementById('lockSpinner').classList.remove('show');
+  }
+}
+
+function showLockError(msg){
+  document.getElementById('lockError').textContent = msg;
+  document.getElementById('lockSpinner').classList.remove('show');
+  document.getElementById('unlockBtn').disabled = false;
+  const inp = document.getElementById('pwInput');
+  inp.style.borderColor = '#ef4444';
+  setTimeout(()=>inp.style.borderColor='', 1500);
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Enter 키로 잠금 해제
+  document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+  // 세션 저장된 비밀번호 자동 시도
+  try{
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+    if(saved && saved.exp > Date.now()){
+      document.getElementById('pwInput').value = saved.pw;
+      document.getElementById('rememberPw').checked = true;
+      tryUnlock();
+    }
+  }catch(e){}
+});
+
+// ========== 메인 로직 ==========
+async function init(password){
+  try{
+    // 비밀번호 없으면(개발 모드) 일반 fetch, 있으면 복호화
+    async function load(url){
+      const res = await fetch(url);
+      if(!res.ok) return null;
+      const obj = await res.json();
+      if(!obj.iv || !derivedKey) return obj;
+      return decryptJSON(obj, derivedKey);
+    }
+    const [s, m] = await Promise.all([ load('data/students.json'), load('data/mock.json') ]);
+    students = s || [];
+    mock = m || {};
+    try{ const g = await load('data/grades_2.json'); if(g) grades = g; }catch(e){}
+    try{ const sw = await load('data/sewtuk_2.json'); if(sw) sewtuk = sw; }catch(e){}
+    document.getElementById('status').textContent = `총 ${students.length}명 로드됨 · 2학년 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects&&sewtuk[k].subjects.length).length}명`;
     renderList();
   }catch(e){
     document.getElementById('status').textContent = '오류: '+e.message;
@@ -305,19 +446,19 @@ function renderGrades(el){
   let data = grades[hak];
   if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
   if(!data || !data.grades){
-    el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 성적만 등록되어 있습니다)</small></div>`;
+    el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 학생들의 1학년 성적만 등록되어 있습니다)</small></div>`;
     return;
   }
   const filterBtns = Object.keys(GRADE_FILTERS).map(k=>`<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`).join('');
-  const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산 (추정)</button>`;
+  const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산 (실제)</button>`;
   const semesters = Object.keys(data.grades).sort();
   let html = `<div style="margin-bottom:16px;"><span class="filter-label">📐 계열별 평균:</span><div class="toggle-group" style="display:inline-flex;">${filterBtns}${scaleBtn}</div></div>`;
 
   if(gradeScale === 9){
     html += `<div class="est-info">
-      <strong>🔬 추정 방식</strong> — 본교 석차 데이터가 없어 <strong>원점수 + 성취도 분포</strong>로 상대 백분위를 추정하여 9등급으로 환산합니다.<br>
-      예: 원점수 88점 · 분포 A(22.1) B(30.0)... → B 구간 상위 20% → 누적 상위 28.1% → <strong>9등급 기준 4등급</strong>
-      <br><span style="color:#94a3b8;">※ 구간 내 균일분포 가정이므로 실제 석차와 다를 수 있습니다. 참고용으로만 활용해주세요.</span>
+      <strong>📊 9등급 환산 방식</strong> — <strong>실제 석차 데이터 기반</strong>으로 표준 내신 9등급 컷(상위 4/11/23/40/60/77/89/96%)에 따라 환산합니다.<br>
+      석차가 없는 과목(체육/예술/과학탐구실험 등)은 기존 성취도로 표시됩니다.
+      <br><span style="color:#94a3b8;">※ 과목 옆 <span class="est-tag">실제</span>는 석차 기반, <span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>은 분포 기반입니다.</span>
     </div>`;
   }
 
@@ -371,20 +512,105 @@ function renderSemesterBlock(sem, semData){
     const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
     const g = getG(s);
     const gradeClass = g != null ? 'grade-'+g : '';
-    const estTag = (gradeScale===9 && s.등급!=null) ? '<span class="est-tag">추정</span>' : '';
-    return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${fmtG(s)}${estTag}</td><td>${s.수강자수||'-'}</td></tr>`;
+    let estTag = '';
+    if(gradeScale===9 && s.등급!=null){
+      const info = estGrade9(s);
+      if(info && info.source==='실제') estTag = '<span class="est-tag" style="background:#dcfce7;color:#15803d;">실제</span>';
+      else if(info && info.source==='추정') estTag = '<span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>';
+    }
+    const rankCell = (gradeScale===9 && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
+    return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${fmtG(s)}${estTag}</td><td>${rankCell}</td></tr>`;
   }).join('');
   const scaleTag = gradeScale===9 ? ' <span style="color:#a855f7;font-weight:600;">[9등급 추정]</span>' : '';
-  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ========== 세특 AI 키포인트 ==========
+const kpCache = {};   // 메모리 캐시
+const KP_LS_KEY = 'sewtuk_kp_v1';
+
+(function loadKPCache(){
+  try{ const s = localStorage.getItem(KP_LS_KEY); if(s) Object.assign(kpCache, JSON.parse(s)); }catch(e){}
+})();
+
+function saveKPCache(){
+  try{ localStorage.setItem(KP_LS_KEY, JSON.stringify(kpCache)); }catch(e){}
+}
+
+function kpCacheKey(hak, subj){
+  return `${hak}||${subj.학년}||${subj.학기}||${subj.과목}`;
+}
+
+async function fetchKeyPoints(hak, subj){
+  const ck = kpCacheKey(hak, subj);
+  if(kpCache[ck]) return kpCache[ck];
+
+  const prompt = `다음은 고등학생의 세부능력 및 특기사항(세특)입니다.
+글 전체를 읽고, 학생이 실제로 수행한 핵심 활동·탐구·역량을 3가지로 정리하세요.
+각 항목은 반드시 다음 형식을 지켜주세요:
+"활동/주제 요약 (핵심 역량 키워드)"
+
+예시:
+["'비트코인 화폐 인정 여부' 토론 및 '민생지원금 정책' 분석 (비판적 사고·논리적 분석 역량)", "토론 연계 카드뉴스 2회 제작 및 협력적 소통 실천 (디지털·미디어·의사소통 역량)", "소설 '철의 사랑' 감상을 통한 소외계층 공감 (공동체·자기성찰 역량)"]
+
+규칙:
+- 반드시 JSON 배열만 출력 (다른 텍스트, 마크다운 코드블록 금지)
+- 3개 항목, 각 항목은 한 문장
+- 구체적 활동명·작품명·주제어를 포함할 것
+- 추상적이거나 일반적인 표현 지양
+
+세특 내용:
+${subj.내용}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if(!res.ok) throw new Error(`API ${res.status}`);
+  const data = await res.json();
+  const raw = (data.content?.[0]?.text || '').replace(/```json|```/g,'').trim();
+  const points = JSON.parse(raw);
+  kpCache[ck] = points;
+  saveKPCache();
+  return points;
+}
+
+function renderKPLoading(){ return `<div class="kp-loading"><span class="kp-spinner"></span>AI 핵심 분석 중…</div>`; }
+function renderKPPoints(points){
+  const labels = ['①','②','③'];
+  return `<ul class="key-points">${points.map((p,i)=>`<li><span class="kp-bullet">${labels[i]||'·'}</span>${escapeHtml(p)}</li>`).join('')}</ul>`;
+}
+
+async function loadKPForSubjects(filtered, hak, tabEl){
+  for(const s of filtered){
+    const ck = kpCacheKey(hak, s);
+    const slot = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
+    if(!slot) continue;
+    if(kpCache[ck]){ slot.outerHTML = renderKPPoints(kpCache[ck]); continue; }
+    try{
+      const points = await fetchKeyPoints(hak, s);
+      const fresh = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
+      if(fresh) fresh.outerHTML = renderKPPoints(points);
+    }catch(err){
+      const fresh = tabEl.querySelector(`[data-kpslot="${CSS.escape(ck)}"]`);
+      if(fresh) fresh.innerHTML = `<span class="kp-error" title="클릭하여 재시도">⚠ 분석 실패 — 재시도</span>`;
+    }
+  }
 }
 
 // ========== 세특 탭 ==========
 function renderSewtuk(el){
   const hak = String(currentStu.hak);
   let data = sewtuk[hak];
+  const hakForKP = (data && data.subjects) ? hak : (currentStu.g2_hak ? String(currentStu.g2_hak) : hak);
   if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
   if(!data || !data.subjects){
-    el.innerHTML = `<div class="no-data">📋 세특 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다)</small></div>`;
+    el.innerHTML = `<div class="no-data">📋 세특 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다 — 다른 반은 추후 업데이트 예정)</small></div>`;
     return;
   }
   const gradeBtns = SEWTUK_GRADES.map(g=>`<button class="toggle-btn ${g===sewtukGrade?'active':''}" data-gfil="${g}">${g}</button>`).join('');
@@ -407,15 +633,21 @@ function renderSewtuk(el){
   }else{
     filtered.forEach(s=>{
       const key = `${s.학년}-${s.학기}-${s.과목}`;
+      const ck = kpCacheKey(hakForKP, s);
       const isOpen = openAccordions.has(key);
+      const kpSlot = kpCache[ck]
+        ? renderKPPoints(kpCache[ck])
+        : `<div class="kp-loading" data-kpslot="${escapeHtml(ck)}"><span class="kp-spinner"></span>AI 핵심 분석 중…</div>`;
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
             <div class="accordion-title">
-              <span class="sub-cat">${s.교과}</span>
-              <span class="sub-name">${s.과목}</span>
-              <span class="sub-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
-              <span class="sub-summary">💡 ${escapeHtml(s.요약||'')}</span>
+              <div class="acc-top-row">
+                <span class="sub-cat">${s.교과}</span>
+                <span class="sub-name">${s.과목}</span>
+                <span class="sub-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
+              </div>
+              ${kpSlot}
             </div>
             <span class="arrow">▶</span>
           </div>
@@ -425,6 +657,9 @@ function renderSewtuk(el){
     });
   }
   el.innerHTML = html;
+  // 캐시 없는 과목만 순차적으로 AI 분석 (비동기)
+  const needsLoad = filtered.filter(s => !kpCache[kpCacheKey(hakForKP, s)]);
+  if(needsLoad.length > 0) loadKPForSubjects(needsLoad, hakForKP, el);
   el.querySelectorAll('[data-gfil]').forEach(b=>b.onclick=()=>{ sewtukGrade=b.dataset.gfil; renderTab(); });
   el.querySelectorAll('[data-sfil]').forEach(b=>b.onclick=()=>{ sewtukSem=b.dataset.sfil; renderTab(); });
   el.querySelectorAll('[data-cfil]').forEach(b=>b.onclick=()=>{ sewtukCat=b.dataset.cfil; renderTab(); });
@@ -498,7 +733,6 @@ document.getElementById('gradeFilter').onchange = (e)=>{
 document.getElementById('classFilter').onchange = renderList;
 document.getElementById('search').oninput = renderList;
 
-init();
 </script>
 </body>
 </html>
