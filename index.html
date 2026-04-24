@@ -620,7 +620,10 @@ function drawGradeChart(data, semesters){
       scales:{
         y:{
           reverse: true, min: 0.5, max: maxG + 0.5,
-          ticks:{ stepSize:1, callback: v => v+'등급', font:{size:11} },
+          afterBuildTicks: axis => {
+            axis.ticks = Array.from({length: maxG}, (_, i) => ({ value: i + 1 }));
+          },
+          ticks:{ callback: v => v+'등급', font:{size:11} },
           grid:{ color:'#f1f5f9' }
         },
         x:{
