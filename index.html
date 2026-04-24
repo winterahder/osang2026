@@ -884,18 +884,18 @@ function renderMock(el){
   if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
   rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
 
-  // 회차별 행: 회차명 + 평균등급(한국사제외) + 각 과목
+  // 회차별 행
   const roundRows = rounds.map(r=>{
     const avg = calcMockAvgGrade(r);
     const hc  = avg ? getHeatClass(Math.round(parseFloat(avg)),'등급','국어') : '';
-    const avgBadge = avg!=null
-      ? `<div style="margin-top:4px;"><span class="heat-badge ${hc}" style="font-size:11px;">평균 ${avg}</span></div>`
-      : '';
+    const avgCell = avg!=null
+      ? `<td style="text-align:center;"><span class="heat-badge ${hc}" style="font-size:13px;">${avg}</span></td>`
+      : '<td style="color:#cbd5e1;">-</td>';
     return `<tr>
-      <td style="text-align:left;padding-left:10px;">
-        <div style="font-size:12px;font-weight:600;color:#334155;">${ROUND_LABEL[r.round]||r.round}</div>
-        ${avgBadge}
+      <td style="text-align:center;">
+        <div style="font-size:13px;font-weight:600;color:#334155;">${ROUND_LABEL[r.round]||r.round}</div>
       </td>
+      ${avgCell}
       ${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}
     </tr>`;
   }).join('');
@@ -903,7 +903,11 @@ function renderMock(el){
   el.innerHTML = `
     <div class="toggle-group">${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}</div>
     <table class="mock">
-      <thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
+      <thead><tr>
+        <th>회차</th>
+        <th style="color:#6d28d9;">평균<br><span style="font-weight:400;font-size:11px;">(한국사 제외)</span></th>
+        ${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}
+      </tr></thead>
       <tbody>${roundRows}</tbody>
     </table>
     <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
