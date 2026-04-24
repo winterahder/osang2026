@@ -190,6 +190,7 @@ const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
 let students=[], mock={}, grades={}, sewtuk={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+let currentPassword = '';
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
 let openAccordions = new Set();
 let gradeScale = 5; // 5 or 9
@@ -364,14 +365,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 // ========== 메인 로직 ==========
 async function init(password){
+  currentPassword = password;
   try{
-    // 비밀번호 없으면(개발 모드) 일반 fetch, 있으면 복호화
+    // 각 파일 자체의 salt로 키를 독립적으로 파생해 복호화
     async function load(url){
       const res = await fetch(url);
       if(!res.ok) return null;
       const obj = await res.json();
-      if(!obj.iv || !derivedKey) return obj;
-      return decryptJSON(obj, derivedKey);
+      if(!obj.iv) return obj; // 암호화 안 된 파일은 그냥 반환
+      const fileSalt = b64ToArr(obj.salt);
+      const fileKey = await deriveKey(currentPassword, fileSalt);
+      return decryptJSON(obj, fileKey);
     }
     const [s, m] = await Promise.all([ load('data/students.json'), load('data/mock.json') ]);
     students = (s || []).filter(st => st.grade === 2);  // 2학년만
