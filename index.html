@@ -594,16 +594,20 @@ function drawGradeChart(data, semesters){
     }
   };
 
-  const datasets = [
-    { label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
-      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
-      fill: true, spanGaps: true }
-  ];
-  if(filtAvgs && currentGradeFilter !== '전체'){
+  const datasets = [];
+  if(currentGradeFilter === '전체' || !filter){
+    // 전체 선택 시: 전체 평균만 표시
     datasets.push({
-      label: currentGradeFilter, data: toXY(filtAvgs), borderColor: subColor,
-      backgroundColor: 'transparent', tension: 0.3, pointRadius: 6, pointHoverRadius: 8,
-      pointBackgroundColor: subColor, borderDash:[5,3], spanGaps: true
+      label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
+      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      fill: true, spanGaps: true
+    });
+  } else {
+    // 계열 필터 선택 시: 해당 계열 평균만 표시 (전체 평균 숨김)
+    datasets.push({
+      label: currentGradeFilter, data: toXY(filtAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
+      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      fill: true, spanGaps: true
     });
   }
 
