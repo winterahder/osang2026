@@ -82,6 +82,21 @@
   table.mock td.bg-7 { background: #fb923c; color: #fff; }
   table.mock td.bg-8 { background: #ef4444; color: #fff; }
   table.mock td.bg-9 { background: #991b1b; color: #fff; }
+  /* 히트맵 색상 (1=최상위 파랑 → 9=최하위 빨강) */
+  table.mock td.heat-1 { background:#1e40af; color:#fff; font-weight:700; border-radius:4px; }
+  table.mock td.heat-2 { background:#2563eb; color:#fff; font-weight:700; border-radius:4px; }
+  table.mock td.heat-3 { background:#60a5fa; color:#1e3a8a; font-weight:600; border-radius:4px; }
+  table.mock td.heat-4 { background:#bfdbfe; color:#1e3a8a; font-weight:600; border-radius:4px; }
+  table.mock td.heat-5 { background:#fef9c3; color:#713f12; border-radius:4px; }
+  table.mock td.heat-6 { background:#fed7aa; color:#7c2d12; border-radius:4px; }
+  table.mock td.heat-7 { background:#fca5a5; color:#7f1d1d; font-weight:600; border-radius:4px; }
+  table.mock td.heat-8 { background:#ef4444; color:#fff; font-weight:700; border-radius:4px; }
+  table.mock td.heat-9 { background:#991b1b; color:#fff; font-weight:800; border-radius:4px; }
+  /* 평균등급 행 */
+  table.mock tr.mock-avg-row { background: #f8fafc; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; }
+  table.mock tr.mock-avg-row td { padding: 10px 8px; }
+  /* 회차 내 평균등급 뱃지 */
+  .mock-round-avg { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; }
   .semester-block { margin-bottom: 24px; }
   .semester-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 10px; padding: 8px 12px; background: #f1f5f9; border-left: 4px solid #2563eb; border-radius: 4px; }
   /* ===== 내신 요약 패널 ===== */
@@ -253,7 +268,6 @@ function percentileToGrade9(p){
 function estGrade9(subj){
   if(!subj || subj.등급 == null) return null;
   // 1순위: 석차 + 수강자수 → 실제 백분위로 9등급 직접 계산
-  // (grades_2.json의 등급9 필드는 별도 기준으로 저장된 값이므로 석차 계산을 우선)
   if(subj.석차 != null && subj.수강자수 != null && subj.수강자수 > 0){
     const p = (subj.석차 / subj.수강자수) * 100;
     return { grade: percentileToGrade9(p), percentile: p, source: '실제' };
@@ -822,15 +836,91 @@ function escapeHtml(s){
 }
 
 // ========== 모의고사 탭 ==========
+
+// 값에 따른 시각적 강도 클래스 반환
+function getHeatClass(val, mode, sub){
+  if(val == null) return '';
+  const isGradeMode = (mode==='등급') || ((sub==='영어'||sub==='한국사') && (mode==='백분위'||mode==='표준점수'));
+  if(isGradeMode){
+    const g = parseInt(val);
+    if(g===1) return 'heat-1';
+    if(g===2) return 'heat-2';
+    if(g===3) return 'heat-3';
+    if(g===4) return 'heat-4';
+    if(g===5) return 'heat-5';
+    if(g===6) return 'heat-6';
+    if(g===7) return 'heat-7';
+    if(g===8) return 'heat-8';
+    return 'heat-9';
+  }
+  if(mode==='백분위'){
+    const p = parseFloat(val);
+    if(p>=96) return 'heat-1'; if(p>=89) return 'heat-2'; if(p>=77) return 'heat-3';
+    if(p>=60) return 'heat-4'; if(p>=40) return 'heat-5'; if(p>=23) return 'heat-6';
+    if(p>=11) return 'heat-7'; if(p>=4)  return 'heat-8'; return 'heat-9';
+  }
+  if(mode==='표준점수'){
+    const s = parseFloat(val);
+    if(s>=140) return 'heat-1'; if(s>=130) return 'heat-2'; if(s>=120) return 'heat-3';
+    if(s>=110) return 'heat-4'; if(s>=100) return 'heat-5'; if(s>=90)  return 'heat-6';
+    if(s>=80)  return 'heat-7'; if(s>=70)  return 'heat-8'; return 'heat-9';
+  }
+  if(mode==='원점수'){
+    const s = parseFloat(val);
+    if(s>=90) return 'heat-1'; if(s>=80) return 'heat-2'; if(s>=70) return 'heat-3';
+    if(s>=60) return 'heat-4'; if(s>=50) return 'heat-5'; if(s>=40) return 'heat-6';
+    if(s>=30) return 'heat-7'; if(s>=20) return 'heat-8'; return 'heat-9';
+  }
+  return '';
+}
+
+// 한국사 제외 평균 등급 계산
+function calcMockAvgGrade(r){
+  const targets = SUBJECTS.filter(s=>s!=='한국사');
+  let sum=0, cnt=0;
+  targets.forEach(sub=>{ const d=r[sub]; if(d&&d['등급']!=null){sum+=d['등급'];cnt++;} });
+  return cnt>0 ? (sum/cnt).toFixed(2) : null;
+}
+
 function renderMock(el){
   const hak = String(currentStu.hak);
   const rounds = mock[hak] || [];
   if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
   rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
+
+  // 과목별 평균등급 행
+  const avgRow = `<tr class="mock-avg-row">
+    <td><div style="font-weight:700;font-size:12px;">과목 평균</div><div style="font-size:10px;color:#94a3b8;">한국사 제외</div></td>
+    ${SUBJECTS.map(sub=>{
+      if(sub==='한국사') return '<td style="color:#cbd5e1;">-</td>';
+      const vals = rounds.map(r=>r[sub]?.['등급']).filter(v=>v!=null);
+      if(!vals.length) return '<td>-</td>';
+      const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+      const hc = getHeatClass(Math.round(avg),'등급',sub);
+      return `<td class="${hc}" style="font-weight:800;font-size:14px;">${avg.toFixed(2)}</td>`;
+    }).join('')}
+  </tr>`;
+
+  // 회차별 행
+  const roundRows = rounds.map(r=>{
+    const avg = calcMockAvgGrade(r);
+    const hc  = avg ? getHeatClass(Math.round(parseFloat(avg)),'등급','국어') : '';
+    return `<tr>
+      <td>
+        <div style="font-size:12px;font-weight:600;">${ROUND_LABEL[r.round]||r.round}</div>
+        ${avg!=null?`<div class="mock-round-avg ${hc}">${avg}</div>`:''}
+      </td>
+      ${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}
+    </tr>`;
+  }).join('');
+
   el.innerHTML = `
     <div class="toggle-group">${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}</div>
-    <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <table class="mock"><thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${rounds.map(r=>`<tr><td>${ROUND_LABEL[r.round]||r.round}</td>${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}</tr>`).join('')}</tbody></table>
+    <table class="mock">
+      <thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
+      <tbody>${avgRow}${roundRows}</tbody>
+    </table>
+    <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
   `;
   el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
   drawChart(rounds);
@@ -839,15 +929,27 @@ function renderMock(el){
 function getVal(r, sub, mode){
   const d = r[sub]; if(!d) return null;
   if((sub==='영어'||sub==='한국사') && (mode==='백분위'||mode==='표준점수')) return d['등급'];
-  return d[mode] != null ? d[mode] : null;
+  return d[mode]!=null ? d[mode] : null;
 }
 function renderCell(r, sub){
-  const d = r[sub]; if(!d) return '<td>-</td>';
+  const d = r[sub]; if(!d) return '<td style="color:#cbd5e1;">-</td>';
   const mode = currentMode;
-  if(mode==='등급'){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
-  if(mode==='원점수'){ const v = d['원점수']; if(v==null) return '<td>-</td>'; const g = d['등급']; return `<td class="big bg-${g}">${v}</td>`; }
-  if((sub==='영어'||sub==='한국사')){ const g = d['등급']; return `<td class="grade-${g}">${g||'-'}</td>`; }
-  const v = d[mode]; return `<td>${v!=null?v:'-'}</td>`;
+  let val, displayVal;
+  if(mode==='등급'){
+    val = d['등급']; displayVal = val??'-';
+  } else if(mode==='원점수'){
+    val = d['원점수']; displayVal = val??'-';
+    if(val==null) return '<td style="color:#cbd5e1;">-</td>';
+    const hc = getHeatClass(val,'원점수',sub);
+    return `<td class="${hc}" style="font-weight:600;">${val}</td>`;
+  } else if(sub==='영어'||sub==='한국사'){
+    val = d['등급']; displayVal = val??'-';
+  } else {
+    val = d[mode]; displayVal = val??'-';
+  }
+  if(displayVal==='-') return '<td style="color:#cbd5e1;">-</td>';
+  const hc = getHeatClass(val, mode, sub);
+  return `<td class="${hc}">${displayVal}</td>`;
 }
 function drawChart(rounds){
   if(chartInst){ chartInst.destroy(); chartInst=null; }
