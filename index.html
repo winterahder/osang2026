@@ -252,11 +252,16 @@ function percentileToGrade9(p){
 // 과목 객체 → 9등급 (실제 석차 우선, 없으면 분포 추정)
 function estGrade9(subj){
   if(!subj || subj.등급 == null) return null;
-  // 1순위: 엑셀 석차 기반 실제 9등급
+  // 1순위: JSON에 등급9 필드가 직접 있는 경우
   if(subj.등급9 != null){
     return { grade: subj.등급9, percentile: subj.백분위, source: '실제' };
   }
-  // 2순위: 성취도 분포 기반 추정
+  // 2순위: 석차 + 수강자수 → 실제 백분위로 9등급 계산
+  if(subj.석차 != null && subj.수강자수 != null && subj.수강자수 > 0){
+    const p = (subj.석차 / subj.수강자수) * 100;
+    return { grade: percentileToGrade9(p), percentile: p, source: '실제' };
+  }
+  // 3순위: 성취도 분포 기반 추정
   const p = estPercentile(subj.원점수, parseDist(subj.분포));
   if(p == null) return null;
   return { grade: percentileToGrade9(p), percentile: p, source: '추정' };
