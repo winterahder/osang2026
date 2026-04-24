@@ -82,21 +82,17 @@
   table.mock td.bg-7 { background: #fb923c; color: #fff; }
   table.mock td.bg-8 { background: #ef4444; color: #fff; }
   table.mock td.bg-9 { background: #991b1b; color: #fff; }
-  /* 히트맵 색상 (1=최상위 파랑 → 9=최하위 빨강) */
-  table.mock td.heat-1 { background:#1e40af; color:#fff; font-weight:700; border-radius:4px; }
-  table.mock td.heat-2 { background:#2563eb; color:#fff; font-weight:700; border-radius:4px; }
-  table.mock td.heat-3 { background:#60a5fa; color:#1e3a8a; font-weight:600; border-radius:4px; }
-  table.mock td.heat-4 { background:#bfdbfe; color:#1e3a8a; font-weight:600; border-radius:4px; }
-  table.mock td.heat-5 { background:#fef9c3; color:#713f12; border-radius:4px; }
-  table.mock td.heat-6 { background:#fed7aa; color:#7c2d12; border-radius:4px; }
-  table.mock td.heat-7 { background:#fca5a5; color:#7f1d1d; font-weight:600; border-radius:4px; }
-  table.mock td.heat-8 { background:#ef4444; color:#fff; font-weight:700; border-radius:4px; }
-  table.mock td.heat-9 { background:#991b1b; color:#fff; font-weight:800; border-radius:4px; }
-  /* 평균등급 행 */
-  table.mock tr.mock-avg-row { background: #f8fafc; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; }
-  table.mock tr.mock-avg-row td { padding: 10px 8px; }
-  /* 회차 내 평균등급 뱃지 */
-  .mock-round-avg { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; }
+  /* 히트맵: 배경 없이 숫자에 작은 박스 뱃지만 적용 */
+  .heat-badge { display:inline-block; padding:2px 8px; border-radius:5px; font-weight:700; line-height:1.4; }
+  .heat-badge.heat-1 { background:#dbeafe; color:#1e3a8a; }
+  .heat-badge.heat-2 { background:#bfdbfe; color:#1e40af; }
+  .heat-badge.heat-3 { background:#e0f2fe; color:#0369a1; }
+  .heat-badge.heat-4 { background:#f0fdf4; color:#166534; }
+  .heat-badge.heat-5 { background:#fefce8; color:#854d0e; }
+  .heat-badge.heat-6 { background:#fff7ed; color:#9a3412; }
+  .heat-badge.heat-7 { background:#fef2f2; color:#991b1b; }
+  .heat-badge.heat-8 { background:#fee2e2; color:#7f1d1d; font-weight:800; }
+  .heat-badge.heat-9 { background:#fecaca; color:#7f1d1d; font-weight:800; }
   .semester-block { margin-bottom: 24px; }
   .semester-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 10px; padding: 8px 12px; background: #f1f5f9; border-left: 4px solid #2563eb; border-radius: 4px; }
   /* ===== 내신 요약 패널 ===== */
@@ -888,27 +884,17 @@ function renderMock(el){
   if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
   rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
 
-  // 과목별 평균등급 행
-  const avgRow = `<tr class="mock-avg-row">
-    <td><div style="font-weight:700;font-size:12px;">과목 평균</div><div style="font-size:10px;color:#94a3b8;">한국사 제외</div></td>
-    ${SUBJECTS.map(sub=>{
-      if(sub==='한국사') return '<td style="color:#cbd5e1;">-</td>';
-      const vals = rounds.map(r=>r[sub]?.['등급']).filter(v=>v!=null);
-      if(!vals.length) return '<td>-</td>';
-      const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-      const hc = getHeatClass(Math.round(avg),'등급',sub);
-      return `<td class="${hc}" style="font-weight:800;font-size:14px;">${avg.toFixed(2)}</td>`;
-    }).join('')}
-  </tr>`;
-
-  // 회차별 행
+  // 회차별 행: 회차명 + 평균등급(한국사제외) + 각 과목
   const roundRows = rounds.map(r=>{
     const avg = calcMockAvgGrade(r);
     const hc  = avg ? getHeatClass(Math.round(parseFloat(avg)),'등급','국어') : '';
+    const avgBadge = avg!=null
+      ? `<div style="margin-top:4px;"><span class="heat-badge ${hc}" style="font-size:11px;">평균 ${avg}</span></div>`
+      : '';
     return `<tr>
-      <td>
-        <div style="font-size:12px;font-weight:600;">${ROUND_LABEL[r.round]||r.round}</div>
-        ${avg!=null?`<div class="mock-round-avg ${hc}">${avg}</div>`:''}
+      <td style="text-align:left;padding-left:10px;">
+        <div style="font-size:12px;font-weight:600;color:#334155;">${ROUND_LABEL[r.round]||r.round}</div>
+        ${avgBadge}
       </td>
       ${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}
     </tr>`;
@@ -918,7 +904,7 @@ function renderMock(el){
     <div class="toggle-group">${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}</div>
     <table class="mock">
       <thead><tr><th>회차</th>${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
-      <tbody>${avgRow}${roundRows}</tbody>
+      <tbody>${roundRows}</tbody>
     </table>
     <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
   `;
@@ -941,7 +927,7 @@ function renderCell(r, sub){
     val = d['원점수']; displayVal = val??'-';
     if(val==null) return '<td style="color:#cbd5e1;">-</td>';
     const hc = getHeatClass(val,'원점수',sub);
-    return `<td class="${hc}" style="font-weight:600;">${val}</td>`;
+    return `<td><span class="heat-badge ${hc}">${val}</span></td>`;
   } else if(sub==='영어'||sub==='한국사'){
     val = d['등급']; displayVal = val??'-';
   } else {
@@ -949,7 +935,7 @@ function renderCell(r, sub){
   }
   if(displayVal==='-') return '<td style="color:#cbd5e1;">-</td>';
   const hc = getHeatClass(val, mode, sub);
-  return `<td class="${hc}">${displayVal}</td>`;
+  return `<td><span class="heat-badge ${hc}">${displayVal}</span></td>`;
 }
 function drawChart(rounds){
   if(chartInst){ chartInst.destroy(); chartInst=null; }
