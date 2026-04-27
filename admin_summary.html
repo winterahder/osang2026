@@ -94,7 +94,7 @@
   .content-area{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;}
 
   /* 세특 패널 */
-  .sewtuk-panel{overflow-y:auto;padding:12px;gap:8px;border-right:1px solid var(--border);}
+  .sewtuk-panel{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:0;border-right:1px solid var(--border);}
   .sewtuk-item{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;}
   .sewtuk-item.s-pending{border-color:var(--yellow);}
   .sewtuk-item.s-done{border-color:rgba(16,185,129,.4);}
@@ -487,8 +487,10 @@ function renderMain(){
       <div class="all-prog-label" id="allProgLabel"></div>
     </div>
     <div class="content-area">
-      <div class="sewtuk-panel" id="sewtukPanel" style="display:flex;flex-direction:column;">
+      <div class="sewtuk-panel" id="sewtukPanel">
         <div id="overallSection"></div>
+        <div id="subjectList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
       <div class="chat-panel">
         <div class="chat-header">💬 AI 어시스턴트</div>
         <div class="chat-body" id="chatBody"></div>
@@ -509,7 +511,7 @@ const sKey=s=>`${s.학년}-${s.학기}-${s.과목}`;
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function renderPanel(){
-  const panel=document.getElementById('sewtukPanel'); if(!panel) return;
+  const panel=document.getElementById('subjectList'); if(!panel) return;
   const hak=String(currentStu.hak);
   const subs=sewtuk[hak]?.subjects||[];
   if(!subs.length){panel.innerHTML=`<div style="color:var(--muted);padding:20px;">세특 데이터 없음</div>`;return;}
