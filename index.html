@@ -134,11 +134,11 @@
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; font-size: 15px; flex-shrink: 0; }
 
   /* 필터 + 종합 평가 나란히 */
-  .sewtuk-top-wrap { display: grid; grid-template-columns: 1fr 380px; gap: 14px; align-items: start; margin-bottom: 12px; overflow: visible; }
+  .sewtuk-top-wrap { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; align-items: start; margin-bottom: 14px; }
   .sewtuk-filters { display: flex; flex-direction: column; gap: 0; }
 
   /* 종합 평가 패널 */
-  .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); height: 100%; }
+  .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); display: block; min-height: 120px; }
   .overall-eval-header { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
   .overall-eval-header-title { display: flex; align-items: center; gap: 5px; }
   .overall-eval-scope { font-size: 11px; color: #cbd5e1; font-weight: 400; }
@@ -150,7 +150,7 @@
   .overall-sub-row { display: flex; align-items: center; gap: 4px; font-size: 10px; }
   .overall-sub-name { color: #94a3b8; flex: 1; }
   .overall-sub-grade { font-weight: 800; font-size: 11px; }
-  .overall-eval-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #cbd5e1; font-size: 12px; text-align: center; padding: 20px; }
+  .overall-eval-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #cbd5e1; font-size: 12px; text-align: center; padding: 20px; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
   .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
   .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
@@ -983,7 +983,8 @@ function renderSewtuk(el){
   });
   const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
   // 전체 과목일 때 AI 종합평가 데이터 우선 사용
-  const aiOverall = (sewtukCat==='전체 과목') ? data.종합평가 : null;
+  const aiOverall = (sewtukCat==='전체 과목') ? (data.종합평가||null) : null;
+  console.log('aiOverall:', aiOverall, 'sewtukCat:', sewtukCat);
   let html = `
     <div class="sewtuk-top-wrap">
       <div class="sewtuk-filters">
