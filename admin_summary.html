@@ -421,7 +421,7 @@ function renderPanel(){
       :`<div class="summary-area"><div class="summary-empty">아직 요약이 없습니다</div></div>`;
 
     return `<div class="sewtuk-item ${itemCls}" id="si-${i}">
-      <div class="sewtuk-head" onclick="toggleItem(${i},${hasSummary})" style="cursor:pointer;">
+      <div class="sewtuk-head" onclick="toggleItem(${i},${hasSummary?1:0})" style="cursor:pointer;">
         <span class="subj-cat">${s.교과}</span>
         <span class="subj-name">${s.과목}</span>
         <span class="subj-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
@@ -441,7 +441,7 @@ function renderPanel(){
   }).join('');
 }
 
-function toggleItem(i, hasSummary){
+function toggleItem(i, hasSummary){ hasSummary=!!hasSummary;
   const body=document.getElementById(`ib-${i}`);
   const arrow=document.getElementById(`ia-${i}`);
   if(!body) return;
