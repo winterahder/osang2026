@@ -898,66 +898,35 @@ async function generateOverallEval(){
   if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
 
   const btn=document.getElementById('btnOverall');
-  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 종합 분석 중...`;}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
 
-  // 전체 세특 텍스트 구성
-  const sewtukText=subs.map(s=>`[${s.교과} - ${s.과목}]\n${s.내용}`).join('\n\n---\n\n');
+  // 각 과목 내용 300자씩 축약 (토큰 초과 방지)
+  const shortText=subs.map(s=>'['+s.교과+'-'+s.과목+'] '+(s.내용||'').substring(0,300)).join('\n\n');
+
+  const systemPrompt='당신은 대입 전형 전문 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합 분석하여 3개 대분류 역량을 평가하세요.\n반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):\n{"학업역량":{"grade":"A","세부":{"성취도":"A","태도":"A","탐구력":"S"},"근거":"50자이내근거"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"},"근거":"50자이내근거"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"50자이내근거"},"종합의견":"강점과특징3~5문장"}\n등급: S=반복탁월 A=대부분우수 B=일부양호 C=제한적 D=거의없음';
 
   try{
     const text=await callAPI(
-      `당신은 대입 전형 전문 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합적으로 분석하여 3개 대분류 역량을 평가하세요.
-
-반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{
-  "학업역량": {
-    "grade": "A",
-    "세부": {"성취도":"A","태도":"A","탐구력":"S"},
-    "근거": "전체 세특에서 드러나는 학업 역량 종합 평가 근거 (50자 이내)"
-  },
-  "진로역량": {
-    "grade": "B",
-    "세부": {"전공적합성":"B","진로탐색":"B"},
-    "근거": "진로 역량 종합 평가 근거 (50자 이내)"
-  },
-  "공동체역량": {
-    "grade": "A",
-    "세부": {"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},
-    "근거": "공동체 역량 종합 평가 근거 (50자 이내)"
-  },
-  "종합의견": "이 학생의 전체 세특을 종합한 강점과 특징을 3~5문장으로 서술"
-}
-
-평가 기준:
-- 단순 과목별 평균이 아닌, 전체 세특에서 일관되게 드러나는 역량 패턴을 종합 판단
-- S: 전체 세특에서 반복적으로 탁월함이 확인됨
-- A: 대부분의 과목에서 우수한 역량이 드러남
-- B: 일부 과목에서 양호한 역량이 확인됨
-- C: 역량 발현이 제한적
-- D: 해당 역량 관련 기술 거의 없음`,
-      [{role:'user',content:`학생: ${currentStu.name}
-
-전체 세특:
-
-${sewtukText}`}],
-      1000
+      systemPrompt,
+      [{role:'user',content:'학생: '+currentStu.name+'\n\n전체 세특:\n'+shortText}],
+      1200
     );
 
     let obj;
     try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{throw new Error('JSON 파싱 실패');}
+    catch{throw new Error('JSON 파싱 실패: '+text.substring(0,100));}
 
     pendingOverall[hak]=obj;
     renderOverallSection();
 
     addMsg('assistant',
-      `🎯 **${currentStu.name}** 종합 역량 평가 완료!\n\n`+
-      `📚 학업역량 **${obj.학업역량?.grade}** · 🎯 진로역량 **${obj.진로역량?.grade}** · 🤝 공동체역량 **${obj.공동체역량?.grade}**\n\n`+
-      `💬 ${obj.종합의견||''}`,
+      '🎯 **'+currentStu.name+'** 종합 역량 평가 완료!\n\n'+
+      '📚 학업역량 **'+(obj.학업역량?.grade||'?')+'** · 🎯 진로역량 **'+(obj.진로역량?.grade||'?')+'** · 🤝 공동체역량 **'+(obj.공동체역량?.grade||'?')+'**\n\n'+
+      '💬 '+(obj.종합의견||''),
       [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
     );
   }catch(e){
-    addMsg('assistant',`❌ 종합 평가 실패: ${e.message}`);
-    if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
+    addMsg('assistant','❌ 종합 평가 실패: '+e.message);
   }
   if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
 }
