@@ -765,17 +765,22 @@ async function evaluateOne(idx){
 [공동체역량] 협업소통:협력·소통능력 / 나눔배려:동료성장기여 / 성실성:책임감·규칙준수 / 리더십:공동목표주도
 
 3개 대분류(학업역량/진로역량/공동체역량)는 해당 세부지표들을 종합한 이 과목에서의 역량 수준.
-코멘트·근거는 15~30자 이내. 세특에 근거 없는 영역은 D.`,
+코멘트는 15자 이내 간결하게. 근거는 20자 이내. 세특에 근거 없는 영역은 D.`,
       [{role:'user',content:`학생:${currentStu.name}
 과목:${s.교과}-${s.과목}
 
 세특:
 ${s.내용}`}],
-      600
+      1500
     );
     let evalObj;
-    try{evalObj=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{throw new Error('평가 JSON 파싱 실패: '+text.substring(0,100));}
+    try{
+      const cleaned = text.replace(/```json|```/g,'').trim();
+      // JSON이 잘렸을 경우 복구 시도
+      let jsonStr = cleaned;
+      if(!jsonStr.endsWith('}')) jsonStr = jsonStr + '}';
+      evalObj=JSON.parse(jsonStr);
+    }catch{throw new Error('평가 JSON 파싱 실패: '+text.substring(0,150));}
 
     pendingEval[hak]=pendingEval[hak]||{};
     pendingEval[hak][sKey(s)]=evalObj;
