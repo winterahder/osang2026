@@ -105,6 +105,10 @@
   .ibadge-done{padding:2px 7px;background:rgba(16,185,129,.2);color:var(--green);border-radius:4px;font-size:11px;font-weight:700;}
   .ibadge-pending{padding:2px 7px;background:rgba(245,158,11,.2);color:var(--yellow);border-radius:4px;font-size:11px;font-weight:700;}
   .ibadge-new{padding:2px 7px;background:rgba(99,102,241,.25);color:var(--accent2);border-radius:4px;font-size:11px;font-weight:700;}
+  .ibadge-eval-done{padding:2px 7px;background:rgba(6,182,212,.2);color:#06b6d4;border-radius:4px;font-size:11px;font-weight:700;}
+  .ibadge-eval-none{padding:2px 7px;background:rgba(100,116,139,.1);color:var(--muted);border-radius:4px;font-size:11px;font-weight:700;}
+  .badge-group{display:flex;gap:4px;align-items:center;}
+  .ibadge-new{padding:2px 7px;background:rgba(99,102,241,.25);color:var(--accent2);border-radius:4px;font-size:11px;font-weight:700;}
 
   /* 세특 내용 접기/펼치기 */
   .content-wrap{position:relative;}
@@ -386,7 +390,12 @@ function updateProgress(){
   const done=students.filter(s=>getStuStatus(s.hak)==='done').length;
   const pct=total>0?Math.round(done/total*100):0;
   document.getElementById('progressFill').style.width=pct+'%';
-  document.getElementById('progressLabel').textContent=`세특 보유 ${total}명 중 ${done}명 완료 (${pct}%)`;
+  const evalDone=students.filter(s=>{
+    const d=sewtuk[String(s.hak)];
+    if(!d?.subjects?.length) return false;
+    return d.subjects.every(sub=>sub.평가&&typeof sub.평가==='object');
+  }).length;
+  document.getElementById('progressLabel').textContent=`요약 ${done}명 · 평가 ${evalDone}명 완료 (전체 ${total}명)`;
 }
 
 /* ========== 목록 렌더링 ========== */
@@ -528,17 +537,24 @@ function renderPanel(){
     const evalBtnCls=evalPend?'eval-pending':'';
     const evalBtnLabel=evalPend?'🔄 평가 재생성':(evalSaved?'🔄 평가 재생성':'📊 AI 평가 생성');
 
-    let itemCls='',badgeHtml='',btnCls='',btnLabel='';
+    let itemCls='',btnCls='',btnLabel='';
+    // 요약 뱃지
+    let sumBadge='';
     if(pend){
-      itemCls='s-pending'; badgeHtml=`<span class="ibadge-new">새 요약</span>`;
+      itemCls='s-pending'; sumBadge=`<span class="ibadge-new">새 요약</span>`;
       btnCls='gb-new'; btnLabel='🔄 다시 생성';
     } else if(saved){
-      itemCls='s-done'; badgeHtml=`<span class="ibadge-done">완료</span>`;
+      itemCls='s-done'; sumBadge=`<span class="ibadge-done">✓ 요약</span>`;
       btnCls='gb-done'; btnLabel='🔄 재생성';
     } else {
-      badgeHtml=`<span class="ibadge-pending">미완료</span>`;
+      sumBadge=`<span class="ibadge-pending">요약 미완료</span>`;
       btnLabel='✨ AI 요약 생성';
     }
+    // 평가 뱃지
+    const evalBadge=(evalPend||evalSaved)
+      ?`<span class="ibadge-eval-done">✓ 평가</span>`
+      :`<span class="ibadge-eval-none">평가 미완료</span>`;
+    const badgeHtml=`<div class="badge-group">${sumBadge}${evalBadge}</div>`;
 
     const summaryBlock=hasSummary
       ?`<div class="summary-area">
