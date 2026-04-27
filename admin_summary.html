@@ -163,6 +163,22 @@
   @keyframes kp-spin{to{transform:rotate(360deg)}}
   .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:kp-spin .7s linear infinite;flex-shrink:0;}
   .spin-dark{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:kp-spin .7s linear infinite;flex-shrink:0;}
+  /* 종합 역량 평가 섹션 */
+  .overall-section{margin:12px;border:1.5px solid rgba(99,102,241,.3);border-radius:10px;overflow:hidden;background:var(--surface);}
+  .overall-head{padding:12px 14px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1));display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .overall-head-title{font-size:13px;font-weight:700;color:var(--accent2);display:flex;align-items:center;gap:6px;}
+  .overall-body{padding:12px 14px;}
+  .overall-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+  .overall-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;}
+  .overall-card-label{font-size:10px;color:var(--muted2);font-weight:600;margin-bottom:4px;}
+  .overall-card-grade{font-size:28px;font-weight:900;line-height:1;margin-bottom:4px;}
+  .overall-card-subs{font-size:10px;color:var(--muted);line-height:1.6;}
+  .overall-comment{font-size:12.5px;color:var(--text);line-height:1.75;padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);margin-top:2px;}
+  .overall-comment-label{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:5px;}
+  .btn-overall{padding:7px 13px;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:5px;transition:opacity .2s;}
+  .btn-overall:hover{opacity:.85;}
+  .btn-overall:disabled{opacity:.4;cursor:not-allowed;}
+
   ::-webkit-scrollbar{width:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -302,6 +318,7 @@ async function loadJSON(url,pw){
 let students=[],sewtuk={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
 let chatHistory=[],filterMode='all',isGenAll=false;
 let pending={};     // hak -> { subjectKey -> [s1,s2,s3] }
+let pendingOverall={}; // hak -> { 학업역량:{grade,subs,comment}, 진로역량:{...}, 공동체역량:{...}, 종합의견:'' }
 let pendingEval={}; // hak -> { subjectKey -> {교과역량:{grade,comment}, ...} }
 
 /* ========== 제공자 선택 ========== */
@@ -429,7 +446,7 @@ function renderList(){
 /* ========== 학생 선택 ========== */
 function selectStu(hak){
   currentStu=students.find(s=>String(s.hak)===String(hak));
-  chatHistory=[]; isGenAll=false; pendingEval[hak]=pendingEval[hak]||{}; openItems=new Set(); closedItems=new Set();
+  chatHistory=[]; isGenAll=false; pendingEval[hak]=pendingEval[hak]||{}; pendingOverall[hak]=pendingOverall[hak]||null; openItems=new Set(); closedItems=new Set();
   pending[hak]=pending[hak]||{};
   renderList(); renderMain();
   const subs=sewtuk[String(hak)]?.subjects||[];
@@ -459,6 +476,7 @@ function renderMain(){
       <div class="header-btns">
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
         <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
+        <button class="btn-overall" id="btnOverall" onclick="generateOverallEval()">🎯 종합 역량 평가</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
@@ -469,7 +487,8 @@ function renderMain(){
       <div class="all-prog-label" id="allProgLabel"></div>
     </div>
     <div class="content-area">
-      <div class="sewtuk-panel" id="sewtukPanel"></div>
+      <div class="sewtuk-panel" id="sewtukPanel" style="display:flex;flex-direction:column;">
+        <div id="overallSection"></div>
       <div class="chat-panel">
         <div class="chat-header">💬 AI 어시스턴트</div>
         <div class="chat-body" id="chatBody"></div>
@@ -482,7 +501,7 @@ function renderMain(){
       </div>
     </div>
   `;
-  renderPanel(); renderChatBody();
+  renderPanel(); renderChatBody(); renderOverallSection();
 }
 
 /* ========== 세특 패널 ========== */
@@ -872,6 +891,125 @@ async function evaluateAll(){
   );
 }
 
+/* ========== 종합 역량 평가 생성 ========== */
+async function generateOverallEval(){
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
+
+  const btn=document.getElementById('btnOverall');
+  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 종합 분석 중...`;}
+
+  // 전체 세특 텍스트 구성
+  const sewtukText=subs.map(s=>`[${s.교과} - ${s.과목}]\n${s.내용}`).join('\n\n---\n\n');
+
+  try{
+    const text=await callAPI(
+      `당신은 대입 전형 전문 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합적으로 분석하여 3개 대분류 역량을 평가하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{
+  "학업역량": {
+    "grade": "A",
+    "세부": {"성취도":"A","태도":"A","탐구력":"S"},
+    "근거": "전체 세특에서 드러나는 학업 역량 종합 평가 근거 (50자 이내)"
+  },
+  "진로역량": {
+    "grade": "B",
+    "세부": {"전공적합성":"B","진로탐색":"B"},
+    "근거": "진로 역량 종합 평가 근거 (50자 이내)"
+  },
+  "공동체역량": {
+    "grade": "A",
+    "세부": {"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},
+    "근거": "공동체 역량 종합 평가 근거 (50자 이내)"
+  },
+  "종합의견": "이 학생의 전체 세특을 종합한 강점과 특징을 3~5문장으로 서술"
+}
+
+평가 기준:
+- 단순 과목별 평균이 아닌, 전체 세특에서 일관되게 드러나는 역량 패턴을 종합 판단
+- S: 전체 세특에서 반복적으로 탁월함이 확인됨
+- A: 대부분의 과목에서 우수한 역량이 드러남
+- B: 일부 과목에서 양호한 역량이 확인됨
+- C: 역량 발현이 제한적
+- D: 해당 역량 관련 기술 거의 없음`,
+      [{role:'user',content:`학생: ${currentStu.name}
+
+전체 세특:
+
+${sewtukText}`}],
+      1000
+    );
+
+    let obj;
+    try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
+    catch{throw new Error('JSON 파싱 실패');}
+
+    pendingOverall[hak]=obj;
+    renderOverallSection();
+
+    addMsg('assistant',
+      `🎯 **${currentStu.name}** 종합 역량 평가 완료!\n\n`+
+      `📚 학업역량 **${obj.학업역량?.grade}** · 🎯 진로역량 **${obj.진로역량?.grade}** · 🤝 공동체역량 **${obj.공동체역량?.grade}**\n\n`+
+      `💬 ${obj.종합의견||''}`,
+      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
+    );
+  }catch(e){
+    addMsg('assistant',`❌ 종합 평가 실패: ${e.message}`);
+    if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
+}
+
+/* ========== 종합평가 섹션 렌더링 ========== */
+function renderOverallSection(){
+  const el=document.getElementById('overallSection'); if(!el) return;
+  const hak=String(currentStu?.hak);
+  const saved=sewtuk[hak]?.종합평가;
+  const pend=pendingOverall[hak];
+  const data=pend||saved||null;
+  const labels={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+
+  if(!data){
+    el.innerHTML=`<div class="overall-section">
+      <div class="overall-head">
+        <div class="overall-head-title">🎯 종합 역량 평가</div>
+        <div style="font-size:11px;color:var(--muted);">상단 버튼으로 AI 종합 분석을 생성하세요</div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  const card=(key,label,subKeys)=>{
+    const d=data[key]; if(!d) return '';
+    const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
+      `<span style="color:${labels[v]||'#94a3b8'};font-weight:700;">${v}</span> ${k}`
+    ).join(' · ');
+    return `<div class="overall-card">
+      <div class="overall-card-label">${label}</div>
+      <div class="overall-card-grade" style="color:${labels[d.grade]||'#64748b'}">${d.grade}</div>
+      <div class="overall-card-subs">${subHtml}</div>
+      ${d.근거?`<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5;">${esc(d.근거)}</div>`:''}
+    </div>`;
+  };
+
+  el.innerHTML=`<div class="overall-section">
+    <div class="overall-head">
+      <div class="overall-head-title">🎯 종합 역량 평가 ${pend?'<span style="font-size:10px;color:var(--yellow);">미저장</span>':'<span style="font-size:10px;color:var(--green);">저장됨</span>'}</div>
+      <button class="btn-overall" style="padding:5px 10px;font-size:11px;" onclick="generateOverallEval()">🔄 재생성</button>
+    </div>
+    <div class="overall-body">
+      <div class="overall-grid">
+        ${card('학업역량','📚 학업역량')}
+        ${card('진로역량','🎯 진로역량')}
+        ${card('공동체역량','🤝 공동체역량')}
+      </div>
+      ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 종합 의견</div>${esc(data.종합의견)}</div>`:''}
+    </div>
+  </div>`;
+}
+
 /* ========== 채팅 ========== */
 function addMsg(role,text,actions){
   chatHistory.push({role,content:text});
@@ -958,6 +1096,13 @@ function applyAndSave(){
     if(p[k]!==undefined){s.요약=p[k];delete p[k];cnt++;}
     if(pe[k]!==undefined){s.평가=pe[k];delete pe[k];evalCnt++;}
   });
+  // 종합평가 저장
+  if(pendingOverall[hak]){
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].종합평가=pendingOverall[hak];
+    pendingOverall[hak]=null;
+    renderOverallSection();
+  }
   updateProgress(); renderPanel(); renderList();
   const parts=[];
   if(cnt>0) parts.push(`요약 **${cnt}개**`);
