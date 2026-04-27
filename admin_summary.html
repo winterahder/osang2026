@@ -486,7 +486,7 @@ function renderMain(){
       <div class="header-btns">
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
         <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
-        <button class="btn-overall" id="btnOverall" onclick="generateOverallEval()">🎯 종합 역량 평가</button>
+        <button class="btn-overall" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
@@ -957,13 +957,12 @@ async function evaluateAll(){
 }
 
 /* ========== 교과별 종합평가 생성 ========== */
-async function generateSubjOverall(cat){
+async function generateSubjOverall(cat, silent=false){
   const hak=String(currentStu.hak);
   const subs=sewtuk[hak]?.subjects||[];
   const catSubs=subs.filter(s=>s.교과===cat);
   if(!catSubs.length){addMsg('assistant',`${cat} 교과 세특 데이터가 없습니다.`);return;}
 
-  // 해당 교과 버튼 비활성화
   const secId='so-'+encodeURIComponent(cat);
   const secEl=document.getElementById(secId);
   const btn=secEl?.querySelector('.btn-subj-overall');
@@ -989,34 +988,89 @@ async function generateSubjOverall(cat){
     pendingSubjOverall[hak][cat]=obj;
     renderPanel();
 
-    addMsg('assistant',
-      `📖 **${cat}** 교과 종합평가 완료!\n\n`+
-      `📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**\n\n`+
-      `💬 ${obj.종합의견||''}`,
-      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:`generateSubjOverall('${cat.replace(/'/g,"\\'")}')`}]
-    );
+    if(!silent){
+      addMsg('assistant',
+        `📖 **${cat}** 교과 종합평가 완료!\n\n`+
+        `📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**\n\n`+
+        `💬 ${obj.종합의견||''}`,
+        [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:`generateSubjOverall('${cat.replace(/'/g,"\\'")}')`}]
+      );
+    }
   }catch(e){
     addMsg('assistant',`❌ ${cat} 교과 종합평가 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
   }
 }
 
-/* ========== 종합 역량 평가 생성 ========== */
-async function generateOverallEval(){
+/* ========== 종합 + 교과별 역량 평가 통합 실행 ========== */
+async function generateAllOverall(){
   const hak=String(currentStu.hak);
   const subs=sewtuk[hak]?.subjects||[];
   if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
 
   const btn=document.getElementById('btnOverall');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 분석 중...';}
 
-  // 각 과목 내용 300자씩 축약 (토큰 초과 방지)
+  // 교과별 그룹핑 — 2개 이상인 교과만 추출
+  const groups={};
+  subs.forEach(s=>{
+    if(!groups[s.교과]) groups[s.교과]=[];
+    groups[s.교과].push(s);
+  });
+  const multiCats=Object.keys(groups).filter(cat=>groups[cat].length>=2);
+
+  const total = 1 + multiCats.length; // 종합평가 1 + 교과별
+  let done = 0;
+
+  const fill=document.getElementById('allProgFill');
+  const lbl=document.getElementById('allProgLabel');
+  const progBar=document.getElementById('allProg');
+  if(progBar) progBar.classList.add('show');
+
+  const updateBar=()=>{
+    done++;
+    if(fill) fill.style.width=Math.round(done/total*100)+'%';
+    if(lbl) lbl.textContent=`${done}/${total}`;
+  };
+
+  addMsg('assistant',`🎯 종합 역량 평가 + 교과별 역량 평가 **${multiCats.length}개** 교과를 순서대로 생성합니다...`);
+
+  // 1. 종합 역량 평가
+  await generateOverallEval(true);
+  updateBar();
+  await new Promise(r=>setTimeout(r,300));
+
+  // 2. 교과별 종합평가 순차 실행
+  for(const cat of multiCats){
+    await generateSubjOverall(cat, true);
+    updateBar();
+    await new Promise(r=>setTimeout(r,300));
+  }
+
+  if(fill) fill.style.width='100%';
+  if(lbl) lbl.textContent=`${total}/${total} 완료`;
+  if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 및 교과역량 평가';}
+
+  addMsg('assistant',
+    `🎉 모든 역량 평가 완료!\n\n`+
+    `✅ 종합 역량 평가 1건 + 교과별 평가 **${multiCats.length}건** (${multiCats.join(', ')})`,
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+  );
+}
+
+/* ========== 종합 역량 평가 생성 ========== */
+async function generateOverallEval(silent=false){
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
+
+  const btn=document.getElementById('btnOverall');
+  if(!silent && btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
+
   const shortText=subs.map(s=>'['+s.교과+'-'+s.과목+'] '+(s.내용||'').substring(0,300)).join('\n\n');
-
   const systemPrompt='당신은 대입 전형 전문 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합 분석하여 3개 대분류 역량을 평가하세요.\n반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):\n{"학업역량":{"grade":"A","세부":{"성취도":"A","태도":"A","탐구력":"S"},"근거":"50자이내근거"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"},"근거":"50자이내근거"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"50자이내근거"},"종합의견":"강점과특징3~5문장"}\n등급: S=반복탁월 A=대부분우수 B=일부양호 C=제한적 D=거의없음';
 
-  // 60초 타임아웃
-  const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('요청 시간 초과 (60초). 세특 내용이 너무 길 수 있습니다.')),60000));
+  const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('요청 시간 초과 (60초).')),60000));
   try{
     const text=await Promise.race([callAPI(systemPrompt,
       [{role:'user',content:'학생: '+currentStu.name+'\n\n전체 세특:\n'+shortText}],
@@ -1030,17 +1084,20 @@ async function generateOverallEval(){
     pendingOverall[hak]=obj;
     renderOverallSection();
 
-    addMsg('assistant',
-      '🎯 **'+currentStu.name+'** 종합 역량 평가 완료!\n\n'+
-      '📚 학업역량 **'+(obj.학업역량?.grade||'?')+'** · 🎯 진로역량 **'+(obj.진로역량?.grade||'?')+'** · 🤝 공동체역량 **'+(obj.공동체역량?.grade||'?')+'**\n\n'+
-      '💬 '+(obj.종합의견||''),
-      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
-    );
+    if(!silent){
+      addMsg('assistant',
+        '🎯 **'+currentStu.name+'** 종합 역량 평가 완료!\n\n'+
+        '📚 학업역량 **'+(obj.학업역량?.grade||'?')+'** · 🎯 진로역량 **'+(obj.진로역량?.grade||'?')+'** · 🤝 공동체역량 **'+(obj.공동체역량?.grade||'?')+'**\n\n'+
+        '💬 '+(obj.종합의견||''),
+        [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
+      );
+    }
   }catch(e){
     console.error('종합평가 오류:', e);
-    addMsg('assistant','❌ 종합 평가 실패: '+e.message);
+    if(!silent) addMsg('assistant','❌ 종합 평가 실패: '+e.message);
+    else addMsg('assistant','❌ 종합 역량 평가 실패: '+e.message);
   }
-  if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
+  if(!silent && btn){btn.disabled=false;btn.innerHTML='🎯 종합 및 교과역량 평가';}
 }
 
 /* ========== 종합평가 섹션 렌더링 ========== */
