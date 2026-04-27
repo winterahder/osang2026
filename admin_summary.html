@@ -377,16 +377,6 @@ function renderMain(){
 const sKey=s=>`${s.학년}-${s.학기}-${s.과목}`;
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// 열림 상태: 기본값 — 미완료는 열림, 완료는 닫힘
-// openItems: 사용자가 직접 토글한 항목 추적
-let openItems=new Set();   // 강제 열기된 완료 항목
-let closedItems=new Set(); // 강제 닫힌 미완료 항목
-
-function isItemOpen(i, hasSummary){
-  if(hasSummary) return openItems.has(i);   // 완료: 기본 닫힘, 클릭하면 열림
-  return !closedItems.has(i);               // 미완료: 기본 열림, 클릭하면 닫힘
-}
-
 function renderPanel(){
   const panel=document.getElementById('sewtukPanel'); if(!panel) return;
   const hak=String(currentStu.hak);
@@ -399,7 +389,6 @@ function renderPanel(){
     const saved=Array.isArray(s.요약)&&s.요약.length>0?s.요약:null;
     const arr=pend||saved||[];
     const hasSummary=arr.length>0;
-    const isOpen=isItemOpen(i,hasSummary);
 
     let itemCls='',badgeHtml='',btnCls='',btnLabel='';
     if(pend){
@@ -420,15 +409,17 @@ function renderPanel(){
         </div>`
       :`<div class="summary-area"><div class="summary-empty">아직 요약이 없습니다</div></div>`;
 
+    // 완료=기본닫힘(▶), 미완료=기본열림(▼)
+    const defaultOpen = !hasSummary;
     return `<div class="sewtuk-item ${itemCls}" id="si-${i}">
-      <div class="sewtuk-head" onclick="toggleItem(${i},${hasSummary?1:0})" style="cursor:pointer;">
+      <div class="sewtuk-head" onclick="toggleItem(${i})" style="cursor:pointer;">
         <span class="subj-cat">${s.교과}</span>
         <span class="subj-name">${s.과목}</span>
         <span class="subj-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
         ${badgeHtml}
-        <span class="item-arrow" id="ia-${i}" style="margin-left:auto;color:var(--muted2);font-size:11px;transition:transform .2s;">${isOpen?'▼':'▶'}</span>
+        <span id="ia-${i}" style="margin-left:auto;color:var(--muted2);font-size:11px;">${defaultOpen?'▼':'▶'}</span>
       </div>
-      <div class="item-body" id="ib-${i}" style="display:${isOpen?'block':'none'};">
+      <div id="ib-${i}" style="display:${defaultOpen?'block':'none'};">
         <div class="content-wrap">
           <div class="sewtuk-content" id="sc-${i}">${esc(s.내용||'')}</div>
           <div class="content-fade" id="cf-${i}"></div>
@@ -441,29 +432,26 @@ function renderPanel(){
   }).join('');
 }
 
-function toggleItem(i, hasSummary){ hasSummary=!!hasSummary;
-  const body=document.getElementById(`ib-${i}`);
-  const arrow=document.getElementById(`ia-${i}`);
-  if(!body) return;
-  const nowOpen=body.style.display!=='none';
-  if(nowOpen){
-    body.style.display='none';
-    arrow.textContent='▶';
-    if(hasSummary) openItems.delete(i); else closedItems.add(i);
-  } else {
+function toggleItem(i){
+  const body=document.getElementById('ib-'+i);
+  const arrow=document.getElementById('ia-'+i);
+  if(!body||!arrow) return;
+  if(body.style.display==='none'){
     body.style.display='block';
     arrow.textContent='▼';
-    if(hasSummary) openItems.add(i); else closedItems.delete(i);
+  } else {
+    body.style.display='none';
+    arrow.textContent='▶';
   }
 }
 
 function toggleContent(i){
-  const el=document.getElementById(`sc-${i}`);
-  const fade=document.getElementById(`cf-${i}`);
-  const btn=document.querySelector(`#si-${i} .toggle-btn-small`);
+  const el=document.getElementById('sc-'+i);
+  const fade=document.getElementById('cf-'+i);
+  const btn=document.querySelector('#si-'+i+' .toggle-btn-small');
   const ex=el.classList.toggle('expanded');
-  ex?fade.classList.add('hidden'):fade.classList.remove('hidden');
-  btn.textContent=ex?'▲ 접기':'▼ 전문 보기';
+  if(ex){fade.classList.add('hidden');btn.textContent='▲ 접기';}
+  else{fade.classList.remove('hidden');btn.textContent='▼ 전문 보기';}
 }
 
 /* ========== API 호출 ========== */
