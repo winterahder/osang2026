@@ -170,9 +170,9 @@
     <p>비밀번호와 Anthropic API 키를 입력하세요</p>
     <div class="lock-field-label">데이터 비밀번호</div>
     <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off">
-    <div class="lock-field-label">Anthropic API Key</div>
-    <input type="text" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" style="letter-spacing:0;">
-    <div class="api-note">※ API 키는 브라우저 메모리에만 저장되고 서버로 전송되지 않습니다.<br>발급: <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2);">console.anthropic.com</a></div>
+    <div class="lock-field-label">Google Gemini API Key</div>
+    <input type="text" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off" style="letter-spacing:0;">
+    <div class="api-note">※ API 키는 브라우저 메모리에만 저장되고 서버로 전송되지 않습니다.<br>무료 발급: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent2);">aistudio.google.com</a> → "Create API key"</div>
     <button class="lock-btn" onclick="tryUnlock()">🔓 확인</button>
     <div class="lock-error" id="lockError"></div>
   </div>
@@ -247,7 +247,7 @@ async function tryUnlock(){
   const ak=document.getElementById('apiKeyInput').value.trim();
   const errEl=document.getElementById('lockError');
   if(!pw){errEl.textContent='비밀번호를 입력하세요.';return;}
-  if(!ak||!ak.startsWith('sk-ant-')){errEl.textContent='Anthropic API 키를 정확히 입력하세요 (sk-ant-로 시작).';return;}
+  if(!ak||!ak.startsWith('AIza')){errEl.textContent='Gemini API 키를 정확히 입력하세요 (AIza로 시작).';return;}
   errEl.textContent='';
   try{
     const s=await loadJSON('data/students.json',pw);
@@ -435,19 +435,28 @@ function toggleContent(i){
 
 /* ========== API 호출 ========== */
 async function callAPI(system,messages,maxTokens=400){
-  const r=await fetch('https://api.anthropic.com/v1/messages',{
+  // system + messages -> Gemini 형식으로 변환
+  const contents=[];
+  let isFirst=true;
+  for(const m of messages){
+    if(isFirst && m.role==='user'){
+      contents.push({role:'user',parts:[{text:system+'\n\n'+m.content}]});
+      isFirst=false;
+    } else {
+      contents.push({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]});
+    }
+  }
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,system,messages})
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents,
+      generationConfig:{maxOutputTokens:maxTokens,temperature:0.7}
+    })
   });
-  if(!r.ok){const t=await r.text();throw new Error(`API ${r.status}: ${t}`);}
+  if(!r.ok){const t=await r.text();throw new Error(`Gemini API ${r.status}: ${t}`);}
   const d=await r.json();
-  return d.content?.[0]?.text||'';
+  return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
 }
 
 /* ========== 단일 요약 생성 ========== */
