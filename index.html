@@ -28,7 +28,7 @@
   header h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
   header h1 span.year { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 4px; }
   #status { color: #64748b; font-size: 13px; }
-  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); overflow: hidden; }
   aside { background: #fff; border-radius: 8px; padding: 12px; overflow: hidden; display: flex; flex-direction: column; }
   aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
   aside .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
@@ -38,7 +38,7 @@
   .stu-item.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
   .stu-item .hak { color: #64748b; font-variant-numeric: tabular-nums; }
   .stu-item.active .hak { color: #1e40af; }
-  main { background: transparent; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  main { background: transparent; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
   .card { background: #fff; border-radius: 8px; padding: 18px 22px; }
   .stu-header h2 { font-size: 20px; margin-bottom: 8px; }
   .badges { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -48,7 +48,7 @@
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb; padding: 0 12px; background: #fff; border-radius: 8px 8px 0 0; }
   .tab { padding: 12px 18px; cursor: pointer; font-size: 14px; color: #64748b; border-bottom: 2px solid transparent; }
   .tab.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; background: #eff6ff; border-radius: 6px 6px 0 0; }
-  .tab-content { background: #fff; border-radius: 0 0 8px 8px; padding: 20px; min-height: 300px; }
+  .tab-content { background: #fff; border-radius: 0 0 8px 8px; padding: 20px; }
   .placeholder { text-align: center; color: #94a3b8; padding: 80px 0; font-size: 15px; }
   table.info { width: 100%; border-collapse: collapse; }
   table.info td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
@@ -132,6 +132,25 @@
   .acc-top-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
   .accordion-title .sub-cat { padding: 3px 9px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; font-size: 15px; flex-shrink: 0; }
+
+  /* 필터 + 종합 평가 나란히 */
+  .sewtuk-top-wrap { display: grid; grid-template-columns: 1fr 380px; gap: 14px; align-items: start; margin-bottom: 12px; overflow: visible; }
+  .sewtuk-filters { display: flex; flex-direction: column; gap: 0; }
+
+  /* 종합 평가 패널 */
+  .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); height: 100%; }
+  .overall-eval-header { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+  .overall-eval-header-title { display: flex; align-items: center; gap: 5px; }
+  .overall-eval-scope { font-size: 11px; color: #cbd5e1; font-weight: 400; }
+  .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .overall-eval-group { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 10px 8px; }
+  .overall-group-label { font-size: 10px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; text-align: center; }
+  .overall-group-grade { font-size: 28px; font-weight: 900; line-height: 1; margin-bottom: 6px; text-align: center; }
+  .overall-sub-list { display: flex; flex-direction: column; gap: 2px; }
+  .overall-sub-row { display: flex; align-items: center; gap: 4px; font-size: 10px; }
+  .overall-sub-name { color: #94a3b8; flex: 1; }
+  .overall-sub-grade { font-weight: 800; font-size: 11px; }
+  .overall-eval-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #cbd5e1; font-size: 12px; text-align: center; padding: 20px; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
   .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
   .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
@@ -811,6 +830,29 @@ function groupGrade(keys, evalData){
   return ['D','C','B','A','S'][rounded-1]||'B';
 }
 
+// 여러 과목의 평가 데이터를 종합
+function calcOverallEval(subjects){
+  const ORDER = {S:5,A:4,B:3,C:2,D:1};
+  const GRADE = ['D','C','B','A','S'];
+  const keys = ['학업성취도','학업태도','탐구력','전공적합성','진로탐색','협업소통','나눔배려','성실성','리더십'];
+  const sums = {}, counts = {};
+  keys.forEach(k=>{ sums[k]=0; counts[k]=0; });
+  subjects.forEach(s=>{
+    if(!s.평가) return;
+    keys.forEach(k=>{
+      const g = s.평가[k]?.grade;
+      if(g && ORDER[g]){ sums[k]+= ORDER[g]; counts[k]++; }
+    });
+  });
+  const result = {};
+  keys.forEach(k=>{
+    if(counts[k]===0){ result[k]=null; return; }
+    const avg = sums[k]/counts[k];
+    result[k] = GRADE[Math.round(avg)-1]||'C';
+  });
+  return result;
+}
+
 // 오른쪽 패널: 3개 대분류 + 세부 등급
 function renderEvalPanel(evalData){
   if(!evalData || typeof evalData !== 'object') return '<div class="acc-right"></div>';
@@ -858,6 +900,69 @@ function renderEvalDetail(evalData){
   </div>`;
 }
 
+// ========== AI 종합 평가 패널 (admin에서 생성한 데이터) ==========
+function renderAIOverallPanel(overall){
+  if(!overall) return '';
+  const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+  const card=(key,label)=>{
+    const d=overall[key]; if(!d) return '';
+    const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
+      `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${v}</span></div>`
+    ).join('');
+    return `<div class="overall-eval-group">
+      <div class="overall-group-label">${label}</div>
+      <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
+      <div class="overall-sub-list">${subHtml}</div>
+      ${d.근거?`<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5;">${escapeHtml(d.근거)}</div>`:''}
+    </div>`;
+  };
+  return `<div class="overall-eval-panel">
+    <div class="overall-eval-header">
+      <div class="overall-eval-header-title">🎯 AI 종합 역량 평가</div>
+      <span class="overall-eval-scope">전체 세특 AI 분석</span>
+    </div>
+    <div class="overall-eval-grid">
+      ${card('학업역량','📚 학업역량')}
+      ${card('진로역량','🎯 진로역량')}
+      ${card('공동체역량','🤝 공동체역량')}
+    </div>
+    ${overall.종합의견?`<div style="margin-top:10px;font-size:12px;color:#475569;line-height:1.7;padding:10px;background:#f8fafc;border-radius:8px;border-left:3px solid #6366f1;"><span style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">💬 종합 의견</span>${escapeHtml(overall.종합의견)}</div>`:''}
+  </div>`;
+}
+
+// ========== 종합 평가 패널 렌더링 ==========
+function renderOverallEvalPanel(subjects, title){
+  title = title || '전체 세특 종합';
+  const evalSubjects = subjects.filter(s=>s.평가&&typeof s.평가==='object');
+  if(evalSubjects.length===0) return `<div class="overall-eval-panel"><div class="overall-eval-empty">📊 평가 데이터가 없습니다<br><small>admin에서 평가를 먼저 생성해주세요</small></div></div>`;
+  const overall = calcOverallEval(evalSubjects);
+  const 학업G = groupGrade(['학업성취도','학업태도','탐구력'], overall);
+  const 진로G  = groupGrade(['전공적합성','진로탐색'], overall);
+  const 공동G  = groupGrade(['협업소통','나눔배려','성실성','리더십'], overall);
+
+  const subRow = (label, key) => overall[key]
+    ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${overall[key]}">${overall[key]}</span></div>` : '';
+
+  const group = (label, grade, rows) => grade ? `
+    <div class="overall-eval-group">
+      <div class="overall-group-label">${label}</div>
+      <div class="overall-group-grade g-${grade}">${grade}</div>
+      <div class="overall-sub-list">${rows}</div>
+    </div>` : '';
+
+  return `<div class="overall-eval-panel">
+    <div class="overall-eval-header">
+      <div class="overall-eval-header-title">📊 ${title}</div>
+      <span class="overall-eval-scope">${evalSubjects.length}개 과목 기준</span>
+    </div>
+    <div class="overall-eval-grid">
+      ${group('학업역량', 학업G, subRow('성취도','학업성취도')+subRow('학업태도','학업태도')+subRow('탐구력','탐구력'))}
+      ${group('진로역량', 진로G, subRow('전공적합','전공적합성')+subRow('진로탐색','진로탐색'))}
+      ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실성')+subRow('리더십','리더십'))}
+    </div>
+  </div>`;
+}
+
 // ========== 세특 탭 ==========
 function renderSewtuk(el){
   const hak = String(currentStu.hak);
@@ -876,12 +981,21 @@ function renderSewtuk(el){
     if(sewtukCat!=='전체 과목'){ if(s.교과 !== sewtukCat) return false; }
     return true;
   });
+  const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
+  // 전체 과목일 때 AI 종합평가 데이터 우선 사용
+  const aiOverall = (sewtukCat==='전체 과목') ? data.종합평가 : null;
   let html = `
-    <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
-    <div class="filter-row"><span class="filter-label">🗓 학기</span><div class="toggle-group" style="margin:0;">${semBtns}</div></div>
-    <div class="filter-row"><span class="filter-label">📖 과목</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
-    <div style="color:#64748b;font-size:12px;margin-bottom:12px;">총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다</div>
+    <div class="sewtuk-top-wrap">
+      <div class="sewtuk-filters">
+        <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
+        <div class="filter-row"><span class="filter-label">🗓 학기</span><div class="toggle-group" style="margin:0;">${semBtns}</div></div>
+        <div class="filter-row"><span class="filter-label">📖 과목</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
+        <div style="color:#64748b;font-size:12px;margin-top:6px;">총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다</div>
+      </div>
+      ${aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle)}
+    </div>
   `;
+
   if(filtered.length===0){
     html += `<div class="no-data">🔍 필터 조건에 해당하는 세특이 없습니다</div>`;
   }else{
