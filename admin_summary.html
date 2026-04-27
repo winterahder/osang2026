@@ -449,6 +449,7 @@ function renderMain(){
       </div>
       <div class="header-btns">
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
+        <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
@@ -799,6 +800,43 @@ async function generateAll(){
   if(btnAll){btnAll.disabled=false;btnAll.innerHTML='✨ 전체 요약 생성';}
   addMsg('assistant',
     `🎉 전체 생성 완료! **${done}개** 요약이 준비되었습니다.`,
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+  );
+}
+
+/* ========== 전체 평가 일괄 생성 ========== */
+async function evaluateAll(){
+  if(isGenAll) return;
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const targets=subs.filter(s=>!pendingEval[hak]?.[sKey(s)]&&!(s.평가&&typeof s.평가==='object'));
+  if(!targets.length){addMsg('assistant','✅ 모든 과목 평가가 이미 완료되어 있습니다.');return;}
+
+  isGenAll=true;
+  const btn=document.getElementById('btnEvalAll');
+  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 평가 중...`;}
+  const fill=document.getElementById('allProgFill');
+  const lbl=document.getElementById('allProgLabel');
+  const progBar=document.getElementById('allProg');
+  if(progBar) progBar.classList.add('show');
+
+  addMsg('assistant',`📊 미평가 **${targets.length}개** 과목을 순서대로 평가합니다...`);
+
+  let done=0;
+  for(const s of targets){
+    if(fill) fill.style.width=Math.round(done/targets.length*100)+'%';
+    if(lbl) lbl.textContent=`${done}/${targets.length}`;
+    await evaluateOne(subs.indexOf(s));
+    done++;
+    await new Promise(r=>setTimeout(r,300));
+  }
+  if(fill) fill.style.width='100%';
+  if(lbl) lbl.textContent=`${done}/${targets.length} 완료`;
+
+  isGenAll=false;
+  if(btn){btn.disabled=false;btn.innerHTML='📊 전체 평가 생성';}
+  addMsg('assistant',
+    `🎉 전체 평가 완료! **${done}개** 과목 평가가 준비되었습니다.`,
     [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
   );
 }
