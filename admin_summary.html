@@ -1167,38 +1167,39 @@ function applyAndSave(){
   const pLen=Object.keys(p).length;
   const peLen=Object.keys(pe).length;
   const hasOverall=!!(pendingOverall[hak]);
-  if(pLen===0 && peLen===0 && !hasOverall){
+  const hasSubjOverall=!!(pendingSubjOverall[hak]&&Object.keys(pendingSubjOverall[hak]).length>0);
+  if(pLen===0 && peLen===0 && !hasOverall && !hasSubjOverall){
     addMsg('assistant','저장할 새 요약이나 평가가 없습니다.');
     return;
   }
   const subs=sewtuk[hak]?.subjects||[];
   let cnt=0, evalCnt=0;
+  const parts=[];
   subs.forEach(s=>{
     const k=sKey(s);
     if(p[k]!==undefined){s.요약=p[k];delete p[k];cnt++;}
     if(pe[k]!==undefined){s.평가=pe[k];delete pe[k];evalCnt++;}
   });
+  if(cnt>0) parts.push(`요약 **${cnt}개**`);
+  if(evalCnt>0) parts.push(`평가 **${evalCnt}개**`);
   // 종합평가 저장
   if(pendingOverall[hak]){
     if(!sewtuk[hak]) sewtuk[hak]={};
     sewtuk[hak].종합평가=pendingOverall[hak];
     pendingOverall[hak]=null;
     renderOverallSection();
+    parts.push('종합역량 평가');
   }
   // 교과별 종합평가 저장
-  if(pendingSubjOverall[hak]&&Object.keys(pendingSubjOverall[hak]).length>0){
+  if(hasSubjOverall){
     if(!sewtuk[hak]) sewtuk[hak]={};
     sewtuk[hak].교과별평가=sewtuk[hak].교과별평가||{};
     Object.assign(sewtuk[hak].교과별평가, pendingSubjOverall[hak]);
     const subjCats=Object.keys(pendingSubjOverall[hak]);
     pendingSubjOverall[hak]={};
-    parts.push(`교과별 평가 ${subjCats.length}건`);
+    parts.push(`교과별 평가 **${subjCats.length}건**`);
   }
   updateProgress(); renderPanel(); renderList();
-  const parts=[];
-  if(cnt>0) parts.push(`요약 **${cnt}개**`);
-  if(evalCnt>0) parts.push(`평가 **${evalCnt}개**`);
-  if(sewtuk[hak]?.종합평가) parts.push('종합역량 평가');
   addMsg('assistant',`✅ ${parts.join(' + ')} 반영되었습니다.\n**📥 JSON 다운로드** 버튼으로 파일을 받아 GitHub data/ 폴더에 업로드하세요.`,
     [{label:'📥 JSON 다운로드',action:'exportJSON()'}]
   );
