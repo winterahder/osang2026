@@ -136,11 +136,11 @@
   .eval-section { margin-top: 10px; padding: 10px 0 4px; border-top: 1px solid #e2e8f0; }
   .eval-title { font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 7px; letter-spacing: 0.5px; }
   .eval-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-  .eval-name { font-size: 11px; color: #64748b; width: 90px; flex-shrink: 0; }
+  .eval-name { font-size: 11px; color: #64748b; width: 80px; flex-shrink: 0; }
   .eval-bar-bg { flex: 1; background: #f1f5f9; border-radius: 4px; height: 8px; overflow: hidden; }
   .eval-bar-fill { height: 8px; border-radius: 4px; transition: width .5s ease; }
   .eval-grade-badge { font-size: 11px; font-weight: 700; width: 20px; text-align: center; flex-shrink: 0; }
-  .eval-comment-text { font-size: 11px; color: #94a3b8; padding-left: 98px; margin-top: 1px; margin-bottom: 3px; line-height: 1.5; }
+  .eval-comment-text { font-size: 11px; color: #94a3b8; padding-left: 88px; margin-top: 1px; margin-bottom: 3px; line-height: 1.5; }
   .grade-bar-S { background: linear-gradient(90deg,#6366f1,#8b5cf6); }
   .grade-bar-A { background: #10b981; }
   .grade-bar-B { background: #06b6d4; }
@@ -792,11 +792,15 @@ function renderSummary(summary){
 function renderEval(evalData){
   if(!evalData || typeof evalData !== 'object') return '';
   const FIELDS = [
-    {key:'교과역량', label:'교과 역량'},
-    {key:'학습태도', label:'학습 태도'},
-    {key:'창의융합', label:'창의·융합'},
-    {key:'의사소통', label:'의사소통·협업'},
-    {key:'진로연계', label:'진로 연계성'},
+    {key:'학업성취도', label:'학업성취도'},
+    {key:'학업태도',   label:'학업태도'},
+    {key:'탐구력',     label:'탐구력'},
+    {key:'전공적합성', label:'전공 적합성'},
+    {key:'진로탐색',   label:'진로 탐색'},
+    {key:'협업소통',   label:'협업·소통'},
+    {key:'나눔배려',   label:'나눔·배려'},
+    {key:'성실성',     label:'성실성·규칙'},
+    {key:'리더십',     label:'리더십'},
   ];
   const PCT = {S:100, A:80, B:60, C:40, D:20};
   const rows = FIELDS.map(f=>{
