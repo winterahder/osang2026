@@ -133,6 +133,10 @@
   .accordion-title .sub-cat { padding: 3px 9px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; font-size: 15px; flex-shrink: 0; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
+  .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
+  .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .sb-done   { background: rgba(16,185,129,.15); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
+  .sb-none   { background: rgba(148,163,184,.1);  color: #94a3b8;  border: 1px solid #e2e8f0; }
 
   /* 요약 텍스트 */
   .sewtuk-summary { color: #475569; font-size: 13.5px; line-height: 1.7; padding: 2px 0; display: flex; align-items: flex-start; gap: 8px; }
@@ -150,21 +154,14 @@
   .eval-sub-item { font-size: 10px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 5px; display: flex; gap: 2px; }
   .eval-sub-grade { font-weight: 800; }
 
-  /* 펼친 상태: 세부 지표 (막대+등급+코멘트) */
-  .eval-detail-section { padding: 14px 20px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
-  .eval-detail-group { margin-bottom: 14px; }
-  .eval-detail-group-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
-  .eval-detail-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .eval-detail-name { font-size: 12px; color: #475569; font-weight: 500; width: 80px; flex-shrink: 0; }
-  .eval-bar-bg { flex: 1; background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden; }
-  .eval-bar-fill { height: 8px; border-radius: 4px; transition: width .5s ease; }
-  .eval-bar-S { background: linear-gradient(90deg,#6366f1,#8b5cf6); }
-  .eval-bar-A { background: #10b981; }
-  .eval-bar-B { background: #06b6d4; }
-  .eval-bar-C { background: #f59e0b; }
-  .eval-bar-D { background: #ef4444; }
-  .eval-detail-grade { font-size: 13px; font-weight: 800; width: 18px; text-align: center; flex-shrink: 0; }
-  .eval-detail-comment { font-size: 11px; color: #94a3b8; margin-left: 88px; margin-bottom: 8px; line-height: 1.5; }
+  /* 펼친 상태: 세부 지표 (한 줄 표시) */
+  .eval-detail-section { padding: 10px 20px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 20px; flex-wrap: wrap; }
+  .eval-detail-group { flex: 1; min-width: 180px; }
+  .eval-detail-group-label { font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .eval-detail-item { display: flex; align-items: baseline; gap: 5px; padding: 3px 0; border-bottom: 1px solid #f1f5f9; }
+  .eval-detail-name { font-size: 12px; color: #475569; font-weight: 600; width: 68px; flex-shrink: 0; }
+  .eval-detail-grade { font-size: 12px; font-weight: 800; flex-shrink: 0; width: 16px; }
+  .eval-detail-comment { font-size: 11px; color: #94a3b8; flex: 1; line-height: 1.4; }
 
   /* 등급 색상 */
   .g-S { color: #6366f1; } .g-A { color: #10b981; } .g-B { color: #06b6d4; }
@@ -840,43 +837,24 @@ function renderEvalPanel(evalData){
   </div></div>`;
 }
 
-// 펼친 상태: 막대 + 등급 + 코멘트
+// 펼친 상태: 지표명 + 등급 + 코멘트 한 줄
 function renderEvalDetail(evalData){
   if(!evalData || typeof evalData !== 'object') return '';
-  const PCT = {S:100, A:80, B:60, C:40, D:20};
   const item = (label, key) => {
     const d = evalData[key];
     if(!d) return '';
-    const pct = PCT[d.grade]||40;
-    return `
-      <div class="eval-detail-item">
-        <span class="eval-detail-name">${label}</span>
-        <div class="eval-bar-bg"><div class="eval-bar-fill eval-bar-${d.grade}" style="width:${pct}%"></div></div>
-        <span class="eval-detail-grade g-${d.grade}">${d.grade}</span>
-      </div>
-      ${d.comment ? `<div class="eval-detail-comment">${escapeHtml(d.comment)}</div>` : ''}`;
-  };
-  const group = (label, items) => `
-    <div class="eval-detail-group">
-      <div class="eval-detail-group-label">${label}</div>
-      ${items}
+    return `<div class="eval-detail-item">
+      <span class="eval-detail-name">${label}</span>
+      <span class="eval-detail-grade g-${d.grade}">${d.grade}</span>
+      <span class="eval-detail-comment">${d.comment ? escapeHtml(d.comment) : ''}</span>
     </div>`;
+  };
+  const group = (label, items) =>
+    `<div class="eval-detail-group"><div class="eval-detail-group-label">${label}</div>${items}</div>`;
   return `<div class="eval-detail-section">
-    ${group('📚 학업역량',
-      item('성취도','학업성취도')+
-      item('학업태도','학업태도')+
-      item('탐구력','탐구력')
-    )}
-    ${group('🎯 진로역량',
-      item('전공 적합성','전공적합성')+
-      item('진로 탐색','진로탐색')
-    )}
-    ${group('🤝 공동체역량',
-      item('협업·소통','협업소통')+
-      item('나눔·배려','나눔배려')+
-      item('성실성','성실성')+
-      item('리더십','리더십')
-    )}
+    ${group('학업역량', item('성취도','학업성취도')+item('학업태도','학업태도')+item('탐구력','탐구력'))}
+    ${group('진로역량', item('전공적합','전공적합성')+item('진로탐색','진로탐색'))}
+    ${group('공동체역량', item('협업·소통','협업소통')+item('나눔·배려','나눔배려')+item('성실성','성실성')+item('리더십','리더십'))}
   </div>`;
 }
 
@@ -918,6 +896,14 @@ function renderSewtuk(el){
                 <span class="sub-cat">${s.교과}</span>
                 <span class="sub-name">${s.과목}</span>
                 <span class="sub-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
+                <div class="status-badges">
+                  <span class="status-badge ${Array.isArray(s.요약)&&s.요약.length>0?'sb-done':'sb-none'}">
+                    ${Array.isArray(s.요약)&&s.요약.length>0?'✓ 요약':'요약 미완료'}
+                  </span>
+                  <span class="status-badge ${s.평가&&typeof s.평가==='object'?'sb-done':'sb-none'}">
+                    ${s.평가&&typeof s.평가==='object'?'✓ 평가':'평가 미완료'}
+                  </span>
+                </div>
               </div>
               ${renderSummary(s.요약)}
             </div>
