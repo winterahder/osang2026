@@ -444,8 +444,10 @@ async function init(password){
   currentPassword = password;
   try{
     // 각 파일 자체의 salt로 키를 독립적으로 파생해 복호화
+    // ?v= 캐시 버스팅: 항상 최신 파일을 서버에서 받아옴
+    const bust = `?v=${Date.now()}`;
     async function load(url){
-      const res = await fetch(url);
+      const res = await fetch(url + bust, { cache: 'no-store' });
       if(!res.ok) return null;
       const obj = await res.json();
       if(!obj.iv) return obj; // 암호화 안 된 파일은 그냥 반환
