@@ -1058,7 +1058,8 @@ function applyAndSave(){
   const pe=pendingEval[hak];
   const pLen=Object.keys(p).length;
   const peLen=Object.keys(pe).length;
-  if(pLen===0 && peLen===0){
+  const hasOverall=!!(pendingOverall[hak]);
+  if(pLen===0 && peLen===0 && !hasOverall){
     addMsg('assistant','저장할 새 요약이나 평가가 없습니다.');
     return;
   }
@@ -1080,6 +1081,7 @@ function applyAndSave(){
   const parts=[];
   if(cnt>0) parts.push(`요약 **${cnt}개**`);
   if(evalCnt>0) parts.push(`평가 **${evalCnt}개**`);
+  if(sewtuk[hak]?.종합평가) parts.push('종합역량 평가');
   addMsg('assistant',`✅ ${parts.join(' + ')} 반영되었습니다.\n**📥 JSON 다운로드** 버튼으로 파일을 받아 GitHub data/ 폴더에 업로드하세요.`,
     [{label:'📥 JSON 다운로드',action:'exportJSON()'}]
   );
