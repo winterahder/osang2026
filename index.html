@@ -822,7 +822,12 @@ function renderSummary(summary){
 // ========== 세특 평가 렌더링 ==========
 // 대분류별 대표 등급 계산 (최빈값, 없으면 평균)
 function groupGrade(keys, evalData){
-  const grades = keys.map(k=>evalData[k]?.grade).filter(Boolean);
+  // evalData[k] 가 {grade:'A',...} 형태일 수도 있고, 'A' 문자열일 수도 있음
+  const grades = keys.map(k=>{
+    const v = evalData[k];
+    if(!v) return null;
+    return typeof v === 'string' ? v : v.grade;
+  }).filter(Boolean);
   if(!grades.length) return null;
   const ORDER = {S:5,A:4,B:3,C:2,D:1};
   const avg = grades.reduce((s,g)=>s+(ORDER[g]||3),0)/grades.length;
@@ -856,9 +861,15 @@ function calcOverallEval(subjects){
 // 오른쪽 패널: 3개 대분류 + 세부 등급
 function renderEvalPanel(evalData){
   if(!evalData || typeof evalData !== 'object') return '<div class="acc-right"></div>';
-  const 학업G = groupGrade(['학업성취도','학업태도','탐구력'], evalData);
-  const 진로G  = groupGrade(['전공적합성','진로탐색'], evalData);
-  const 공동G  = groupGrade(['협업소통','나눔배려','성실성','리더십'], evalData);
+
+  // 저장된 대분류 데이터 우선 사용, 없으면 세부지표 평균 계산
+  const get대분류 = (key, subKeys) => {
+    if(evalData[key]?.grade) return evalData[key].grade;
+    return groupGrade(subKeys, evalData);
+  };
+  const 학업G = get대분류('학업역량', ['학업성취도','학업태도','탐구력']);
+  const 진로G  = get대분류('진로역량',  ['전공적합성','진로탐색']);
+  const 공동G  = get대분류('공동체역량', ['협업소통','나눔배려','성실성','리더십']);
 
   const subItems = (keys, labels) => keys.map((k,i)=>{
     const d = evalData[k]; if(!d) return '';
@@ -936,12 +947,20 @@ function renderOverallEvalPanel(subjects, title){
   const evalSubjects = subjects.filter(s=>s.평가&&typeof s.평가==='object');
   if(evalSubjects.length===0) return `<div class="overall-eval-panel"><div class="overall-eval-empty">📊 평가 데이터가 없습니다<br><small>admin에서 평가를 먼저 생성해주세요</small></div></div>`;
   const overall = calcOverallEval(evalSubjects);
-  const 학업G = groupGrade(['학업성취도','학업태도','탐구력'], overall);
-  const 진로G  = groupGrade(['전공적합성','진로탐색'], overall);
-  const 공동G  = groupGrade(['협업소통','나눔배려','성실성','리더십'], overall);
+  const get대G = (key, subKeys) => {
+    if(overall[key]?.grade) return overall[key].grade; // 대분류 저장된 경우
+    if(typeof overall[key] === 'string') return overall[key]; // 문자열인 경우
+    return groupGrade(subKeys, overall); // 세부지표 평균
+  };
+  const 학업G = get대G('학업역량', ['학업성취도','학업태도','탐구력']);
+  const 진로G  = get대G('진로역량',  ['전공적합성','진로탐색']);
+  const 공동G  = get대G('공동체역량', ['협업소통','나눔배려','성실성','리더십']);
 
-  const subRow = (label, key) => overall[key]
-    ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${overall[key]}">${overall[key]}</span></div>` : '';
+  const subRow = (label, key) => {
+    const v = overall[key];
+    const g = v && typeof v === 'string' ? v : v?.grade;
+    return g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${g}">${g}</span></div>` : '';
+  };
 
   const group = (label, grade, rows) => grade ? `
     <div class="overall-eval-group">
@@ -983,8 +1002,8 @@ function renderSewtuk(el){
   });
   const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
   // 전체 과목일 때 AI 종합평가 데이터 우선 사용
-  const aiOverall = (sewtukCat==='전체 과목') ? (data.종합평가||null) : null;
-  console.log('aiOverall:', aiOverall, 'sewtukCat:', sewtukCat);
+  // 전체과목+종합평가 있으면 AI패널, 없으면 평균계산 패널
+  const aiOverall = (sewtukCat==='전체 과목' && data.종합평가) ? data.종합평가 : null;
   let html = `
     <div class="sewtuk-top-wrap">
       <div class="sewtuk-filters">
