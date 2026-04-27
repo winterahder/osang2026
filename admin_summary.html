@@ -649,7 +649,7 @@ async function callAPI(system,messages,maxTokens=400){
         messages
       })
     });
-    if(!r.ok){const t=await r.text();throw new Error(`Anthropic API ${r.status}: ${t}`);}
+    if(!r.ok){const t=await r.text();console.error('Anthropic API Error:',r.status,t);throw new Error(`Anthropic API ${r.status}: ${t.substring(0,200)}`);}
     const d=await r.json();
     return d.content?.[0]?.text||'';
   }
@@ -664,7 +664,7 @@ async function callAPI(system,messages,maxTokens=400){
         messages:[{role:'system',content:system},...messages]
       })
     });
-    if(!r.ok){const t=await r.text();throw new Error(`Groq API ${r.status}: ${t}`);}
+    if(!r.ok){const t=await r.text();console.error('Groq API Error:',r.status,t);throw new Error(`Groq API ${r.status}: ${t.substring(0,200)}`);}
     const d=await r.json();
     return d.choices?.[0]?.message?.content||'';
   }
@@ -684,7 +684,7 @@ async function callAPI(system,messages,maxTokens=400){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents,generationConfig:{maxOutputTokens:maxTokens,temperature:0.7}})
     });
-    if(!r.ok){const t=await r.text();throw new Error(`Gemini API ${r.status}: ${t}`);}
+    if(!r.ok){const t=await r.text();console.error('Gemini API Error:',r.status,t);throw new Error(`Gemini API ${r.status}: ${t.substring(0,200)}`);}
     const d=await r.json();
     return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
   }
@@ -905,12 +905,13 @@ async function generateOverallEval(){
 
   const systemPrompt='당신은 대입 전형 전문 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합 분석하여 3개 대분류 역량을 평가하세요.\n반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):\n{"학업역량":{"grade":"A","세부":{"성취도":"A","태도":"A","탐구력":"S"},"근거":"50자이내근거"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"},"근거":"50자이내근거"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"50자이내근거"},"종합의견":"강점과특징3~5문장"}\n등급: S=반복탁월 A=대부분우수 B=일부양호 C=제한적 D=거의없음';
 
+  // 60초 타임아웃
+  const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('요청 시간 초과 (60초). 세특 내용이 너무 길 수 있습니다.')),60000));
   try{
-    const text=await callAPI(
-      systemPrompt,
+    const text=await Promise.race([callAPI(systemPrompt,
       [{role:'user',content:'학생: '+currentStu.name+'\n\n전체 세특:\n'+shortText}],
       1200
-    );
+    ), timeoutPromise]);
 
     let obj;
     try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
@@ -926,6 +927,7 @@ async function generateOverallEval(){
       [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
     );
   }catch(e){
+    console.error('종합평가 오류:', e);
     addMsg('assistant','❌ 종합 평가 실패: '+e.message);
   }
   if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 역량 평가';}
