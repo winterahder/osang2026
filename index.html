@@ -131,6 +131,26 @@
   .accordion-title .sub-name { font-weight: 700; color: #1e293b; flex-shrink: 0; }
 
   .sewtuk-summary { color: #475569; font-size: 12.5px; line-height: 1.65; padding: 5px 0 2px; display: flex; align-items: flex-start; gap: 7px; }
+
+  /* ===== 세특 평가 막대 그래프 ===== */
+  .eval-section { margin-top: 10px; padding: 10px 0 4px; border-top: 1px solid #e2e8f0; }
+  .eval-title { font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 7px; letter-spacing: 0.5px; }
+  .eval-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .eval-name { font-size: 11px; color: #64748b; width: 90px; flex-shrink: 0; }
+  .eval-bar-bg { flex: 1; background: #f1f5f9; border-radius: 4px; height: 8px; overflow: hidden; }
+  .eval-bar-fill { height: 8px; border-radius: 4px; transition: width .5s ease; }
+  .eval-grade-badge { font-size: 11px; font-weight: 700; width: 20px; text-align: center; flex-shrink: 0; }
+  .eval-comment-text { font-size: 11px; color: #94a3b8; padding-left: 98px; margin-top: 1px; margin-bottom: 3px; line-height: 1.5; }
+  .grade-bar-S { background: linear-gradient(90deg,#6366f1,#8b5cf6); }
+  .grade-bar-A { background: #10b981; }
+  .grade-bar-B { background: #06b6d4; }
+  .grade-bar-C { background: #f59e0b; }
+  .grade-bar-D { background: #ef4444; }
+  .grade-txt-S { color: #6366f1; }
+  .grade-txt-A { color: #10b981; }
+  .grade-txt-B { color: #06b6d4; }
+  .grade-txt-C { color: #f59e0b; }
+  .grade-txt-D { color: #ef4444; }
   .sewtuk-summary .sum-bullet { flex-shrink: 0; background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-top: 1px; }
   .accordion.open .sewtuk-summary { color: #1e3a8a; }
   .accordion.open .sewtuk-summary .sum-bullet { background: #bfdbfe; }
@@ -768,6 +788,33 @@ function renderSummary(summary){
   return `<div class="sewtuk-summary"><span class="sum-bullet">요약</span>${escapeHtml(summary)}</div>`;
 }
 
+// ========== 세특 평가 렌더링 ==========
+function renderEval(evalData){
+  if(!evalData || typeof evalData !== 'object') return '';
+  const FIELDS = [
+    {key:'교과역량', label:'교과 역량'},
+    {key:'학습태도', label:'학습 태도'},
+    {key:'창의융합', label:'창의·융합'},
+    {key:'의사소통', label:'의사소통·협업'},
+    {key:'진로연계', label:'진로 연계성'},
+  ];
+  const PCT = {S:100, A:80, B:60, C:40, D:20};
+  const rows = FIELDS.map(f=>{
+    const d = evalData[f.key];
+    if(!d) return '';
+    const pct = PCT[d.grade] || 40;
+    return `
+      <div class="eval-row">
+        <span class="eval-name">${f.label}</span>
+        <div class="eval-bar-bg"><div class="eval-bar-fill grade-bar-${d.grade}" style="width:${pct}%"></div></div>
+        <span class="eval-grade-badge grade-txt-${d.grade}">${d.grade}</span>
+      </div>
+      ${d.comment ? `<div class="eval-comment-text">${escapeHtml(d.comment)}</div>` : ''}
+    `;
+  }).join('');
+  return `<div class="eval-section"><div class="eval-title">📊 AI 역량 평가</div>${rows}</div>`;
+}
+
 // ========== 세특 탭 ==========
 function renderSewtuk(el){
   const hak = String(currentStu.hak);
@@ -808,6 +855,7 @@ function renderSewtuk(el){
                 <span class="sub-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
               </div>
               ${renderSummary(s.요약)}
+              ${s.평가 ? renderEval(s.평가) : ''}
             </div>
             <span class="arrow">▶</span>
           </div>
