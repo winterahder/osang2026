@@ -162,6 +162,21 @@
   ::-webkit-scrollbar{width:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+  /* API 제공자 선택 */
+  .provider-selector{display:flex;gap:6px;margin:10px 0 4px;}
+  .provider-btn{flex:1;padding:8px 4px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--muted2);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Noto Sans KR',sans-serif;text-align:center;}
+  .provider-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+  .provider-btn.selected{border-color:var(--accent);background:rgba(99,102,241,.15);color:var(--accent2);}
+  .provider-icon{font-size:18px;display:block;margin-bottom:3px;}
+
+  /* 기억하기 체크박스 */
+  .remember-row{display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;}
+  .remember-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+  .remember-row span{font-size:12px;color:var(--muted2);}
+
+  /* 헤더 API 뱃지 */
+  .api-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(99,102,241,.2);color:var(--accent2);margin-left:6px;}
 </style>
 </head>
 <body>
@@ -170,12 +185,33 @@
   <div class="lock-wrap">
     <div class="icon">🔐</div>
     <h1>세특 요약 생성기</h1>
-    <p>비밀번호와 Anthropic API 키를 입력하세요</p>
+    <p>AI 제공자를 선택하고 비밀번호와 API 키를 입력하세요</p>
+
+    <div class="lock-field-label">AI 제공자 선택</div>
+    <div class="provider-selector">
+      <div class="provider-btn" id="pb-anthropic" onclick="selectProvider('anthropic')">
+        <span class="provider-icon">🤖</span>Anthropic
+      </div>
+      <div class="provider-btn" id="pb-groq" onclick="selectProvider('groq')">
+        <span class="provider-icon">⚡</span>Groq
+      </div>
+      <div class="provider-btn" id="pb-gemini" onclick="selectProvider('gemini')">
+        <span class="provider-icon">💎</span>Gemini
+      </div>
+    </div>
+    <div id="providerNote" style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:left;min-height:16px;"></div>
+
     <div class="lock-field-label">데이터 비밀번호</div>
     <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off">
-    <div class="lock-field-label">Groq API Key</div>
-    <input type="text" id="apiKeyInput" placeholder="gsk_..." autocomplete="off" style="letter-spacing:0;">
-    <div class="api-note">※ API 키는 브라우저 메모리에만 저장되고 서버로 전송되지 않습니다.<br>무료 발급: <a href="https://console.groq.com" target="_blank" style="color:var(--accent2);">console.groq.com</a> → API Keys → Create API Key</div>
+
+    <div class="lock-field-label">API Key</div>
+    <input type="text" id="apiKeyInput" placeholder="제공자를 먼저 선택하세요" autocomplete="off" style="letter-spacing:0;">
+
+    <label class="remember-row">
+      <input type="checkbox" id="rememberMe">
+      <span>오늘 하루 비밀번호와 API 키 기억 (세션 유지)</span>
+    </label>
+
     <button class="lock-btn" onclick="tryUnlock()">🔓 확인</button>
     <div class="lock-error" id="lockError"></div>
   </div>
@@ -240,30 +276,76 @@ async function loadJSON(url,pw){
 }
 
 /* ========== 상태 ========== */
-let students=[],sewtuk={},currentStu=null,currentPw='',apiKey='';
+let students=[],sewtuk={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
 let chatHistory=[],filterMode='all',isGenAll=false;
 let pending={};  // hak -> { subjectKey -> [s1,s2,s3] }
+
+/* ========== 제공자 선택 ========== */
+const PROVIDERS = {
+  anthropic: {name:'Anthropic Claude', prefix:'sk-ant-', placeholder:'sk-ant-api03-...', note:'claude.ai 결제 후 console.anthropic.com에서 발급', color:'#6366f1'},
+  groq:      {name:'Groq (무료)',       prefix:'gsk_',    placeholder:'gsk_...',          note:'무료 발급: console.groq.com → API Keys', color:'#10b981'},
+  gemini:    {name:'Google Gemini',    prefix:'AIza',    placeholder:'AIzaSy...',         note:'무료 발급: aistudio.google.com/app/apikey', color:'#f59e0b'},
+};
+
+function selectProvider(p){
+  apiProvider=p;
+  const info=PROVIDERS[p];
+  Object.keys(PROVIDERS).forEach(k=>{
+    document.getElementById('pb-'+k).classList.toggle('selected', k===p);
+  });
+  document.getElementById('apiKeyInput').placeholder=info.placeholder;
+  document.getElementById('providerNote').textContent='💡 '+info.note;
+  document.getElementById('apiKeyInput').value='';
+  // 저장된 키 불러오기
+  const saved=sessionStorage.getItem('apiKey_'+p);
+  if(saved) document.getElementById('apiKeyInput').value=saved;
+}
 
 /* ========== 잠금 해제 ========== */
 async function tryUnlock(){
   const pw=document.getElementById('pwInput').value.trim();
   const ak=document.getElementById('apiKeyInput').value.trim();
+  const remember=document.getElementById('rememberMe').checked;
   const errEl=document.getElementById('lockError');
   if(!pw){errEl.textContent='비밀번호를 입력하세요.';return;}
-  if(!ak||!ak.startsWith('gsk_')){errEl.textContent='Groq API 키를 정확히 입력하세요 (gsk_로 시작).';return;}
+  if(!apiProvider){errEl.textContent='AI 제공자를 선택하세요.';return;}
+  const info=PROVIDERS[apiProvider];
+  if(!ak||!ak.startsWith(info.prefix)){
+    errEl.textContent=info.name+' API 키를 정확히 입력하세요 ('+info.prefix+'로 시작).';return;
+  }
   errEl.textContent='';
   try{
     const s=await loadJSON('data/students.json',pw);
     currentPw=pw; apiKey=ak;
     students=(s||[]).filter(x=>x.grade===2);
     try{sewtuk=await loadJSON('data/sewtuk_2.json',pw)||{};}catch(e){}
+    // 기억하기
+    if(remember){
+      sessionStorage.setItem('savedPw',pw);
+      sessionStorage.setItem('savedProvider',apiProvider);
+      sessionStorage.setItem('apiKey_'+apiProvider,ak);
+    }
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('progressWrap').style.display='block';
     updateProgress(); renderList();
-    document.getElementById('headerStatus').textContent=`${students.length}명 로드됨 · API 연결됨`;
+    const providerBadge=`<span class="api-badge">${info.name}</span>`;
+    document.getElementById('headerStatus').innerHTML=`${students.length}명 로드됨 ${providerBadge}`;
   }catch(e){errEl.textContent='비밀번호가 올바르지 않습니다.';}
 }
+
 document.addEventListener('DOMContentLoaded',()=>{
+  // 저장된 세션 복원
+  const savedPw=sessionStorage.getItem('savedPw');
+  const savedProvider=sessionStorage.getItem('savedProvider')||'anthropic';
+  selectProvider(savedProvider);
+  if(savedPw){
+    document.getElementById('pwInput').value=savedPw;
+    const savedKey=sessionStorage.getItem('apiKey_'+savedProvider);
+    if(savedKey) document.getElementById('apiKeyInput').value=savedKey;
+    document.getElementById('rememberMe').checked=true;
+    // 자동 로그인
+    tryUnlock();
+  }
   ['pwInput','apiKeyInput'].forEach(id=>{
     document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
   });
@@ -454,24 +536,64 @@ function toggleContent(i){
   else{fade.classList.remove('hidden');btn.textContent='▼ 전문 보기';}
 }
 
-/* ========== API 호출 ========== */
+/* ========== API 호출 (제공자별 분기) ========== */
 async function callAPI(system,messages,maxTokens=400){
-  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'Authorization':'Bearer '+apiKey
-    },
-    body:JSON.stringify({
-      model:'llama-3.3-70b-versatile',
-      max_tokens:maxTokens,
-      temperature:0.7,
-      messages:[{role:'system',content:system},...messages]
-    })
-  });
-  if(!r.ok){const t=await r.text();throw new Error(`Groq API ${r.status}: ${t}`);}
-  const d=await r.json();
-  return d.choices?.[0]?.message?.content||'';
+  if(apiProvider==='anthropic'){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:maxTokens,
+        system,
+        messages
+      })
+    });
+    if(!r.ok){const t=await r.text();throw new Error(`Anthropic API ${r.status}: ${t}`);}
+    const d=await r.json();
+    return d.content?.[0]?.text||'';
+  }
+  else if(apiProvider==='groq'){
+    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body:JSON.stringify({
+        model:'llama-3.3-70b-versatile',
+        max_tokens:maxTokens,
+        temperature:0.7,
+        messages:[{role:'system',content:system},...messages]
+      })
+    });
+    if(!r.ok){const t=await r.text();throw new Error(`Groq API ${r.status}: ${t}`);}
+    const d=await r.json();
+    return d.choices?.[0]?.message?.content||'';
+  }
+  else if(apiProvider==='gemini'){
+    const contents=[];
+    let first=true;
+    for(const m of messages){
+      if(first&&m.role==='user'){
+        contents.push({role:'user',parts:[{text:system+'\n\n'+m.content}]});
+        first=false;
+      } else {
+        contents.push({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]});
+      }
+    }
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+apiKey,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents,generationConfig:{maxOutputTokens:maxTokens,temperature:0.7}})
+    });
+    if(!r.ok){const t=await r.text();throw new Error(`Gemini API ${r.status}: ${t}`);}
+    const d=await r.json();
+    return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  }
+  throw new Error('API 제공자가 선택되지 않았습니다.');
 }
 
 /* ========== 단일 요약 생성 ========== */
