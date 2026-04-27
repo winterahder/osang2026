@@ -75,6 +75,9 @@
   .btn-all{padding:7px 13px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;display:flex;align-items:center;gap:5px;font-family:'Noto Sans KR',sans-serif;}
   .btn-all:hover{opacity:.85;}
   .btn-all:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-one{padding:7px 13px;background:var(--surface2);color:var(--accent2);border:1.5px solid var(--accent);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+  .btn-one:hover{background:rgba(99,102,241,.15);}
+  .btn-one:disabled{opacity:.4;cursor:not-allowed;}
   .btn-save{padding:7px 13px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
   .btn-save:hover{opacity:.85;}
   .btn-export{padding:7px 11px;background:var(--surface2);color:var(--muted2);border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
@@ -315,7 +318,7 @@ function renderList(){
 /* ========== 학생 선택 ========== */
 function selectStu(hak){
   currentStu=students.find(s=>String(s.hak)===String(hak));
-  chatHistory=[]; isGenAll=false; openItems=new Set();
+  chatHistory=[]; isGenAll=false; openItems=new Set(); closedItems=new Set();
   pending[hak]=pending[hak]||{};
   renderList(); renderMain();
   const subs=sewtuk[String(hak)]?.subjects||[];
@@ -344,6 +347,7 @@ function renderMain(){
       </div>
       <div class="header-btns">
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
+        <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
       </div>
@@ -373,8 +377,15 @@ function renderMain(){
 const sKey=s=>`${s.학년}-${s.학기}-${s.과목}`;
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// 아코디언 열림 상태 추적
-let openItems=new Set();
+// 열림 상태: 기본값 — 미완료는 열림, 완료는 닫힘
+// openItems: 사용자가 직접 토글한 항목 추적
+let openItems=new Set();   // 강제 열기된 완료 항목
+let closedItems=new Set(); // 강제 닫힌 미완료 항목
+
+function isItemOpen(i, hasSummary){
+  if(hasSummary) return openItems.has(i);   // 완료: 기본 닫힘, 클릭하면 열림
+  return !closedItems.has(i);               // 미완료: 기본 열림, 클릭하면 닫힘
+}
 
 function renderPanel(){
   const panel=document.getElementById('sewtukPanel'); if(!panel) return;
@@ -388,8 +399,7 @@ function renderPanel(){
     const saved=Array.isArray(s.요약)&&s.요약.length>0?s.요약:null;
     const arr=pend||saved||[];
     const hasSummary=arr.length>0;
-    // 미완료는 기본 열림, 완료/새요약은 기본 닫힘(클릭해서 열기)
-    const isOpen=openItems.has(i)||(!hasSummary);
+    const isOpen=isItemOpen(i,hasSummary);
 
     let itemCls='',badgeHtml='',btnCls='',btnLabel='';
     if(pend){
@@ -410,7 +420,14 @@ function renderPanel(){
         </div>`
       :`<div class="summary-area"><div class="summary-empty">아직 요약이 없습니다</div></div>`;
 
-    const bodyHtml=`
+    return `<div class="sewtuk-item ${itemCls}" id="si-${i}">
+      <div class="sewtuk-head" onclick="toggleItem(${i},${hasSummary})" style="cursor:pointer;">
+        <span class="subj-cat">${s.교과}</span>
+        <span class="subj-name">${s.과목}</span>
+        <span class="subj-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
+        ${badgeHtml}
+        <span class="item-arrow" id="ia-${i}" style="margin-left:auto;color:var(--muted2);font-size:11px;transition:transform .2s;">${isOpen?'▼':'▶'}</span>
+      </div>
       <div class="item-body" id="ib-${i}" style="display:${isOpen?'block':'none'};">
         <div class="content-wrap">
           <div class="sewtuk-content" id="sc-${i}">${esc(s.내용||'')}</div>
@@ -419,29 +436,25 @@ function renderPanel(){
         </div>
         ${summaryBlock}
         <button class="gen-btn ${btnCls}" id="gb-${i}" onclick="generateOne(${i});event.stopPropagation()">${btnLabel}</button>
-      </div>`;
-
-    const arrow=isOpen?'▼':'▶';
-    return `<div class="sewtuk-item ${itemCls}" id="si-${i}">
-      <div class="sewtuk-head" onclick="toggleItem(${i})" style="cursor:pointer;">
-        <span class="subj-cat">${s.교과}</span>
-        <span class="subj-name">${s.과목}</span>
-        <span class="subj-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
-        ${badgeHtml}
-        <span class="item-arrow" id="ia-${i}" style="margin-left:auto;color:var(--muted2);font-size:11px;">${arrow}</span>
       </div>
-      ${bodyHtml}
     </div>`;
   }).join('');
 }
 
-function toggleItem(i){
+function toggleItem(i, hasSummary){
   const body=document.getElementById(`ib-${i}`);
   const arrow=document.getElementById(`ia-${i}`);
   if(!body) return;
-  const isOpen=body.style.display!=='none';
-  if(isOpen){ body.style.display='none'; arrow.textContent='▶'; openItems.delete(i); }
-  else { body.style.display='block'; arrow.textContent='▼'; openItems.add(i); }
+  const nowOpen=body.style.display!=='none';
+  if(nowOpen){
+    body.style.display='none';
+    arrow.textContent='▶';
+    if(hasSummary) openItems.delete(i); else closedItems.add(i);
+  } else {
+    body.style.display='block';
+    arrow.textContent='▼';
+    if(hasSummary) openItems.add(i); else closedItems.delete(i);
+  }
 }
 
 function toggleContent(i){
@@ -515,6 +528,19 @@ async function generateOne(idx){
     addMsg('assistant',`❌ **${s.과목}** 요약 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
   }
+}
+
+/* ========== 다음 미완료 1개만 생성 ========== */
+async function generateNext(){
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const next=subs.find(s=>!pending[hak]?.[sKey(s)]&&!(Array.isArray(s.요약)&&s.요약.length>0));
+  if(!next){addMsg('assistant','✅ 모든 과목 요약이 완료되었습니다.');return;}
+  const idx=subs.indexOf(next);
+  // 해당 과목 아코디언 열기
+  openItems.add(idx); closedItems.delete(idx);
+  addMsg('assistant',`▶ **${next.과목}** 요약을 생성합니다...`);
+  await generateOne(idx);
 }
 
 /* ========== 전체 일괄 생성 ========== */
@@ -634,15 +660,14 @@ function applyAndSave(){
   );
 }
 
-/* ========== JSON 다운로드 ========== */
+/* ========== JSON 다운로드 (평문) ========== */
 async function exportJSON(){
   try{
-    const enc=await encryptJSON(sewtuk,currentPw);
-    const blob=new Blob([JSON.stringify(enc)],{type:'application/json'});
+    const blob=new Blob([JSON.stringify(sewtuk,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='sewtuk_2.json'; a.click();
     URL.revokeObjectURL(url);
-    addMsg('assistant','📥 **sewtuk_2.json** 다운로드 완료!\nGitHub → data/ 폴더에 덮어씌워 Push하면 반영됩니다.');
+    addMsg('assistant','📥 **sewtuk_2.json** 다운로드 완료!\n⚠️ 암호화 없이 저장됩니다. GitHub → data/ 폴더에 업로드하세요.');
   }catch(e){addMsg('assistant',`다운로드 오류: ${e.message}`);}
 }
 </script>
