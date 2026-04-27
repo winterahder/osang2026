@@ -5,235 +5,175 @@
 <title>세특 요약 생성기 — 오상고 관리자</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
-
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22263a;
-    --border: #2e334d;
-    --accent: #6366f1;
-    --accent2: #818cf8;
-    --green: #10b981;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --muted2: #94a3b8;
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e334d;
+    --accent:#6366f1; --accent2:#818cf8; --green:#10b981; --yellow:#f59e0b;
+    --red:#ef4444; --text:#e2e8f0; --muted:#64748b; --muted2:#94a3b8;
   }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  /* 잠금 화면 */
+  #lockScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;}
+  #lockScreen.hidden{display:none;}
+  .lock-wrap{text-align:center;max-width:400px;width:100%;padding:0 24px;}
+  .lock-wrap .icon{font-size:48px;margin-bottom:20px;}
+  .lock-wrap h1{font-size:20px;font-weight:700;margin-bottom:6px;}
+  .lock-wrap p{color:var(--muted2);font-size:13px;margin-bottom:20px;}
+  .lock-field-label{font-size:12px;color:var(--muted2);text-align:left;margin-bottom:4px;margin-top:10px;}
+  .lock-wrap input{width:100%;padding:12px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s;}
+  .lock-wrap input:focus{border-color:var(--accent);}
+  .lock-wrap input#pwInput{letter-spacing:3px;}
+  .lock-wrap .lock-btn{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:opacity .2s;font-family:'Noto Sans KR',sans-serif;}
+  .lock-wrap .lock-btn:hover{opacity:.85;}
+  .lock-error{color:var(--red);font-size:13px;margin-top:8px;min-height:20px;}
+  .api-note{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5;text-align:left;}
 
-  /* ===== 잠금 화면 ===== */
-  #lockScreen {
-    position: fixed; inset: 0; background: var(--bg);
-    display: flex; align-items: center; justify-content: center; z-index: 9999;
-  }
-  #lockScreen.hidden { display: none; }
-  .lock-wrap { text-align: center; max-width: 380px; width: 100%; padding: 0 24px; }
-  .lock-wrap .icon { font-size: 48px; margin-bottom: 20px; }
-  .lock-wrap h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
-  .lock-wrap p { color: var(--muted2); font-size: 13px; margin-bottom: 28px; }
-  .lock-wrap input {
-    width: 100%; padding: 14px 16px; background: var(--surface2); border: 1.5px solid var(--border);
-    border-radius: 10px; color: var(--text); font-size: 15px; letter-spacing: 4px; outline: none;
-    margin-bottom: 12px; transition: border-color 0.2s;
-  }
-  .lock-wrap input:focus { border-color: var(--accent); }
-  .lock-wrap button {
-    width: 100%; padding: 14px; background: var(--accent); color: #fff; border: none;
-    border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
-  }
-  .lock-wrap button:hover { opacity: 0.85; }
-  .lock-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  /* 헤더 */
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  header h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .header-badge{background:var(--accent);color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  #headerStatus{color:var(--muted2);font-size:12px;}
 
-  /* ===== 레이아웃 ===== */
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
-  }
-  header h1 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-  .header-badge { background: var(--accent); color: #fff; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-  #headerStatus { color: var(--muted2); font-size: 12px; }
+  /* 레이아웃 */
+  .layout{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 49px);}
 
-  .layout { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 53px); }
+  /* 사이드바 */
+  aside{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .aside-top{padding:12px;border-bottom:1px solid var(--border);}
+  .aside-search{width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;}
+  .aside-search:focus{border-color:var(--accent);}
+  .filter-tabs{display:flex;gap:3px;}
+  .filter-tab{flex:1;padding:5px 3px;text-align:center;font-size:11px;font-weight:600;background:var(--surface2);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted2);transition:all .15s;}
+  .filter-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .progress-wrap{padding:8px 0 2px;display:none;}
+  .progress-bar-bg{background:var(--border);border-radius:3px;height:3px;}
+  .progress-bar-fill{background:var(--green);height:3px;border-radius:3px;transition:width .3s;}
+  .progress-label{font-size:11px;color:var(--muted);margin-top:3px;}
+  .stu-count{padding:6px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);}
+  .stu-list{flex:1;overflow-y:auto;}
+  .stu-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(46,51,77,.4);transition:background .1s;}
+  .stu-item:hover{background:var(--surface2);}
+  .stu-item.active{background:rgba(99,102,241,.15);border-right:2px solid var(--accent);}
+  .stu-hak{font-size:11px;color:var(--muted2);width:46px;flex-shrink:0;}
+  .stu-name{font-size:13px;font-weight:500;flex:1;}
+  .stu-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .stu-dot.done{background:var(--green);}
+  .stu-dot.partial{background:var(--yellow);}
+  .stu-dot.none{background:var(--border);}
 
-  /* ===== 사이드바 ===== */
-  aside {
-    background: var(--surface); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  .aside-top { padding: 14px; border-bottom: 1px solid var(--border); }
-  .aside-top input {
-    width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 13px; outline: none;
-  }
-  .aside-top input:focus { border-color: var(--accent); }
-  .filter-tabs { display: flex; gap: 4px; margin-top: 8px; }
-  .filter-tab {
-    flex: 1; padding: 6px 4px; text-align: center; font-size: 11px; font-weight: 600;
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
-    cursor: pointer; color: var(--muted2); transition: all 0.15s;
-  }
-  .filter-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .stu-count { padding: 8px 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); }
-  .stu-list { flex: 1; overflow-y: auto; }
-  .stu-item {
-    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s;
-  }
-  .stu-item:hover { background: var(--surface2); }
-  .stu-item.active { background: rgba(99,102,241,0.15); border-right: 2px solid var(--accent); }
-  .stu-hak { font-size: 11px; color: var(--muted2); font-variant-numeric: tabular-nums; width: 50px; flex-shrink: 0; }
-  .stu-name { font-size: 14px; font-weight: 500; flex: 1; }
-  .stu-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .stu-status.done { background: var(--green); }
-  .stu-status.partial { background: var(--yellow); }
-  .stu-status.none { background: var(--border); }
+  /* 메인 */
+  main{display:flex;flex-direction:column;overflow:hidden;}
+  .main-placeholder{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);}
 
-  /* ===== 메인 영역 ===== */
-  main { display: flex; flex-direction: column; overflow: hidden; }
+  /* 학생 헤더 */
+  .stu-header{padding:11px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px;flex-wrap:wrap;}
+  .stu-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .stu-info h2{font-size:16px;font-weight:700;}
+  .badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--muted2);border:1px solid var(--border);}
+  .header-btns{display:flex;gap:6px;flex-shrink:0;}
+  .btn-all{padding:7px 13px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;display:flex;align-items:center;gap:5px;font-family:'Noto Sans KR',sans-serif;}
+  .btn-all:hover{opacity:.85;}
+  .btn-all:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-save{padding:7px 13px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+  .btn-save:hover{opacity:.85;}
+  .btn-export{padding:7px 11px;background:var(--surface2);color:var(--muted2);border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+  .btn-export:hover{border-color:var(--accent2);color:var(--accent2);}
 
-  .main-placeholder {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 12px; color: var(--muted);
-  }
-  .main-placeholder .big-icon { font-size: 48px; }
+  /* 전체 진행 바 */
+  .all-progress{padding:6px 14px;background:rgba(99,102,241,.08);border-bottom:1px solid var(--border);display:none;align-items:center;gap:10px;flex-shrink:0;}
+  .all-progress.show{display:flex;}
+  .all-prog-bg{flex:1;background:var(--border);border-radius:3px;height:5px;}
+  .all-prog-fill{background:var(--accent);height:5px;border-radius:3px;transition:width .3s;}
+  .all-prog-label{font-size:12px;color:var(--muted2);flex-shrink:0;min-width:70px;text-align:right;}
 
-  /* ===== 학생 헤더 ===== */
-  .stu-header {
-    padding: 16px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-  }
-  .stu-info { display: flex; align-items: center; gap: 12px; }
-  .stu-info h2 { font-size: 18px; font-weight: 700; }
-  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: var(--surface2); color: var(--muted2); border: 1px solid var(--border); }
+  /* 콘텐츠 영역 */
+  .content-area{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;}
 
-  /* ===== 세특 목록 + 채팅 영역 ===== */
-  .content-area { display: grid; grid-template-columns: 1fr 380px; flex: 1; overflow: hidden; }
+  /* 세특 패널 */
+  .sewtuk-panel{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);}
+  .sewtuk-item{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;}
+  .sewtuk-item.s-pending{border-color:var(--yellow);}
+  .sewtuk-item.s-done{border-color:rgba(16,185,129,.4);}
+  .sewtuk-head{padding:9px 12px;display:flex;align-items:center;gap:7px;background:var(--surface2);flex-wrap:wrap;}
+  .subj-cat{padding:2px 7px;background:rgba(99,102,241,.2);color:var(--accent2);border-radius:4px;font-size:11px;font-weight:700;}
+  .subj-name{font-weight:600;font-size:13px;flex:1;}
+  .subj-meta{font-size:11px;color:var(--muted);}
+  .ibadge-done{padding:2px 7px;background:rgba(16,185,129,.2);color:var(--green);border-radius:4px;font-size:11px;font-weight:700;}
+  .ibadge-pending{padding:2px 7px;background:rgba(245,158,11,.2);color:var(--yellow);border-radius:4px;font-size:11px;font-weight:700;}
+  .ibadge-new{padding:2px 7px;background:rgba(99,102,241,.25);color:var(--accent2);border-radius:4px;font-size:11px;font-weight:700;}
 
-  /* 세특 목록 */
-  .sewtuk-panel { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--border); }
-  .sewtuk-item {
-    background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px;
-    overflow: hidden; transition: border-color 0.2s;
-  }
-  .sewtuk-item.pending { border-color: var(--yellow); }
-  .sewtuk-item.done-item { border-color: var(--green); }
-  .sewtuk-head {
-    padding: 12px 14px; display: flex; align-items: center; gap: 10px;
-    background: var(--surface2);
-  }
-  .subj-cat { padding: 2px 8px; background: rgba(99,102,241,0.2); color: var(--accent2); border-radius: 4px; font-size: 11px; font-weight: 700; }
-  .subj-name { font-weight: 600; font-size: 14px; flex: 1; }
-  .subj-meta { font-size: 11px; color: var(--muted); }
-  .item-badge-done { padding: 2px 8px; background: rgba(16,185,129,0.2); color: var(--green); border-radius: 4px; font-size: 11px; font-weight: 700; }
-  .item-badge-pending { padding: 2px 8px; background: rgba(245,158,11,0.2); color: var(--yellow); border-radius: 4px; font-size: 11px; font-weight: 700; }
-  .sewtuk-content { padding: 10px 14px; font-size: 12.5px; color: var(--muted2); line-height: 1.7; white-space: pre-wrap; max-height: 120px; overflow: hidden; position: relative; }
-  .sewtuk-content::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--surface)); }
-  .summary-area { padding: 10px 14px 14px; }
-  .summary-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
-  .summary-pill {
-    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;
-    font-size: 12.5px; color: var(--text); line-height: 1.6;
-  }
-  .pill-num { flex-shrink: 0; background: var(--accent); color: #fff; border-radius: 4px; padding: 0 6px; font-size: 11px; font-weight: 700; margin-top: 2px; }
-  .summary-empty { font-size: 12px; color: var(--muted); font-style: italic; }
+  /* 세특 내용 접기/펼치기 */
+  .content-wrap{position:relative;}
+  .sewtuk-content{padding:8px 12px;font-size:12px;color:var(--muted2);line-height:1.7;white-space:pre-wrap;max-height:70px;overflow:hidden;transition:max-height .3s ease;}
+  .sewtuk-content.expanded{max-height:500px;}
+  .content-fade{position:absolute;bottom:0;left:0;right:0;height:26px;background:linear-gradient(transparent,var(--surface));pointer-events:none;}
+  .content-fade.hidden{display:none;}
+  .toggle-btn-small{padding:2px 12px 6px;font-size:11px;color:var(--accent2);cursor:pointer;display:block;background:none;border:none;font-family:'Noto Sans KR',sans-serif;}
+  .toggle-btn-small:hover{text-decoration:underline;}
 
-  .gen-btn {
-    margin: 0 14px 14px; padding: 8px 14px; background: transparent;
-    border: 1.5px solid var(--accent); color: var(--accent2); border-radius: 8px;
-    font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .gen-btn:hover { background: rgba(99,102,241,0.15); }
-  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .gen-btn.generating { border-color: var(--yellow); color: var(--yellow); }
+  /* 요약 영역 */
+  .summary-area{padding:8px 12px 10px;border-top:1px solid var(--border);}
+  .summary-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+  .summary-pill{display:flex;align-items:flex-start;gap:7px;margin-bottom:5px;font-size:12.5px;color:var(--text);line-height:1.65;}
+  .pill-num{flex-shrink:0;background:var(--accent);color:#fff;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;margin-top:3px;}
+  .summary-empty{font-size:12px;color:var(--muted);font-style:italic;}
 
-  /* ===== 채팅 패널 ===== */
-  .chat-panel { display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
-  .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .chat-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  /* 생성 버튼 */
+  .gen-btn{margin:0 12px 11px;padding:8px 12px;background:transparent;border:1.5px solid var(--accent);color:var(--accent2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Noto Sans KR',sans-serif;}
+  .gen-btn:hover{background:rgba(99,102,241,.15);}
+  .gen-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .gen-btn.gb-done{border-color:rgba(16,185,129,.6);color:var(--green);}
+  .gen-btn.gb-new{border-color:var(--yellow);color:var(--yellow);}
 
-  .chat-msg { max-width: 90%; }
-  .chat-msg.system { align-self: center; }
-  .chat-msg.assistant { align-self: flex-start; }
-  .chat-msg.user { align-self: flex-end; }
-  .msg-bubble {
-    padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.7;
-  }
-  .assistant .msg-bubble { background: var(--surface2); border: 1px solid var(--border); }
-  .user .msg-bubble { background: var(--accent); color: #fff; }
-  .system .msg-bubble { background: transparent; color: var(--muted); font-size: 12px; text-align: center; }
-  .msg-time { font-size: 10px; color: var(--muted); margin-top: 3px; padding: 0 4px; }
+  /* 채팅 패널 */
+  .chat-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--surface);}
+  .chat-header{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+  .chat-body{flex:1;overflow-y:auto;padding:12px 13px;display:flex;flex-direction:column;gap:8px;}
+  .chat-msg{max-width:93%;}
+  .chat-msg.assistant{align-self:flex-start;}
+  .chat-msg.user{align-self:flex-end;}
+  .msg-bubble{padding:9px 12px;border-radius:11px;font-size:12.5px;line-height:1.75;}
+  .assistant .msg-bubble{background:var(--surface2);border:1px solid var(--border);}
+  .user .msg-bubble{background:var(--accent);color:#fff;}
+  .msg-time{font-size:10px;color:var(--muted);margin-top:2px;padding:0 3px;}
+  .chat-actions{display:flex;flex-wrap:wrap;gap:5px;padding:6px 0 0;}
+  .chat-action-btn{padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:13px;font-size:11px;color:var(--muted2);cursor:pointer;transition:all .15s;font-family:'Noto Sans KR',sans-serif;}
+  .chat-action-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+  .chat-action-btn.green{border-color:var(--green);color:var(--green);}
+  .typing-indicator{display:flex;align-items:center;gap:4px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:11px;width:fit-content;}
+  .typing-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite;}
+  .typing-dot:nth-child(2){animation-delay:.2s;}
+  .typing-dot:nth-child(3){animation-delay:.4s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+  .chat-input-area{padding:10px 11px;border-top:1px solid var(--border);flex-shrink:0;}
+  .chat-input-row{display:flex;gap:7px;}
+  .chat-input-row input{flex:1;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none;font-family:'Noto Sans KR',sans-serif;}
+  .chat-input-row input:focus{border-color:var(--accent);}
+  .send-btn{padding:9px 13px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+  .send-btn:disabled{opacity:.4;cursor:not-allowed;}
 
-  .chat-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 0; }
-  .chat-action-btn {
-    padding: 5px 12px; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 16px; font-size: 12px; color: var(--muted2); cursor: pointer; transition: all 0.15s;
-  }
-  .chat-action-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-  .chat-action-btn.green { border-color: var(--green); color: var(--green); }
-  .chat-action-btn.green:hover { background: rgba(16,185,129,0.15); }
-  .chat-action-btn.red { border-color: var(--red); color: var(--red); }
-
-  .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; width: fit-content; }
-  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
-  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-
-  .chat-input-area { padding: 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
-  .chat-input-row { display: flex; gap: 8px; }
-  .chat-input-row input {
-    flex: 1; padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 13px; outline: none;
-  }
-  .chat-input-row input:focus { border-color: var(--accent); }
-  .send-btn {
-    padding: 9px 14px; background: var(--accent); color: #fff; border: none;
-    border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
-  }
-  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* ===== 저장 버튼 ===== */
-  .save-bar { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-  .save-btn {
-    flex: 1; padding: 10px; background: var(--green); color: #fff; border: none;
-    border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
-  }
-  .save-btn:hover { opacity: 0.85; }
-  .save-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .export-btn {
-    padding: 10px 14px; background: var(--surface2); color: var(--muted2); border: 1px solid var(--border);
-    border-radius: 8px; font-size: 12px; cursor: pointer;
-  }
-  .export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-
-  /* ===== 진행상황 바 ===== */
-  .progress-wrap { padding: 6px 14px 0; }
-  .progress-bar-bg { background: var(--border); border-radius: 4px; height: 4px; }
-  .progress-bar-fill { background: var(--green); height: 4px; border-radius: 4px; transition: width 0.3s; }
-  .progress-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
-
-  @keyframes kp-spin { to { transform: rotate(360deg); } }
-  .spin { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: kp-spin 0.7s linear infinite; }
-
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  @keyframes kp-spin{to{transform:rotate(360deg)}}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:kp-spin .7s linear infinite;flex-shrink:0;}
+  .spin-dark{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:kp-spin .7s linear infinite;flex-shrink:0;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
 </head>
 <body>
 
-<!-- 잠금 화면 -->
 <div id="lockScreen">
   <div class="lock-wrap">
     <div class="icon">🔐</div>
     <h1>세특 요약 생성기</h1>
-    <p>관리자 비밀번호를 입력하세요</p>
+    <p>비밀번호와 Anthropic API 키를 입력하세요</p>
+    <div class="lock-field-label">데이터 비밀번호</div>
     <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off">
-    <button onclick="tryUnlock()">🔓 확인</button>
+    <div class="lock-field-label">Anthropic API Key</div>
+    <input type="text" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" style="letter-spacing:0;">
+    <div class="api-note">※ API 키는 브라우저 메모리에만 저장되고 서버로 전송되지 않습니다.<br>발급: <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2);">console.anthropic.com</a></div>
+    <button class="lock-btn" onclick="tryUnlock()">🔓 확인</button>
     <div class="lock-error" id="lockError"></div>
   </div>
 </div>
@@ -246,489 +186,433 @@
 <div class="layout">
   <aside>
     <div class="aside-top">
-      <input id="search" placeholder="🔍 이름 / 학번 검색" oninput="renderList()">
+      <input class="aside-search" id="search" placeholder="🔍 이름 / 학번 검색" oninput="renderList()">
       <div class="filter-tabs">
         <div class="filter-tab active" data-f="all" onclick="setFilter(this)">전체</div>
         <div class="filter-tab" data-f="none" onclick="setFilter(this)">미완료</div>
-        <div class="filter-tab" data-f="partial" onclick="setFilter(this)">일부완료</div>
+        <div class="filter-tab" data-f="partial" onclick="setFilter(this)">일부</div>
         <div class="filter-tab" data-f="done" onclick="setFilter(this)">완료</div>
       </div>
-      <div class="progress-wrap" id="progressWrap" style="display:none;">
+      <div class="progress-wrap" id="progressWrap">
         <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
         <div class="progress-label" id="progressLabel"></div>
       </div>
     </div>
-    <div class="stu-count" id="stuCount"></div>
+    <div class="stu-count" id="stuCount">-</div>
     <div class="stu-list" id="stuList"></div>
   </aside>
 
   <main id="main">
     <div class="main-placeholder">
-      <div class="big-icon">📝</div>
-      <div style="font-size:15px;color:var(--muted2);">학생을 선택하면 세특 요약을 생성할 수 있습니다</div>
+      <div style="font-size:44px;">📝</div>
+      <div style="font-size:14px;color:var(--muted2);">왼쪽에서 학생을 선택하세요</div>
     </div>
   </main>
 </div>
 
 <script>
-// ===== AES-GCM 복호화 =====
-function b64ToArr(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); }
-function arrToB64(arr){ return btoa(String.fromCharCode(...new Uint8Array(arr))); }
+/* ========== 암호화 유틸 ========== */
+const b64ToArr=b64=>Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+const arrToB64=arr=>btoa(String.fromCharCode(...new Uint8Array(arr)));
 
-async function deriveKey(password, salt){
-  const enc = new TextEncoder();
-  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:100000, hash:'SHA-256' },
-    keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt','encrypt']
-  );
+async function deriveKey(pw,salt){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt','encrypt']);
+}
+async function decryptJSON(o,key){
+  const p=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToArr(o.iv)},key,b64ToArr(o.data));
+  return JSON.parse(new TextDecoder().decode(p));
+}
+async function encryptJSON(obj,pw){
+  const salt=crypto.getRandomValues(new Uint8Array(32));
+  const key=await deriveKey(pw,salt);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return {v:1,salt:arrToB64(salt),iv:arrToB64(iv),data:arrToB64(enc)};
+}
+async function loadJSON(url,pw){
+  const r=await fetch(url); if(!r.ok) return null;
+  const o=await r.json(); if(!o.iv) return o;
+  return decryptJSON(o,await deriveKey(pw,b64ToArr(o.salt)));
 }
 
-async function decryptJSON(encObj, key){
-  const iv   = b64ToArr(encObj.iv);
-  const data = b64ToArr(encObj.data);
-  const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, data);
-  return JSON.parse(new TextDecoder().decode(plain));
-}
+/* ========== 상태 ========== */
+let students=[],sewtuk={},currentStu=null,currentPw='',apiKey='';
+let chatHistory=[],filterMode='all',isGenAll=false;
+let pending={};  // hak -> { subjectKey -> [s1,s2,s3] }
 
-async function encryptJSON(obj, password){
-  const salt = crypto.getRandomValues(new Uint8Array(32));
-  const key  = await deriveKey(password, salt);
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const plain = new TextEncoder().encode(JSON.stringify(obj));
-  const encrypted = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, plain);
-  return { v:1, salt: arrToB64(salt), iv: arrToB64(iv), data: arrToB64(encrypted) };
-}
-
-async function fetchAndDecrypt(url, password){
-  const res = await fetch(url);
-  if(!res.ok) return null;
-  const encObj = await res.json();
-  if(!encObj.iv) return encObj;
-  const salt = b64ToArr(encObj.salt);
-  const key = await deriveKey(password, salt);
-  return decryptJSON(encObj, key);
-}
-
-// ===== 상태 =====
-let students = [], sewtuk = {}, currentStu = null, currentPassword = '';
-let chatHistory = []; // {role, content}
-let filterMode = 'all';
-let pendingSummaries = {}; // hak -> {subjectKey -> [summary1, summary2, summary3]}
-
-// ===== 잠금 해제 =====
+/* ========== 잠금 해제 ========== */
 async function tryUnlock(){
-  const pw = document.getElementById('pwInput').value;
-  if(!pw){ document.getElementById('lockError').textContent='비밀번호를 입력하세요'; return; }
+  const pw=document.getElementById('pwInput').value.trim();
+  const ak=document.getElementById('apiKeyInput').value.trim();
+  const errEl=document.getElementById('lockError');
+  if(!pw){errEl.textContent='비밀번호를 입력하세요.';return;}
+  if(!ak||!ak.startsWith('sk-ant-')){errEl.textContent='Anthropic API 키를 정확히 입력하세요 (sk-ant-로 시작).';return;}
+  errEl.textContent='';
   try{
-    const stuRaw = await fetch('data/students.json').then(r=>r.json());
-    const salt = b64ToArr(stuRaw.salt);
-    const key = await deriveKey(pw, salt);
-    const stuData = await decryptJSON(stuRaw, key);
-    currentPassword = pw;
-    students = (stuData || []).filter(s => s.grade === 2);
-    try{ sewtuk = await fetchAndDecrypt('data/sewtuk_2.json', pw) || {}; }catch(e){}
+    const s=await loadJSON('data/students.json',pw);
+    currentPw=pw; apiKey=ak;
+    students=(s||[]).filter(x=>x.grade===2);
+    try{sewtuk=await loadJSON('data/sewtuk_2.json',pw)||{};}catch(e){}
     document.getElementById('lockScreen').classList.add('hidden');
-    updateProgress();
-    renderList();
-    document.getElementById('headerStatus').textContent = `${students.length}명 로드됨`;
-  }catch(e){
-    document.getElementById('lockError').textContent = '비밀번호가 올바르지 않습니다.';
-  }
+    document.getElementById('progressWrap').style.display='block';
+    updateProgress(); renderList();
+    document.getElementById('headerStatus').textContent=`${students.length}명 로드됨 · API 연결됨`;
+  }catch(e){errEl.textContent='비밀번호가 올바르지 않습니다.';}
 }
-document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+document.addEventListener('DOMContentLoaded',()=>{
+  ['pwInput','apiKeyInput'].forEach(id=>{
+    document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+  });
 });
 
-// ===== 진행률 계산 =====
+/* ========== 진행률 ========== */
 function getStuStatus(hak){
-  const key = String(hak);
-  const data = sewtuk[key];
-  if(!data || !data.subjects || data.subjects.length === 0) return 'none';
-  const subs = data.subjects;
-  const withSummary = subs.filter(s => s.요약 && Array.isArray(s.요약) && s.요약.length > 0);
-  if(withSummary.length === 0) return 'none';
-  if(withSummary.length === subs.length) return 'done';
+  const d=sewtuk[String(hak)];
+  if(!d?.subjects?.length) return 'nosub';
+  const tot=d.subjects.length;
+  const done=d.subjects.filter(s=>Array.isArray(s.요약)&&s.요약.length>0).length;
+  if(done===0) return 'none';
+  if(done===tot) return 'done';
   return 'partial';
 }
-
 function updateProgress(){
-  const total = students.filter(s => sewtuk[String(s.hak)]?.subjects?.length > 0).length;
-  const done  = students.filter(s => getStuStatus(s.hak) === 'done').length;
-  const pct   = total > 0 ? Math.round(done/total*100) : 0;
-  document.getElementById('progressWrap').style.display = 'block';
-  document.getElementById('progressFill').style.width = pct+'%';
-  document.getElementById('progressLabel').textContent = `세특 보유 ${total}명 중 ${done}명 완료 (${pct}%)`;
+  const total=students.filter(s=>sewtuk[String(s.hak)]?.subjects?.length>0).length;
+  const done=students.filter(s=>getStuStatus(s.hak)==='done').length;
+  const pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`세특 보유 ${total}명 중 ${done}명 완료 (${pct}%)`;
 }
 
-// ===== 학생 목록 =====
+/* ========== 목록 렌더링 ========== */
 function setFilter(el){
   document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  filterMode = el.dataset.f;
-  renderList();
+  el.classList.add('active'); filterMode=el.dataset.f; renderList();
 }
-
 function renderList(){
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  let filtered = students.filter(s=>{
-    if(q && !s.name.toLowerCase().includes(q) && !String(s.hak).includes(q)) return false;
-    if(filterMode === 'none' && getStuStatus(s.hak) !== 'none') return false;
-    if(filterMode === 'partial' && getStuStatus(s.hak) !== 'partial') return false;
-    if(filterMode === 'done' && getStuStatus(s.hak) !== 'done') return false;
-    // 세특 없는 학생 제외 (filterMode가 all일 때도 세특 있는 학생만 표시)
-    const d = sewtuk[String(s.hak)];
-    if(!d || !d.subjects || d.subjects.length === 0) return false;
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=students.filter(s=>{
+    if(!sewtuk[String(s.hak)]?.subjects?.length) return false;
+    if(q&&!s.name.toLowerCase().includes(q)&&!String(s.hak).includes(q)) return false;
+    const st=getStuStatus(s.hak);
+    if(filterMode==='none'&&st!=='none') return false;
+    if(filterMode==='partial'&&st!=='partial') return false;
+    if(filterMode==='done'&&st!=='done') return false;
     return true;
   });
-  document.getElementById('stuCount').textContent = `${filtered.length}명`;
-  const list = document.getElementById('stuList');
-  list.innerHTML = filtered.map(s=>{
-    const st = getStuStatus(s.hak);
-    return `<div class="stu-item ${currentStu && currentStu.hak === s.hak ? 'active':''}" onclick="selectStu('${s.hak}')">
+  document.getElementById('stuCount').textContent=`${list.length}명`;
+  document.getElementById('stuList').innerHTML=list.map(s=>{
+    const st=getStuStatus(s.hak);
+    const dot=st==='done'?'done':st==='partial'?'partial':'none';
+    return `<div class="stu-item ${currentStu&&currentStu.hak===s.hak?'active':''}" onclick="selectStu('${s.hak}')">
       <span class="stu-hak">${s.hak}</span>
       <span class="stu-name">${s.name}</span>
-      <span class="stu-status ${st}"></span>
+      <span class="stu-dot ${dot}"></span>
     </div>`;
   }).join('');
 }
 
-// ===== 학생 선택 =====
+/* ========== 학생 선택 ========== */
 function selectStu(hak){
-  currentStu = students.find(s=>String(s.hak)===String(hak));
-  chatHistory = [];
-  pendingSummaries[hak] = pendingSummaries[hak] || {};
-  renderList();
-  renderMain();
-  // 자동 인사 메시지
-  const data = sewtuk[String(hak)];
-  const subs = data?.subjects || [];
-  const done = subs.filter(s=>s.요약&&Array.isArray(s.요약)&&s.요약.length>0).length;
-  const noSummary = subs.filter(s=>!s.요약||!Array.isArray(s.요약)||s.요약.length===0);
-  let greeting = `👋 **${currentStu.name}** 학생의 세특 요약 작업을 시작합니다.\n\n`;
-  greeting += `📊 전체 **${subs.length}개** 과목 · 완료 **${done}개** · 미완료 **${noSummary.length}개**\n\n`;
-  if(noSummary.length > 0){
-    greeting += `요약이 필요한 과목:\n${noSummary.map((s,i)=>`${i+1}. ${s.과목} (${s.교과})`).join('\n')}\n\n`;
-    greeting += `각 과목 우측의 **"AI 요약 생성"** 버튼을 누르거나, 아래에서 특정 과목을 요청하세요.`;
-  } else {
-    greeting += `✅ 모든 과목 요약이 완료되어 있습니다.`;
-  }
-  addChatMsg('assistant', greeting);
+  currentStu=students.find(s=>String(s.hak)===String(hak));
+  chatHistory=[]; isGenAll=false;
+  pending[hak]=pending[hak]||{};
+  renderList(); renderMain();
+  const subs=sewtuk[String(hak)]?.subjects||[];
+  const doneN=subs.filter(s=>Array.isArray(s.요약)&&s.요약.length>0).length;
+  const needN=subs.length-doneN;
+  addMsg('assistant',
+    `👋 **${currentStu.name}** 학생의 세특 요약을 시작합니다.\n\n`+
+    `전체 **${subs.length}개** 과목 · 완료 **${doneN}개** · 미완료 **${needN}개**\n\n`+
+    (needN>0?`상단 **"✨ 전체 요약 생성"** 버튼으로 한 번에 처리하거나,\n각 과목 아래 **"AI 요약 생성"** 버튼을 개별 클릭하세요.`:'✅ 모든 과목 요약이 완료되어 있습니다.')
+  );
 }
 
-// ===== 메인 렌더링 =====
+/* ========== 메인 렌더링 ========== */
 function renderMain(){
   if(!currentStu){
-    document.getElementById('main').innerHTML = `<div class="main-placeholder"><div class="big-icon">📝</div><div style="font-size:15px;color:var(--muted2);">학생을 선택하면 세특 요약을 생성할 수 있습니다</div></div>`;
+    document.getElementById('main').innerHTML=`<div class="main-placeholder"><div style="font-size:44px;">📝</div><div style="font-size:14px;color:var(--muted2);">왼쪽에서 학생을 선택하세요</div></div>`;
     return;
   }
-  const s = currentStu;
-  const hak = String(s.hak);
-  const data = sewtuk[hak];
-  const subs = data?.subjects || [];
-
-  document.getElementById('main').innerHTML = `
+  const s=currentStu,hak=String(s.hak),st=getStuStatus(hak);
+  document.getElementById('main').innerHTML=`
     <div class="stu-header">
       <div class="stu-info">
         <h2>${s.name}</h2>
         <span class="badge">${hak[0]}학년 ${parseInt(hak.substring(1,3))}반 ${parseInt(hak.substring(3,5))}번</span>
-        <span class="badge">${getStuStatus(hak)==='done'?'✅ 완료':getStuStatus(hak)==='partial'?'🔄 진행중':'⏳ 미완료'}</span>
+        <span class="badge">${st==='done'?'✅ 완료':st==='partial'?'🔄 진행중':'⏳ 미완료'}</span>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button class="export-btn" onclick="exportJSON()">📥 JSON 다운로드</button>
-        <button class="save-btn" style="flex:none;padding:8px 16px;" onclick="applyAndSave()">💾 저장 적용</button>
+      <div class="header-btns">
+        <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
+        <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
+        <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
       </div>
     </div>
-    <div class="content-area" id="contentArea">
+    <div class="all-progress" id="allProg">
+      <div class="all-prog-bg"><div class="all-prog-fill" id="allProgFill" style="width:0%"></div></div>
+      <div class="all-prog-label" id="allProgLabel"></div>
+    </div>
+    <div class="content-area">
       <div class="sewtuk-panel" id="sewtukPanel"></div>
       <div class="chat-panel">
-        <div class="chat-header">💬 AI 어시스턴트 <span style="color:var(--muted);font-size:11px;font-weight:400;margin-left:4px;">세특 요약 생성</span></div>
+        <div class="chat-header">💬 AI 어시스턴트</div>
         <div class="chat-body" id="chatBody"></div>
         <div class="chat-input-area">
           <div class="chat-input-row">
-            <input id="chatInput" placeholder="요청 입력 (예: 수학 요약 다시 해줘)" onkeydown="if(event.key==='Enter')sendChat()">
+            <input id="chatInput" placeholder="예: 수학 요약 더 구체적으로 써줘" onkeydown="if(event.key==='Enter')sendChat()">
             <button class="send-btn" id="sendBtn" onclick="sendChat()">전송</button>
           </div>
         </div>
       </div>
     </div>
   `;
-
-  renderSewtukPanel(subs);
-  renderChatBody();
+  renderPanel(); renderChatBody();
 }
 
-function renderSewtukPanel(subs){
-  const panel = document.getElementById('sewtukPanel');
-  if(!subs.length){ panel.innerHTML = `<div style="color:var(--muted);padding:20px;">세특 데이터 없음</div>`; return; }
-  panel.innerHTML = subs.map((s,i)=>{
-    const key = subjectKey(s);
-    const pending = pendingSummaries[currentStu.hak]?.[key];
-    const existing = s.요약;
-    const hasSummary = (pending && pending.length > 0) || (existing && Array.isArray(existing) && existing.length > 0);
-    const summaryArr = pending || existing || [];
-    const labels = ['①','②','③'];
+/* ========== 세특 패널 ========== */
+const sKey=s=>`${s.학년}-${s.학기}-${s.과목}`;
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-    let summaryHtml = '';
-    if(hasSummary && summaryArr.length > 0){
-      summaryHtml = `<div class="summary-area">
-        <div class="summary-label">${pending ? '🔄 생성됨 (미저장)' : '✅ 저장된 요약'}</div>
-        ${summaryArr.map((t,j)=>`<div class="summary-pill"><span class="pill-num">${labels[j]||j+1}</span>${escHtml(t)}</div>`).join('')}
-      </div>`;
+function renderPanel(){
+  const panel=document.getElementById('sewtukPanel'); if(!panel) return;
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  if(!subs.length){panel.innerHTML=`<div style="color:var(--muted);padding:20px;">세특 데이터 없음</div>`;return;}
+  const labels=['①','②','③'];
+  panel.innerHTML=subs.map((s,i)=>{
+    const k=sKey(s);
+    const pend=pending[hak]?.[k];          // 새로 생성한 요약 (미저장)
+    const saved=Array.isArray(s.요약)&&s.요약.length>0?s.요약:null;  // 저장된 요약
+    const arr=pend||saved||[];
+    const hasSummary=arr.length>0;
+
+    // 상태 결정
+    let itemCls='',badgeHtml='',btnCls='',btnLabel='';
+    if(pend){
+      itemCls='s-pending'; badgeHtml=`<span class="ibadge-new">새 요약</span>`;
+      btnCls='gb-new'; btnLabel='🔄 다시 생성';
+    } else if(saved){
+      itemCls='s-done'; badgeHtml=`<span class="ibadge-done">완료</span>`;
+      btnCls='gb-done'; btnLabel='🔄 재생성';
     } else {
-      summaryHtml = `<div class="summary-area"><div class="summary-empty">요약 없음</div></div>`;
+      badgeHtml=`<span class="ibadge-pending">미완료</span>`;
+      btnLabel='✨ AI 요약 생성';
     }
 
-    const itemClass = pending ? 'pending' : (existing && Array.isArray(existing) && existing.length > 0 ? 'done-item' : '');
-    const btnClass  = pending ? 'generating' : '';
-    const btnLabel  = pending ? '✓ 생성됨 · 다시 생성' : (existing&&Array.isArray(existing)&&existing.length>0 ? '🔄 재생성' : '✨ AI 요약 생성');
+    const summaryHtml=hasSummary
+      ?`<div class="summary-area">
+          <div class="summary-label">${pend?'🔄 생성됨 (미저장)':'✅ 저장된 요약'}</div>
+          ${arr.map((t,j)=>`<div class="summary-pill"><span class="pill-num">${labels[j]||j+1}</span>${esc(t)}</div>`).join('')}
+        </div>`
+      :`<div class="summary-area"><div class="summary-empty">아직 요약이 없습니다</div></div>`;
 
-    return `<div class="sewtuk-item ${itemClass}" id="item-${i}">
+    return `<div class="sewtuk-item ${itemCls}" id="si-${i}">
       <div class="sewtuk-head">
         <span class="subj-cat">${s.교과}</span>
         <span class="subj-name">${s.과목}</span>
         <span class="subj-meta">${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}</span>
-        ${pending ? `<span class="item-badge-done">새 요약</span>` : (existing&&Array.isArray(existing)&&existing.length>0 ? `<span class="item-badge-done">완료</span>` : `<span class="item-badge-pending">미완료</span>`)}
+        ${badgeHtml}
       </div>
-      <div class="sewtuk-content">${escHtml(s.내용||'')}</div>
+      <div class="content-wrap">
+        <div class="sewtuk-content" id="sc-${i}">${esc(s.내용||'')}</div>
+        <div class="content-fade" id="cf-${i}"></div>
+        <button class="toggle-btn-small" onclick="toggleContent(${i})">▼ 전문 보기</button>
+      </div>
       ${summaryHtml}
-      <button class="gen-btn ${btnClass}" id="genbtn-${i}" onclick="generateSummary(${i})">${btnLabel}</button>
+      <button class="gen-btn ${btnCls}" id="gb-${i}" onclick="generateOne(${i})">${btnLabel}</button>
     </div>`;
   }).join('');
 }
 
-function subjectKey(s){ return `${s.학년}-${s.학기}-${s.과목}`; }
-function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toggleContent(i){
+  const el=document.getElementById(`sc-${i}`);
+  const fade=document.getElementById(`cf-${i}`);
+  const btn=document.querySelector(`#si-${i} .toggle-btn-small`);
+  const ex=el.classList.toggle('expanded');
+  ex?fade.classList.add('hidden'):fade.classList.remove('hidden');
+  btn.textContent=ex?'▲ 접기':'▼ 전문 보기';
+}
 
-// ===== AI 요약 생성 =====
-async function generateSummary(idx){
-  const hak = String(currentStu.hak);
-  const data = sewtuk[hak];
-  const subs = data?.subjects || [];
-  const s = subs[idx];
-  if(!s) return;
+/* ========== API 호출 ========== */
+async function callAPI(system,messages,maxTokens=400){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,system,messages})
+  });
+  if(!r.ok){const t=await r.text();throw new Error(`API ${r.status}: ${t}`);}
+  const d=await r.json();
+  return d.content?.[0]?.text||'';
+}
 
-  const btn = document.getElementById(`genbtn-${idx}`);
-  if(btn){ btn.disabled = true; btn.innerHTML = `<span class="spin"></span> 생성 중...`; }
-
-  const systemPrompt = `당신은 학교 성적 상담 교사를 돕는 AI입니다. 고등학생의 세부능력 및 특기사항(세특)을 분석하여 핵심 내용을 3가지 간결한 문장으로 요약합니다.
-
-요약 규칙:
-- 반드시 JSON 배열 형식으로만 응답하세요: ["요약1", "요약2", "요약3"]
-- 각 요약은 30~60자 이내의 완결된 문장
-- ①은 학생의 가장 두드러진 역량/특성
-- ②는 구체적인 활동/성취 내용
-- ③은 진로/성장 방향 또는 인성적 특성
-- 학생 이름이나 과목명 반복 금지
-- 마크다운, 설명 텍스트 없이 오직 JSON 배열만 출력`;
-
-  const userMsg = `학생: ${currentStu.name} (${hak})\n과목: ${s.교과} - ${s.과목} (${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'})\n\n세특 내용:\n${s.내용}`;
+/* ========== 단일 요약 생성 ========== */
+async function generateOne(idx){
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const s=subs[idx]; if(!s) return;
+  const btn=document.getElementById(`gb-${idx}`);
+  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin-dark"></span> 생성 중...`;}
 
   try{
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        system: systemPrompt,
-        messages:[{ role:'user', content: userMsg }]
-      })
-    });
-    const data2 = await resp.json();
-    const text = data2.content?.[0]?.text || '';
-    let summaryArr;
-    try{
-      const clean = text.replace(/```json|```/g,'').trim();
-      summaryArr = JSON.parse(clean);
-      if(!Array.isArray(summaryArr)) throw new Error('배열 아님');
-    }catch(e){
-      summaryArr = [text.trim()];
-    }
-
-    if(!pendingSummaries[hak]) pendingSummaries[hak] = {};
-    pendingSummaries[hak][subjectKey(s)] = summaryArr;
-
-    // 채팅에 알림
-    addChatMsg('assistant', `✅ **${s.과목}** 요약 완료!\n\n${summaryArr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}\n\n마음에 들면 그대로 저장하거나, 수정 요청을 입력하세요.`,
-      [{label:'저장 적용', action:`applyAndSave()`, cls:'green'}, {label:'이 과목 재생성', action:`generateSummary(${idx})`}]
+    const text=await callAPI(
+      `고등학생 세부능력특기사항을 핵심 3문장으로 요약하세요.
+반드시 JSON 배열만 출력: ["요약1","요약2","요약3"]
+- 각 30~60자 완결 문장
+- ①두드러진 역량/특성 ②구체적 활동/성취 ③진로/성장/인성
+- 학생 이름·과목명 반복 금지
+- 마크다운·설명 없이 JSON 배열만`,
+      [{role:'user',content:`학생:${currentStu.name}(${hak})\n과목:${s.교과}-${s.과목}(${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'})\n\n세특:\n${s.내용}`}]
     );
+    let arr;
+    try{arr=JSON.parse(text.replace(/```json|```/g,'').trim());if(!Array.isArray(arr))throw 0;}
+    catch{arr=[text.trim()];}
 
-    renderSewtukPanel(subs);
-    updateProgress();
+    pending[hak]=pending[hak]||{};
+    pending[hak][sKey(s)]=arr;
+
+    addMsg('assistant',
+      `✅ **${s.과목}** 요약 완료!\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`,
+      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:`generateOne(${idx})`}]
+    );
+    renderPanel(); updateProgress();
   }catch(e){
-    addChatMsg('assistant', `❌ 요약 생성 중 오류: ${e.message}`);
-    if(btn){ btn.disabled = false; btn.innerHTML = '다시 시도'; }
+    addMsg('assistant',`❌ **${s.과목}** 요약 실패: ${e.message}`);
+    if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
   }
 }
 
-// ===== 전체 일괄 생성 =====
+/* ========== 전체 일괄 생성 ========== */
 async function generateAll(){
-  const hak = String(currentStu.hak);
-  const subs = sewtuk[hak]?.subjects || [];
-  const pending = subs.filter((_,i)=>{
-    const s = subs[i];
-    const k = subjectKey(s);
-    return !pendingSummaries[hak]?.[k] && !(s.요약&&Array.isArray(s.요약)&&s.요약.length>0);
-  });
-  if(pending.length === 0){ addChatMsg('assistant', '모든 과목에 이미 요약이 있습니다.'); return; }
-  addChatMsg('assistant', `🔄 요약 없는 과목 **${pending.length}개**를 순서대로 생성합니다...`);
-  for(const s of pending){
-    const idx = subs.indexOf(s);
-    await generateSummary(idx);
-    await new Promise(r=>setTimeout(r,500));
+  if(isGenAll) return;
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const targets=subs.filter(s=>!pending[hak]?.[sKey(s)]&&!(Array.isArray(s.요약)&&s.요약.length>0));
+  if(!targets.length){addMsg('assistant','✅ 모든 과목에 이미 요약이 있습니다.');return;}
+
+  isGenAll=true;
+  const btnAll=document.getElementById('btnAll');
+  if(btnAll){btnAll.disabled=true;btnAll.innerHTML=`<span class="spin"></span> 생성 중...`;}
+  const progBar=document.getElementById('allProg');
+  const fill=document.getElementById('allProgFill');
+  const lbl=document.getElementById('allProgLabel');
+  if(progBar) progBar.classList.add('show');
+
+  addMsg('assistant',`🚀 미완료 **${targets.length}개** 과목을 순서대로 생성합니다...`);
+
+  let done=0;
+  for(const s of targets){
+    if(fill) fill.style.width=Math.round(done/targets.length*100)+'%';
+    if(lbl) lbl.textContent=`${done}/${targets.length}`;
+    await generateOne(subs.indexOf(s));
+    done++;
+    await new Promise(r=>setTimeout(r,300));
   }
-  addChatMsg('assistant', `✅ 전체 생성 완료! 확인 후 **저장 적용** 버튼을 눌러주세요.`);
+  if(fill) fill.style.width='100%';
+  if(lbl) lbl.textContent=`${done}/${targets.length} 완료`;
+
+  isGenAll=false;
+  if(btnAll){btnAll.disabled=false;btnAll.innerHTML='✨ 전체 요약 생성';}
+  addMsg('assistant',
+    `🎉 전체 생성 완료! **${done}개** 요약이 준비되었습니다.`,
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+  );
 }
 
-// ===== 채팅 =====
-function addChatMsg(role, text, actions){
-  chatHistory.push({role, content: text});
-  const body = document.getElementById('chatBody');
-  if(!body) return;
-  const time = new Date().toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'});
-  const div = document.createElement('div');
-  div.className = `chat-msg ${role}`;
-  const formatted = text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
-  let actionsHtml = '';
-  if(actions && actions.length > 0){
-    actionsHtml = `<div class="chat-actions">${actions.map(a=>`<button class="chat-action-btn ${a.cls||''}" onclick="${a.action}">${a.label}</button>`).join('')}</div>`;
-  }
-  div.innerHTML = `<div class="msg-bubble">${formatted}${actionsHtml}</div><div class="msg-time">${time}</div>`;
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
+/* ========== 채팅 ========== */
+function addMsg(role,text,actions){
+  chatHistory.push({role,content:text});
+  const body=document.getElementById('chatBody'); if(!body) return;
+  const time=new Date().toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'});
+  const div=document.createElement('div');
+  div.className=`chat-msg ${role}`;
+  const fmt=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  const acts=(actions&&actions.length)?`<div class="chat-actions">${actions.map(a=>`<button class="chat-action-btn ${a.cls||''}" onclick="${a.action}">${a.label}</button>`).join('')}</div>`:'';
+  div.innerHTML=`<div class="msg-bubble">${fmt}${acts}</div><div class="msg-time">${time}</div>`;
+  body.appendChild(div); body.scrollTop=body.scrollHeight;
 }
-
 function renderChatBody(){
-  const body = document.getElementById('chatBody');
-  if(!body) return;
-  body.innerHTML = '';
+  const body=document.getElementById('chatBody'); if(!body) return;
+  body.innerHTML='';
   chatHistory.forEach(m=>{
-    const div = document.createElement('div');
-    div.className = `chat-msg ${m.role}`;
-    const formatted = m.content.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
-    div.innerHTML = `<div class="msg-bubble">${formatted}</div>`;
+    const div=document.createElement('div');
+    div.className=`chat-msg ${m.role}`;
+    const fmt=m.content.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    div.innerHTML=`<div class="msg-bubble">${fmt}</div>`;
     body.appendChild(div);
   });
-  body.scrollTop = body.scrollHeight;
+  body.scrollTop=body.scrollHeight;
 }
 
 async function sendChat(){
-  const input = document.getElementById('chatInput');
-  const msg = input.value.trim();
-  if(!msg || !currentStu) return;
-  input.value = '';
-  addChatMsg('user', msg);
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim(); if(!msg||!currentStu) return;
+  input.value=''; addMsg('user',msg);
+  const btn=document.getElementById('sendBtn'); btn.disabled=true;
 
-  const btn = document.getElementById('sendBtn');
-  btn.disabled = true;
+  const body=document.getElementById('chatBody');
+  const typing=document.createElement('div');
+  typing.className='chat-msg assistant'; typing.id='typing';
+  typing.innerHTML=`<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  body.appendChild(typing); body.scrollTop=body.scrollHeight;
 
-  // typing indicator
-  const body = document.getElementById('chatBody');
-  const typing = document.createElement('div');
-  typing.className = 'chat-msg assistant';
-  typing.id = 'typing';
-  typing.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
-  body.appendChild(typing);
-  body.scrollTop = body.scrollHeight;
-
-  // 현재 학생 컨텍스트 구성
-  const hak = String(currentStu.hak);
-  const subs = sewtuk[hak]?.subjects || [];
-  const ctx = subs.map(s=>{
-    const k = subjectKey(s);
-    const current = pendingSummaries[hak]?.[k] || s.요약;
-    return `[${s.과목}] 현재요약: ${current ? JSON.stringify(current) : '없음'}\n내용: ${s.내용?.substring(0,200)}...`;
-  }).join('\n\n');
-
-  const systemPrompt = `당신은 학교 성적 상담을 돕는 AI 어시스턴트입니다. 현재 ${currentStu.name} 학생의 세특 요약 작업을 진행 중입니다.
-
-교사의 요청에 따라 특정 과목 요약 수정, 재생성, 또는 내용 분석을 도와주세요.
-요약 수정 시에는 반드시 JSON 배열 형식: ["요약1", "요약2", "요약3"]
-
-현재 세특 현황:
-${ctx}`;
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const ctx=subs.map(s=>`[${s.과목}] 요약:${pending[hak]?.[sKey(s)]?JSON.stringify(pending[hak][sKey(s)]):Array.isArray(s.요약)?JSON.stringify(s.요약):'없음'}`).join('\n');
 
   try{
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:600,
-        system: systemPrompt,
-        messages: chatHistory.map(m=>({role:m.role,content:m.content}))
-      })
-    });
-    const data = await resp.json();
-    const text = data.content?.[0]?.text||'응답을 받지 못했습니다.';
-
+    const text=await callAPI(
+      `학교 성적 상담 AI. 현재 ${currentStu.name}의 세특 요약 작업 중.\n요약 수정 시 JSON 배열: ["요약1","요약2","요약3"]\n\n현황:\n${ctx}`,
+      chatHistory.map(m=>({role:m.role,content:m.content})),600
+    );
     document.getElementById('typing')?.remove();
 
-    // JSON 배열이 포함되어 있으면 특정 과목 요약으로 자동 적용 시도
-    const jsonMatch = text.match(/\[[\s\S]*?\]/);
-    if(jsonMatch){
+    // JSON 자동 추출 후 과목 적용
+    const jm=text.match(/\["[^"]*","[^"]*","[^"]*"\]/);
+    if(jm){
       try{
-        const arr = JSON.parse(jsonMatch[0]);
-        if(Array.isArray(arr) && arr.length > 0){
-          // 어떤 과목인지 파악 (메시지에서 과목명 찾기)
-          const matchedSub = subs.find(s => msg.includes(s.과목) || text.includes(s.과목));
-          if(matchedSub){
-            if(!pendingSummaries[hak]) pendingSummaries[hak] = {};
-            pendingSummaries[hak][subjectKey(matchedSub)] = arr;
-            renderSewtukPanel(subs);
-          }
-        }
+        const arr=JSON.parse(jm[0]);
+        const matched=subs.find(s=>msg.includes(s.과목)||text.includes(s.과목));
+        if(matched){pending[hak]=pending[hak]||{};pending[hak][sKey(matched)]=arr;renderPanel();}
       }catch(e){}
     }
-
-    addChatMsg('assistant', text);
+    addMsg('assistant',text);
   }catch(e){
     document.getElementById('typing')?.remove();
-    addChatMsg('assistant', `오류 발생: ${e.message}`);
+    addMsg('assistant',`오류: ${e.message}`);
   }
-
-  btn.disabled = false;
+  btn.disabled=false;
 }
 
-// ===== 저장 적용 =====
+/* ========== 저장 적용 ========== */
 function applyAndSave(){
   if(!currentStu) return;
-  const hak = String(currentStu.hak);
-  const pending = pendingSummaries[hak];
-  if(!pending || Object.keys(pending).length === 0){
-    addChatMsg('assistant', '새로 생성된 요약이 없습니다. 먼저 요약을 생성해주세요.');
-    return;
-  }
-  const subs = sewtuk[hak]?.subjects || [];
-  let count = 0;
-  subs.forEach(s=>{
-    const k = subjectKey(s);
-    if(pending[k]){
-      s.요약 = pending[k];
-      delete pending[k];
-      count++;
-    }
-  });
-  updateProgress();
-  renderSewtukPanel(subs);
-  renderList();
-  addChatMsg('assistant', `✅ **${count}개** 과목 요약이 반영되었습니다.\n\n지금 바로 **JSON 다운로드**로 파일을 내려받아 업로드해주세요.`);
+  const hak=String(currentStu.hak);
+  const p=pending[hak];
+  if(!p||!Object.keys(p).length){addMsg('assistant','새로 생성된 요약이 없습니다.');return;}
+  const subs=sewtuk[hak]?.subjects||[];
+  let cnt=0;
+  subs.forEach(s=>{const k=sKey(s);if(p[k]){s.요약=p[k];delete p[k];cnt++;}});
+  updateProgress(); renderPanel(); renderList();
+  addMsg('assistant',`✅ **${cnt}개** 과목 요약이 반영되었습니다.\n**📥 JSON 다운로드** 버튼으로 파일을 받아 GitHub data/ 폴더에 업로드하세요.`,
+    [{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+  );
 }
 
-// ===== JSON 다운로드 =====
+/* ========== JSON 다운로드 ========== */
 async function exportJSON(){
   try{
-    const encrypted = await encryptJSON(sewtuk, currentPassword);
-    const blob = new Blob([JSON.stringify(encrypted)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'sewtuk_2.json'; a.click();
+    const enc=await encryptJSON(sewtuk,currentPw);
+    const blob=new Blob([JSON.stringify(enc)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='sewtuk_2.json'; a.click();
     URL.revokeObjectURL(url);
-    addChatMsg('assistant', '📥 sewtuk_2.json 파일이 다운로드되었습니다.\nGitHub의 data/ 폴더에 덮어씌워 업로드하면 반영됩니다.');
-  }catch(e){
-    addChatMsg('assistant', `다운로드 오류: ${e.message}`);
-  }
+    addMsg('assistant','📥 **sewtuk_2.json** 다운로드 완료!\nGitHub → data/ 폴더에 덮어씌워 Push하면 반영됩니다.');
+  }catch(e){addMsg('assistant',`다운로드 오류: ${e.message}`);}
 }
 </script>
 </body>
