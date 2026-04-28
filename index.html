@@ -947,15 +947,18 @@ function renderAIOverallPanel(overall){
 }
 
 // ========== 종합 평가 패널 렌더링 ==========
-function renderOverallEvalPanel(subjects, title){
+function renderOverallEvalPanel(subjects, title, subjOverall){
   title = title || '전체 세특 종합';
   const evalSubjects = subjects.filter(s=>s.평가&&typeof s.평가==='object');
   if(evalSubjects.length===0) return `<div class="overall-eval-panel"><div class="overall-eval-empty">📊 평가 데이터가 없습니다<br><small>admin에서 평가를 먼저 생성해주세요</small></div></div>`;
   const overall = calcOverallEval(evalSubjects);
+  const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
   const get대G = (key, subKeys) => {
-    if(overall[key]?.grade) return overall[key].grade; // 대분류 저장된 경우
-    if(typeof overall[key] === 'string') return overall[key]; // 문자열인 경우
-    return groupGrade(subKeys, overall); // 세부지표 평균
+    // 교과별평가 대분류 우선 사용
+    if(subjOverall?.[key]?.grade) return subjOverall[key].grade;
+    if(overall[key]?.grade) return overall[key].grade;
+    if(typeof overall[key] === 'string') return overall[key];
+    return groupGrade(subKeys, overall);
   };
   const 학업G = get대G('학업역량', ['학업성취도','학업태도','탐구력']);
   const 진로G  = get대G('진로역량',  ['전공적합성','진로탐색']);
@@ -967,23 +970,27 @@ function renderOverallEvalPanel(subjects, title){
     return g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${g}">${g}</span></div>` : '';
   };
 
-  const group = (label, grade, rows) => grade ? `
+  const group = (label, grade, rows, 근거) => grade ? `
     <div class="overall-eval-group">
       <div class="overall-group-label">${label}</div>
-      <div class="overall-group-grade g-${grade}">${grade}</div>
+      <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
       <div class="overall-sub-list">${rows}</div>
+      ${근거?`<div style="font-size:14px;color:#94a3b8;margin-top:5px;line-height:1.5;">${escapeHtml(근거)}</div>`:''}
     </div>` : '';
+
+  const 의견 = subjOverall?.종합의견 || null;
 
   return `<div class="overall-eval-panel">
     <div class="overall-eval-header">
       <div class="overall-eval-header-title">📊 ${title}</div>
-      <span class="overall-eval-scope">${evalSubjects.length}개 과목 기준</span>
+      <span class="overall-eval-scope">${evalSubjects.length}개 과목 기준${subjOverall?'  ·  AI 교과 분석':''}</span>
     </div>
     <div class="overall-eval-grid">
-      ${group('학업역량', 학업G, subRow('성취도','학업성취도')+subRow('학업태도','학업태도')+subRow('탐구력','탐구력'))}
-      ${group('진로역량', 진로G, subRow('전공적합','전공적합성')+subRow('진로탐색','진로탐색'))}
-      ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실성')+subRow('리더십','리더십'))}
+      ${group('학업역량', 학업G, subRow('성취도','학업성취도')+subRow('학업태도','학업태도')+subRow('탐구력','탐구력'), subjOverall?.학업역량?.근거)}
+      ${group('진로역량', 진로G, subRow('전공적합','전공적합성')+subRow('진로탐색','진로탐색'), subjOverall?.진로역량?.근거)}
+      ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실성')+subRow('리더십','리더십'), subjOverall?.공동체역량?.근거)}
     </div>
+    ${의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #06b6d4;"><span style="font-size:15px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 ${escapeHtml(title)} 종합 의견</span>${escapeHtml(의견)}</div>`:''}
   </div>`;
 }
 
@@ -1006,9 +1013,9 @@ function renderSewtuk(el){
     return true;
   });
   const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
-  // 전체 과목일 때 AI 종합평가 데이터 우선 사용
-  // 전체과목+종합평가 있으면 AI패널, 없으면 평균계산 패널
+  // 전체 과목: AI 종합평가 우선 / 특정 교과: 교과별평가 우선
   const aiOverall = (sewtukCat==='전체 과목' && data.종합평가) ? data.종합평가 : null;
+  const subjOverall = (sewtukCat!=='전체 과목' && data.교과별평가?.[sewtukCat]) ? data.교과별평가[sewtukCat] : null;
   let html = `
     <div class="sewtuk-top-wrap">
       <div class="sewtuk-filters">
@@ -1017,7 +1024,7 @@ function renderSewtuk(el){
         <div class="filter-row"><span class="filter-label">📖 과목</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
         <div style="color:#64748b;font-size:12px;margin-top:6px;">총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다</div>
       </div>
-      ${aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle)}
+      ${aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle, subjOverall)}
     </div>
   `;
 
