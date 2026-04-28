@@ -1030,7 +1030,8 @@ async function generateAllOverall(){
     if(!groups[s.교과]) groups[s.교과]=[];
     groups[s.교과].push(s);
   });
-  const multiCats=Object.keys(groups).filter(cat=>groups[cat].length>=2);
+  // 모든 교과 추출 (1개 이상)
+  const multiCats=Object.keys(groups);
 
   const total = 1 + multiCats.length; // 종합평가 1 + 교과별
   let done = 0;
