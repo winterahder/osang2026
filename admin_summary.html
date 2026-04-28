@@ -671,8 +671,8 @@ function renderPanel(){
     for(const i of idxList){
       html+=buildSubjectItemHTML(subs[i],i,hak,labels);
     }
-    // 동일 교과 2개 이상이면 교과별 종합평가 섹션 추가
-    if(idxList.length>=2){
+    // 모든 교과(1개 이상)에 교과별 종합평가 섹션 추가
+    if(idxList.length>=1){
       html+=renderSubjOverallSection(cat, idxList.map(i=>subs[i]), hak);
     }
   }
