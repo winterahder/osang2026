@@ -143,13 +143,13 @@
   .overall-eval-header-title { display: flex; align-items: center; gap: 6px; }
   .overall-eval-scope { font-size: 15px; color: #cbd5e1; font-weight: 400; }
   .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .overall-eval-group { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; gap: 10px; }
+  .overall-eval-group { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
   .overall-eval-left { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-  .overall-group-label { font-size: 13px; font-weight: 700; color: #94a3b8; }
+  .overall-group-label { font-size: 13px; font-weight: 700; color: #475569; }
   .overall-group-grade { font-size: 33px; font-weight: 900; line-height: 1; }
   .overall-sub-list { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .overall-sub-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-  .overall-sub-name { color: #94a3b8; }
+  .overall-sub-name { color: #334155; font-weight: 500; }
   .overall-sub-grade { font-weight: 800; font-size: 15px; min-width: 14px; text-align: right; }
   .overall-eval-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #cbd5e1; font-size: 16px; text-align: center; padding: 20px; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
@@ -927,12 +927,14 @@ function renderAIOverallPanel(overall){
       `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${v}</span></div>`
     ).join('');
     return `<div class="overall-eval-group">
-      <div class="overall-eval-left">
-        <div class="overall-group-label">${label}</div>
-        <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
-        ${d.근거?`<div style="font-size:12px;color:#94a3b8;margin-top:3px;line-height:1.4;max-width:80px;">${escapeHtml(d.근거)}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div class="overall-eval-left">
+          <div class="overall-group-label">${label}</div>
+          <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
+        </div>
+        <div class="overall-sub-list">${subHtml}</div>
       </div>
-      <div class="overall-sub-list">${subHtml}</div>
+      ${d.근거?`<div style="margin-top:8px;padding-top:7px;border-top:1px solid #e2e8f0;font-size:12px;color:#475569;line-height:1.5;">${escapeHtml(d.근거)}</div>`:''}
     </div>`;
   };
   return `<div class="overall-eval-panel">
@@ -975,12 +977,14 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
 
   const group = (label, grade, rows, 근거) => grade ? `
     <div class="overall-eval-group">
-      <div class="overall-eval-left">
-        <div class="overall-group-label">${label}</div>
-        <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
-        ${근거?`<div style="font-size:12px;color:#94a3b8;margin-top:3px;line-height:1.4;max-width:80px;">${escapeHtml(근거)}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div class="overall-eval-left">
+          <div class="overall-group-label">${label}</div>
+          <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
+        </div>
+        <div class="overall-sub-list">${rows}</div>
       </div>
-      <div class="overall-sub-list">${rows}</div>
+      ${근거?`<div style="margin-top:8px;padding-top:7px;border-top:1px solid #e2e8f0;font-size:12px;color:#475569;line-height:1.5;">${escapeHtml(근거)}</div>`:''}
     </div>` : '';
 
   const 의견 = subjOverall?.종합의견 || null;
