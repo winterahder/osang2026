@@ -143,18 +143,19 @@
   .overall-eval-header-title { display: flex; align-items: center; gap: 6px; }
   .overall-eval-scope { font-size: 15px; color: #cbd5e1; font-weight: 400; }
   .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .overall-eval-group { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: stretch; }
+  .overall-eval-group { display: flex; flex-direction: column; justify-content: space-between; padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
   .overall-eval-left { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
   .overall-group-label { font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; width: 100%; }
-  .overall-group-body { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .overall-group-body { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex: 1; }
   .overall-group-grade { font-size: 33px; font-weight: 900; line-height: 1; }
   .overall-sub-list { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .overall-sub-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
   .overall-sub-name { color: #334155; font-weight: 500; }
   .overall-sub-grade { font-weight: 800; font-size: 15px; min-width: 14px; text-align: right; }
-  .overall-reason-toggle { margin-top:8px; padding-top:7px; border-top:1px solid #e2e8f0; font-size:12px; color:#64748b; cursor:pointer; display:flex; align-items:center; gap:4px; user-select:none; }
-  .overall-reason-toggle:hover { color:#334155; }
-  .overall-reason-text { font-size:12px; color:#475569; line-height:1.6; margin-top:5px; display:none; }
+  .overall-reason-bar { margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:12px; color:#475569; line-height:1.6; display:none; }
+  .overall-reason-toggle-row { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px; cursor:pointer; color:#64748b; font-size:12px; font-weight:600; user-select:none; padding:5px; border-radius:6px; }
+  .overall-reason-toggle-row:hover { background:#f1f5f9; color:#334155; }
   .overall-eval-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #cbd5e1; font-size: 16px; text-align: center; padding: 20px; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
   .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
@@ -921,22 +922,24 @@ function renderEvalDetail(evalData){
   </div>`;
 }
 
-function toggleReason(uid, toggleEl){
-  const el=document.getElementById(uid);
-  const arr=document.getElementById(uid+'-arr');
-  if(!el) return;
-  const isOpen=el.style.display==='block';
-  el.style.display=isOpen?'none':'block';
+function toggleAllReason(pid){
+  const bars=document.querySelectorAll(`.overall-reason-bar[data-pid="${pid}"]`);
+  const arr=document.getElementById(pid+'-arr');
+  const lbl=document.getElementById(pid+'-lbl');
+  const isOpen=bars.length>0&&bars[0].style.display==='block';
+  bars.forEach(b=>b.style.display=isOpen?'none':'block');
   if(arr) arr.textContent=isOpen?'▶':'▼';
+  if(lbl) lbl.textContent=isOpen?'근거 보기':'근거 닫기';
 }
 
 // ========== AI 종합 평가 패널 (admin에서 생성한 데이터) ==========
 function renderAIOverallPanel(overall){
   if(!overall) return '';
   const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+  const pid=`aop-${Math.random().toString(36).slice(2,6)}`;
+
   const card=(key,label)=>{
     const d=overall[key]; if(!d) return '';
-    const uid=`or-${key}-${Math.random().toString(36).slice(2,7)}`;
     const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
       `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${v}</span></div>`
     ).join('');
@@ -946,14 +949,12 @@ function renderAIOverallPanel(overall){
         <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
         <div class="overall-sub-list">${subHtml}</div>
       </div>
-      ${d.근거?`
-        <div class="overall-reason-toggle" onclick="toggleReason('${uid}',this)">
-          <span>📎 근거</span><span id="${uid}-arr">▶</span>
-        </div>
-        <div class="overall-reason-text" id="${uid}">${escapeHtml(d.근거)}</div>
-      `:''}
+      ${d.근거?`<div class="overall-reason-bar" data-pid="${pid}">${escapeHtml(d.근거)}</div>`:''}
     </div>`;
   };
+
+  const has근거 = ['학업역량','진로역량','공동체역량'].some(k=>overall[k]?.근거);
+
   return `<div class="overall-eval-panel">
     <div class="overall-eval-header">
       <div class="overall-eval-header-title">🎯 AI 종합 역량 평가</div>
@@ -964,6 +965,9 @@ function renderAIOverallPanel(overall){
       ${card('진로역량','🎯 진로역량')}
       ${card('공동체역량','🤝 공동체역량')}
     </div>
+    ${has근거?`<div class="overall-reason-toggle-row" id="${pid}-btn" onclick="toggleAllReason('${pid}')">
+      <span id="${pid}-arr">▶</span><span id="${pid}-lbl">근거 보기</span>
+    </div>`:''}
     ${overall.종합의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #6366f1;"><span style="font-size:15px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 종합 의견</span>${escapeHtml(overall.종합의견)}</div>`:''}
   </div>`;
 }
@@ -992,6 +996,8 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
     return g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${g}">${g}</span></div>` : '';
   };
 
+  const pid=`rop-${Math.random().toString(36).slice(2,6)}`;
+
   const group = (label, grade, rows, 근거) => grade ? `
     <div class="overall-eval-group">
       <div class="overall-group-label">${label}</div>
@@ -999,15 +1005,10 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
         <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
         <div class="overall-sub-list">${rows}</div>
       </div>
-      ${근거?(()=>{const uid=`or-${label}-${Math.random().toString(36).slice(2,7)}`;return`
-        <div class="overall-reason-toggle" onclick="toggleReason('${uid}',this)">
-          <span>📎 근거</span><span id="${uid}-arr">▶</span>
-        </div>
-        <div class="overall-reason-text" id="${uid}">${escapeHtml(근거)}</div>
-      `})():''}
+      ${근거?`<div class="overall-reason-bar" data-pid="${pid}">${escapeHtml(근거)}</div>`:''}
     </div>` : '';
 
-  const 의견 = subjOverall?.종합의견 || null;
+  const has근거 = !!(subjOverall?.학업역량?.근거 || subjOverall?.진로역량?.근거 || subjOverall?.공동체역량?.근거);
 
   return `<div class="overall-eval-panel">
     <div class="overall-eval-header">
@@ -1019,6 +1020,9 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
       ${group('진로역량', 진로G, subRow('전공적합','전공적합성')+subRow('진로탐색','진로탐색'), subjOverall?.진로역량?.근거)}
       ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실성')+subRow('리더십','리더십'), subjOverall?.공동체역량?.근거)}
     </div>
+    ${has근거?`<div class="overall-reason-toggle-row" id="${pid}-btn" onclick="toggleAllReason('${pid}')">
+      <span id="${pid}-arr">▶</span><span id="${pid}-lbl">근거 보기</span>
+    </div>`:''}
     ${의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #06b6d4;"><span style="font-size:15px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 ${escapeHtml(title)} 종합 의견</span>${escapeHtml(의견)}</div>`:''}
   </div>`;
 }
