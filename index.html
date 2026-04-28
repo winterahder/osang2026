@@ -166,12 +166,13 @@
   /* 오른쪽: 평가 패널 — 50% */
   .acc-right { flex: 1; border-left: 1px solid #e2e8f0; padding: 8px 12px; display: flex; align-items: center; }
   .eval-panel { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; }
-  .eval-panel-group { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
-  .eval-panel-label { font-size: 11px; color: #64748b; font-weight: 700; text-align: center; line-height: 1.3; }
-  .eval-panel-grade { font-size: 26px; font-weight: 900; line-height: 1; }
-  .eval-panel-subs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: 3px; }
-  .eval-sub-item { font-size: 10px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 5px; display: flex; gap: 2px; }
-  .eval-sub-grade { font-weight: 800; }
+  .eval-panel-group { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .eval-panel-label { font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 6px; }
+  .eval-panel-body { display: flex; align-items: center; gap: 10px; }
+  .eval-panel-grade { font-size: 28px; font-weight: 900; line-height: 1; flex-shrink: 0; min-width: 28px; }
+  .eval-panel-subs { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .eval-sub-item { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+  .eval-sub-grade { font-weight: 800; font-size: 12px; }
 
   /* 펼친 상태: 세부 지표 (한 줄 표시) */
   .eval-detail-section { padding: 12px 22px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 20px; flex-wrap: wrap; }
@@ -881,8 +882,10 @@ function renderEvalPanel(evalData){
   const group = (label, grade, keys, labels) => grade ? `
     <div class="eval-panel-group">
       <div class="eval-panel-label">${label}</div>
-      <div class="eval-panel-grade g-${grade}">${grade}</div>
-      <div class="eval-panel-subs">${subItems(keys,labels)}</div>
+      <div class="eval-panel-body">
+        <div class="eval-panel-grade g-${grade}">${grade}</div>
+        <div class="eval-panel-subs">${subItems(keys,labels)}</div>
+      </div>
     </div>` : '';
 
   return `<div class="acc-right"><div class="eval-panel">
@@ -926,7 +929,7 @@ function renderAIOverallPanel(overall){
       <div class="overall-group-label">${label}</div>
       <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
       <div class="overall-sub-list">${subHtml}</div>
-      ${d.근거?`<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5;">${escapeHtml(d.근거)}</div>`:''}
+      ${d.근거?`<div style="font-size:14px;color:#94a3b8;margin-top:5px;line-height:1.5;">${escapeHtml(d.근거)}</div>`:''}
     </div>`;
   };
   return `<div class="overall-eval-panel">
@@ -939,7 +942,7 @@ function renderAIOverallPanel(overall){
       ${card('진로역량','🎯 진로역량')}
       ${card('공동체역량','🤝 공동체역량')}
     </div>
-    ${overall.종합의견?`<div style="margin-top:10px;font-size:12px;color:#475569;line-height:1.7;padding:10px;background:#f8fafc;border-radius:8px;border-left:3px solid #6366f1;"><span style="font-size:11px;font-weight:700;color:#94a3b8;display:block;margin-bottom:4px;">💬 종합 의견</span>${escapeHtml(overall.종합의견)}</div>`:''}
+    ${overall.종합의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #6366f1;"><span style="font-size:15px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 종합 의견</span>${escapeHtml(overall.종합의견)}</div>`:''}
   </div>`;
 }
 
