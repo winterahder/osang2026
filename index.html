@@ -390,31 +390,44 @@ async function fetchAndDecrypt(url, key){
   return decryptJSON(encObj, key);
 }
 
+// ========== Apps Script API ==========
+const API_URL = 'https://script.google.com/macros/s/AKfycbyt9jB9ojJJ82IK5bz3Udsx0p2VlpWs9rYJ4EtROhYSGxYkedadhXIJZ2PgY5bv04eb4Q/exec';
+let currentRole = null; // 'grade1' | 'grade2' | 'grade3' | 'admin'
+
+async function apiGet(params){
+  const url = API_URL + '?' + new URLSearchParams(params);
+  const res = await fetch(url);
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPost(body){
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
 // ========== 잠금 해제 ==========
 const SESSION_KEY = 'osh_session_pw';
-let derivedKey = null;
 
 async function tryUnlock(){
-  const pw = document.getElementById('pwInput').value;
+  const pw = document.getElementById('pwInput').value.trim();
   if(!pw){ showLockError('비밀번호를 입력하세요.'); return; }
   document.getElementById('unlockBtn').disabled = true;
   document.getElementById('lockSpinner').classList.add('show');
   document.getElementById('lockError').textContent = '';
   try{
-    // 첫 번째 파일로 비밀번호 검증
-    const res = await fetch('data/students.json');
-    const encObj = await res.json();
-    let salt;
-    if(encObj.iv){
-      salt = b64ToArr(encObj.salt);
-      const testKey = await deriveKey(pw, salt);
-      await decryptJSON(encObj, testKey); // 틀리면 여기서 throw
-      derivedKey = testKey;
-    } else {
-      // 암호화 미적용 파일 (개발 모드)
-      derivedKey = null;
-    }
-    // 비밀번호 맞음 → 오늘 하루 기억 옵션
+    // Apps Script에서 역할 확인
+    const result = await apiGet({ action: 'checkRole', password: pw });
+    if(!result.role) throw new Error('비밀번호 오류');
+    currentRole = result.role;
+    currentPassword = pw;
+
     if(document.getElementById('rememberPw').checked){
       const exp = Date.now() + 24*60*60*1000;
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ pw, exp }));
@@ -439,9 +452,7 @@ function showLockError(msg){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  // Enter 키로 잠금 해제
   document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
-  // 세션 저장된 비밀번호 자동 시도
   try{
     const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
     if(saved && saved.exp > Date.now()){
@@ -456,25 +467,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
 async function init(password){
   currentPassword = password;
   try{
-    // 각 파일 자체의 salt로 키를 독립적으로 파생해 복호화
-    // ?v= 캐시 버스팅: 항상 최신 파일을 서버에서 받아옴
-    const bust = `?v=${Date.now()}`;
-    async function load(url){
-      const res = await fetch(url + bust, { cache: 'no-store' });
-      if(!res.ok) return null;
-      const obj = await res.json();
-      if(!obj.iv) return obj; // 암호화 안 된 파일은 그냥 반환
-      const fileSalt = b64ToArr(obj.salt);
-      const fileKey = await deriveKey(currentPassword, fileSalt);
-      return decryptJSON(obj, fileKey);
-    }
-    const [s, m] = await Promise.all([ load('data/students.json'), load('data/mock.json') ]);
-    students = (s || []).filter(st => st.grade === 2);  // 2학년만
+    // 학생/모의고사/내신/세특/창체 병렬 로드
+    const [s, m] = await Promise.all([
+      apiGet({ action: 'getStudents', password }),
+      apiGet({ action: 'getMockExam', password })
+    ]);
+    students = s || [];
     mock = m || {};
-    try{ const g = await load('data/grades_2.json'); if(g) grades = g; }catch(e){}
-    try{ const sw = await load('data/sewtuk_2.json'); if(sw) sewtuk = sw; }catch(e){}
-    try{ const cc = await load('data/changche_2.json'); if(cc) changche = cc; }catch(e){}
-    document.getElementById('status').textContent = `2학년 ${students.length}명 · 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects&&sewtuk[k].subjects.length).length}명`;
+
+    try{ const g = await apiGet({ action: 'getGrades', password }); if(g) grades = g; }catch(e){}
+    try{ const sw = await apiGet({ action: 'getSewtuk', password }); if(sw) sewtuk = sw; }catch(e){}
+    try{ const cc = await apiGet({ action: 'getChangche', password }); if(cc) changche = cc; }catch(e){}
+
+    const gradeLabel = currentRole === 'admin' ? '전체' : currentRole.replace('grade','') + '학년';
+    document.getElementById('status').textContent =
+      `${gradeLabel} ${students.length}명 · 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects?.length).length}명`;
     renderList();
     initClassFilter();
   }catch(e){
