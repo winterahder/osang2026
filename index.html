@@ -138,24 +138,28 @@
   .sewtuk-filters { display: flex; flex-direction: column; gap: 0; }
 
   /* 종합 평가 패널 */
-  .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); display: block; }
-  .overall-eval-header { font-size: 16px; font-weight: 700; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
-  .overall-eval-header-title { display: flex; align-items: center; gap: 6px; }
-  .overall-eval-scope { font-size: 15px; color: #cbd5e1; font-weight: 400; }
-  .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: stretch; }
-  .overall-eval-group { display: flex; flex-direction: column; justify-content: space-between; padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
-  .overall-eval-left { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-  .overall-group-label { font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; width: 100%; }
-  .overall-group-body { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex: 1; }
-  .overall-group-grade { font-size: 33px; font-weight: 900; line-height: 1; }
-  .overall-sub-list { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-  .overall-sub-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-  .overall-sub-name { color: #334155; font-weight: 500; }
-  .overall-sub-grade { font-weight: 800; font-size: 15px; min-width: 14px; text-align: right; }
-  .overall-reason-bar { margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:12px; color:#475569; line-height:1.6; display:none; }
-  .overall-reason-toggle-row { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px; cursor:pointer; color:#64748b; font-size:12px; font-weight:600; user-select:none; padding:5px; border-radius:6px; }
-  .overall-reason-toggle-row:hover { background:#f1f5f9; color:#334155; }
+  .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .overall-eval-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .overall-eval-header-title { font-size: 15px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+  .overall-eval-scope { font-size: 12px; color: #94a3b8; font-weight: 500; background: #f1f5f9; padding: 3px 10px; border-radius: 20px; }
+  .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: stretch; }
+
+  /* 역량 카드 */
+  .overall-eval-group { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1.5px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); transition: box-shadow .2s; }
+  .overall-eval-group:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .overall-group-header { padding: 10px 14px 8px; border-bottom: 1px solid #f1f5f9; }
+  .overall-group-label { font-size: 12px; font-weight: 700; color: #64748b; letter-spacing: 0.3px; }
+  .overall-group-body { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px 12px; flex: 1; }
+  .overall-group-grade { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+  .overall-sub-list { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+  .overall-sub-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .overall-sub-name { color: #475569; font-weight: 500; }
+  .overall-sub-grade { font-weight: 800; font-size: 14px; min-width: 14px; text-align: right; }
+
+  /* 근거 토글 */
+  .overall-reason-bar { font-size: 12px; color: #475569; line-height: 1.7; display: none; padding: 10px 14px; background: #f8fafc; border-top: 1px solid #f1f5f9; }
+  .overall-reason-toggle-row { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 10px; cursor: pointer; color: #94a3b8; font-size: 12px; font-weight: 600; user-select: none; padding: 6px 12px; border-radius: 20px; border: 1px solid #e2e8f0; width: fit-content; margin-left: auto; margin-right: auto; transition: all .15s; }
+  .overall-reason-toggle-row:hover { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
   .overall-eval-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #cbd5e1; font-size: 16px; text-align: center; padding: 20px; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
   .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
@@ -940,13 +944,16 @@ function renderAIOverallPanel(overall){
 
   const card=(key,label)=>{
     const d=overall[key]; if(!d) return '';
+    const color=GC[d.grade]||'#64748b';
     const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
       `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${v}</span></div>`
     ).join('');
-    return `<div class="overall-eval-group">
-      <div class="overall-group-label">${label}</div>
+    return `<div class="overall-eval-group" style="border-top:3px solid ${color};">
+      <div class="overall-group-header">
+        <div class="overall-group-label">${label}</div>
+      </div>
       <div class="overall-group-body">
-        <div class="overall-group-grade" style="color:${GC[d.grade]||'#64748b'}">${d.grade}</div>
+        <div class="overall-group-grade" style="color:${color}">${d.grade}</div>
         <div class="overall-sub-list">${subHtml}</div>
       </div>
       ${d.근거?`<div class="overall-reason-bar" data-pid="${pid}">${escapeHtml(d.근거)}</div>`:''}
@@ -999,8 +1006,10 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
   const pid=`rop-${Math.random().toString(36).slice(2,6)}`;
 
   const group = (label, grade, rows, 근거) => grade ? `
-    <div class="overall-eval-group">
-      <div class="overall-group-label">${label}</div>
+    <div class="overall-eval-group" style="border-top:3px solid ${GC[grade]||'#64748b'};">
+      <div class="overall-group-header">
+        <div class="overall-group-label">${label}</div>
+      </div>
       <div class="overall-group-body">
         <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
         <div class="overall-sub-list">${rows}</div>
