@@ -1144,12 +1144,15 @@ async function generateComprehensiveEval(){
     if(!sewtuk[hak]) sewtuk[hak]={};
     sewtuk[hak].종합역량평가=obj;
 
+    // 구글 시트에 즉시 저장
+    addMsg('assistant','💾 구글 시트에 저장 중...');
+    await saveToSheet(hak);
+
     addMsg('assistant',
-      `🏆 **${currentStu.name}** 종합 역량 평가 완료!\n\n`+
+      `🏆 **${currentStu.name}** 종합 역량 평가 완료 및 저장!\n\n`+
       `📚 학업역량 **${obj.학업역량?.grade}** (성취도 ${obj.학업역량?.학업성취도?.grade} · 태도 ${obj.학업역량?.학업태도?.grade} · 탐구 ${obj.학업역량?.탐구력?.grade})\n`+
       `🎯 진로역량 **${obj.진로역량?.grade}**\n`+
-      `🤝 공동체역량 **${obj.공동체역량?.grade}**`,
-      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'}]
+      `🤝 공동체역량 **${obj.공동체역량?.grade}**`
     );
   }catch(e){
     addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
