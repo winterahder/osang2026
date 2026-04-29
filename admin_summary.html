@@ -353,6 +353,24 @@ function selectProvider(p){
 }
 
 /* ========== 잠금 해제 ========== */
+/* ========== Apps Script API ========== */
+const API_URL='https://script.google.com/macros/s/AKfycbyt9jB9ojJJ82IK5bz3Udsx0p2VlpWs9rYJ4EtROhYSGxYkedadhXIJZ2PgY5bv04eb4Q/exec';
+
+async function apiGet(params){
+  const url=API_URL+'?'+new URLSearchParams(params);
+  const res=await fetch(url);
+  const data=await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPost(body){
+  const res=await fetch(API_URL,{method:'POST',body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
 async function tryUnlock(){
   const pw=document.getElementById('pwInput').value.trim();
   const ak=document.getElementById('apiKeyInput').value.trim();
@@ -364,13 +382,23 @@ async function tryUnlock(){
   if(!ak||!ak.startsWith(info.prefix)){
     errEl.textContent=info.name+' API 키를 정확히 입력하세요 ('+info.prefix+'로 시작).';return;
   }
-  errEl.textContent='';
+  errEl.textContent='불러오는 중...';
   try{
-    const s=await loadJSON('data/students.json',pw);
+    // 역할 확인
+    const roleRes=await apiGet({action:'checkRole',password:pw});
+    if(!roleRes.role) throw new Error('비밀번호 오류');
+    if(roleRes.role!=='admin'){throw new Error('관리자 비밀번호를 입력하세요.');}
+
     currentPw=pw; apiKey=ak;
-    students=(s||[]).filter(x=>x.grade===2);
-    try{sewtuk=await loadJSON('data/sewtuk_2.json',pw)||{};}catch(e){}
-    // 기억하기
+
+    // 학생 + 세특 로드
+    const [s, sw]=await Promise.all([
+      apiGet({action:'getStudents',password:pw}),
+      apiGet({action:'getSewtuk',password:pw})
+    ]);
+    students=s||[];
+    sewtuk=sw||{};
+
     if(remember){
       sessionStorage.setItem('savedPw',pw);
       sessionStorage.setItem('savedProvider',apiProvider);
@@ -381,7 +409,7 @@ async function tryUnlock(){
     updateProgress(); renderList();
     const providerBadge=`<span class="api-badge">${info.name}</span>`;
     document.getElementById('headerStatus').innerHTML=`${students.length}명 로드됨 ${providerBadge}`;
-  }catch(e){errEl.textContent='비밀번호가 올바르지 않습니다.';}
+  }catch(e){errEl.textContent=e.message||'비밀번호가 올바르지 않습니다.';}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -489,7 +517,7 @@ function renderMain(){
         <button class="btn-overall" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
-        <button class="btn-export" onclick="exportJSON()">📥 JSON 다운로드</button>
+        <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
       </div>
     </div>
     <div class="all-progress" id="allProg">
@@ -915,7 +943,7 @@ async function generateAll(){
   if(btnAll){btnAll.disabled=false;btnAll.innerHTML='✨ 전체 요약 생성';}
   addMsg('assistant',
     `🎉 전체 생성 완료! **${done}개** 요약이 준비되었습니다.`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
   );
 }
 
@@ -952,7 +980,7 @@ async function evaluateAll(){
   if(btn){btn.disabled=false;btn.innerHTML='📊 전체 평가 생성';}
   addMsg('assistant',
     `🎉 전체 평가 완료! **${done}개** 과목 평가가 준비되었습니다.`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
   );
 }
 
@@ -1070,7 +1098,7 @@ async function generateAllOverall(){
   addMsg('assistant',
     `🎉 모든 역량 평가 완료!\n\n`+
     `✅ 종합 역량 평가 1건 + 교과별 평가 **${multiCats.length}건** (${multiCats.join(', ')})`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'📥 JSON 다운로드',action:'exportJSON()'}]
+    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
   );
 }
 
@@ -1247,7 +1275,7 @@ async function sendChat(){
 }
 
 /* ========== 저장 적용 ========== */
-function applyAndSave(){
+async function applyAndSave(){
   if(!currentStu) return;
   const hak=String(currentStu.hak);
   if(!pending[hak]) pending[hak]={};
@@ -1290,20 +1318,48 @@ function applyAndSave(){
     parts.push(`교과별 평가 **${subjCats.length}건**`);
   }
   updateProgress(); renderPanel(); renderList();
-  addMsg('assistant',`✅ ${parts.join(' + ')} 반영되었습니다.\n**📥 JSON 다운로드** 버튼으로 파일을 받아 GitHub data/ 폴더에 업로드하세요.`,
-    [{label:'📥 JSON 다운로드',action:'exportJSON()'}]
-  );
+  // 자동으로 구글 시트에 저장
+  try{
+    await saveToSheet(hak);
+    addMsg('assistant',`✅ ${parts.join(' + ')} 반영 및 **구글 시트 저장** 완료!`);
+  }catch(e){
+    addMsg('assistant',`✅ ${parts.join(' + ')} 반영되었습니다.\n⚠️ 시트 저장 실패: ${e.message}`,
+      [{label:'💾 다시 저장',action:'exportJSON()'}]
+    );
+  }
 }
 
-/* ========== JSON 다운로드 (평문) ========== */
+/* ========== 구글 시트에 저장 ========== */
+async function saveToSheet(hak){
+  const data=sewtuk[String(hak)];
+  if(!data) return;
+  await apiPost({action:'saveSewtuk', password:currentPw, hak:String(hak), sewtukData:data});
+}
+
 async function exportJSON(){
+  // 현재 학생 데이터를 시트에 저장
+  if(!currentStu){addMsg('assistant','먼저 학생을 선택해주세요.');return;}
+  const hak=String(currentStu.hak);
+  addMsg('assistant','💾 구글 시트에 저장 중...');
   try{
-    const blob=new Blob([JSON.stringify(sewtuk,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='sewtuk_2.json'; a.click();
-    URL.revokeObjectURL(url);
-    addMsg('assistant','📥 **sewtuk_2.json** 다운로드 완료!\n⚠️ 암호화 없이 저장됩니다. GitHub → data/ 폴더에 업로드하세요.');
-  }catch(e){addMsg('assistant',`다운로드 오류: ${e.message}`);}
+    await saveToSheet(hak);
+    addMsg('assistant',`✅ **${currentStu.name}** 학생 데이터가 구글 시트에 저장되었습니다!\n변경사항이 바로 반영됩니다.`);
+  }catch(e){
+    addMsg('assistant',`❌ 저장 실패: ${e.message}`);
+  }
+}
+
+async function exportAllJSON(){
+  // 전체 학생 데이터 일괄 저장
+  const haks=Object.keys(sewtuk);
+  addMsg('assistant',`💾 전체 ${haks.length}명 구글 시트에 저장 중...`);
+  let ok=0,fail=0;
+  for(const hak of haks){
+    try{await saveToSheet(hak);ok++;}catch(e){fail++;}
+  }
+  addMsg('assistant',`✅ 저장 완료! 성공 ${ok}명${fail?` / 실패 ${fail}명`:''}`,
+    [{label:'새로고침',action:'location.reload()'}]
+  );
 }
 </script>
 </body>
