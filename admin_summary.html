@@ -1089,24 +1089,24 @@ async function generateComprehensiveEval(){
 {
   "학업역량": {
     "grade": "B",
-    "학업성취도": {"grade":"B","comment":"300바이트 분량 구체적 근거 — 내신 석차등급·원점수·성취도·과목평균 등 수치 반드시 인용"},
-    "학업태도": {"grade":"A","comment":"300바이트 분량 — 자기주도 노력·수업참여·질문의 질 등 세특 근거"},
-    "탐구력": {"grade":"A","comment":"300바이트 분량 — 지적호기심·심화탐구·문제해결 사례 세특 근거"}
+    "학업성취도": {"grade":"B","comment":"150바이트 — 내신 수치 반드시 인용"},
+    "학업태도": {"grade":"A","comment":"150바이트 — 세특 근거"},
+    "탐구력": {"grade":"A","comment":"150바이트 — 세특 근거"}
   },
   "진로역량": {
     "grade": "B",
-    "전공관련교과이수": {"grade":"B","comment":"300바이트 분량 — 지원계열 필요과목 선택·이수·위계적학습 여부"},
-    "전공관련교과성취도": {"grade":"B","comment":"300바이트 분량 — 전공기초 교과목 수행 성과 내신 수치 인용"},
-    "진로탐색활동": {"grade":"A","comment":"300바이트 분량 — 교과 내 주제탐구·전공관련 지식확장 경험"}
+    "전공관련교과이수": {"grade":"B","comment":"150바이트 — 과목 선택 근거"},
+    "전공관련교과성취도": {"grade":"B","comment":"150바이트 — 내신 수치 인용"},
+    "진로탐색활동": {"grade":"A","comment":"150바이트 — 세특 근거"}
   },
   "공동체역량": {
     "grade": "A",
-    "협업소통": {"grade":"A","comment":"300바이트 분량 — 단체활동·경청·협력·공동목표 달성 세특 근거"},
-    "나눔배려": {"grade":"A","comment":"300바이트 분량 — 동료 성장 기여·존중·나눔 사례"},
-    "성실성규칙준수": {"grade":"A","comment":"300바이트 분량 — 책임감·의무이행·규칙준수 태도"},
-    "리더십": {"grade":"B","comment":"300바이트 분량 — 화합 주도·공동목표 계획·실행 주도 사례"}
+    "협업소통": {"grade":"A","comment":"150바이트 — 세특 근거"},
+    "나눔배려": {"grade":"A","comment":"150바이트 — 세특 근거"},
+    "성실성규칙준수": {"grade":"A","comment":"150바이트 — 세특 근거"},
+    "리더십": {"grade":"B","comment":"150바이트 — 세특 근거"}
   },
-  "종합의견": "음슴체로 8~10문장. 내신 수치와 세특 구체 활동을 균형있게 인용하여 강점과 보완점 모두 서술"
+  "종합의견": "음슴체 6~8문장"
 }
 
 【평가 기준】
@@ -1122,11 +1122,23 @@ async function generateComprehensiveEval(){
     const text=await callAPI(systemPrompt,[{
       role:'user',
       content:`학생: ${currentStu.name} (${hak})\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항】\n${sewtukSummary}`
-    }],2000);
+    }],4000);
 
+    // JSON 추출 및 파싱 (잘린 경우 복구 시도)
     let obj;
-    try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{throw new Error('JSON 파싱 실패: '+text.substring(0,120));}
+    try{
+      let clean=text.replace(/```json|```/g,'').trim();
+      // JSON이 잘린 경우 마지막 완전한 } 위치까지 복구 시도
+      if(!clean.endsWith('}')){
+        const lastClose=clean.lastIndexOf('}');
+        if(lastClose>0) clean=clean.substring(0,lastClose+1);
+        // 열린 괄호 닫기
+        const opens=(clean.match(/{/g)||[]).length;
+        const closes=(clean.match(/}/g)||[]).length;
+        for(let i=0;i<opens-closes;i++) clean+='}';
+      }
+      obj=JSON.parse(clean);
+    }catch{throw new Error('JSON 파싱 실패 — 응답이 너무 길어 잘렸습니다. 잠시 후 다시 시도해주세요.');}
 
     // sewtuk에 저장
     if(!sewtuk[hak]) sewtuk[hak]={};
