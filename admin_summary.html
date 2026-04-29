@@ -356,11 +356,12 @@
            ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handleRefDrop(event)">
-        <input type="file" id="refFileInput" accept=".pdf,.pptx,.txt,.md" onchange="handleRefFileSelect(this)">
+        <input type="file" id="refFileInput" accept=".pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp" multiple onchange="handleRefFileSelect(this)">
         <div class="ref-upload-icon">📄</div>
         <div class="ref-upload-text">
           클릭하거나 파일을 드래그하세요<br>
-          <strong>PDF · PPTX · TXT</strong> 지원 · Claude가 핵심 내용을 추출합니다
+          <strong>PDF · PPTX · TXT · PNG/JPG</strong> 지원<br>
+          <span style="font-size:11px;color:var(--muted);">이미지형 PPTX · HWP → PDF로 저장 후 업로드 · 슬라이드 캡처 이미지도 가능 (다중 선택 지원)</span>
         </div>
       </div>
       <div class="ref-selected-file hidden" id="refSelectedFile">
@@ -1612,22 +1613,22 @@ function closeRefModal(){
 function handleRefDrop(e){
   e.preventDefault();
   document.getElementById('refUploadArea').classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if(file) setRefFile(file);
+  const files = [...e.dataTransfer.files];
+  if(files.length) setRefFiles(files);
 }
 function handleRefFileSelect(input){
-  if(input.files[0]) setRefFile(input.files[0]);
+  const files = [...input.files];
+  if(files.length) setRefFiles(files);
 }
-function setRefFile(file){
-  refSelectedFile = file;
+function setRefFiles(files){
+  refSelectedFile = files; // 배열로 저장
   const nameEl = document.getElementById('refFileName');
   const selEl  = document.getElementById('refSelectedFile');
-  nameEl.textContent = file.name;
+  nameEl.textContent = files.length === 1 ? files[0].name : `${files[0].name} 외 ${files.length-1}개`;
   selEl.classList.remove('hidden');
-  // 파일명으로 제목 자동 채우기
   const titleInput = document.getElementById('refTitleInput');
   if(!titleInput.value){
-    titleInput.value = file.name.replace(/\.[^.]+$/, '');
+    titleInput.value = files[0].name.replace(/\.[^.]+$/, '');
   }
   setRefStatus('', '');
 }
@@ -1670,36 +1671,59 @@ function fileToBase64(file){
 }
 
 async function extractAndSave(){
-  if(!refSelectedFile){ setRefStatus('파일을 먼저 선택해주세요.', 'err'); return; }
-  const title = document.getElementById('refTitleInput').value.trim() || refSelectedFile.name;
+  if(!refSelectedFile || !refSelectedFile.length){ setRefStatus('파일을 먼저 선택해주세요.', 'err'); return; }
+  const files = Array.isArray(refSelectedFile) ? refSelectedFile : [refSelectedFile];
+  const title = document.getElementById('refTitleInput').value.trim() || files[0].name;
   const btn = document.getElementById('refExtractBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin-dark"></span> Claude가 분석 중...';
   setRefStatus('📖 파일을 읽고 있습니다...', 'loading');
 
   try{
-    const ext = refSelectedFile.name.split('.').pop().toLowerCase();
     let extractedText = '';
+    const imageExts = ['png','jpg','jpeg','webp','gif'];
+    const firstExt = files[0].name.split('.').pop().toLowerCase();
 
-    if(ext === 'pdf'){
+    // ── 이미지 파일 (단일 or 다중) ──
+    if(imageExts.includes(firstExt)){
+      setRefStatus(`🖼 이미지 ${files.length}장을 Claude가 읽습니다...`, 'loading');
+      extractedText = await callAPIWithImages(files, title);
+
+    // ── PDF ──
+    } else if(firstExt === 'pdf'){
       setRefStatus('🤖 Claude가 PDF를 읽고 핵심을 추출합니다...', 'loading');
-      const b64 = await fileToBase64(refSelectedFile);
-      const r = await callAPIWithDoc(b64, 'application/pdf', title);
-      extractedText = r;
-    } else if(ext === 'pptx'){
+      const b64 = await fileToBase64(files[0]);
+      extractedText = await callAPIWithDoc(b64, 'application/pdf', title);
+
+    // ── PPTX ──
+    } else if(firstExt === 'pptx'){
       setRefStatus('📊 PPTX에서 텍스트를 추출합니다...', 'loading');
-      const rawText = await extractPptxText(refSelectedFile);
-      if(!rawText.trim()) throw new Error('텍스트를 추출할 수 없습니다. (이미지 기반 슬라이드일 수 있음)');
+      const rawText = await extractPptxText(files[0]);
+      if(!rawText || rawText.trim().length < 50){
+        throw new Error(
+          'PPTX에서 텍스트를 추출할 수 없습니다.\n\n' +
+          '💡 해결 방법:\n' +
+          '① PowerPoint에서 "다른 이름으로 저장 → PDF"로 변환 후 업로드\n' +
+          '② 또는 슬라이드를 화면 캡처(PNG)해서 이미지로 업로드'
+        );
+      }
       setRefStatus('🤖 Claude가 핵심 내용을 정리합니다...', 'loading');
-      const r = await callAPIRawText(rawText, title);
-      extractedText = r;
-    } else if(ext === 'txt' || ext === 'md'){
-      const rawText = await refSelectedFile.text();
+      extractedText = await callAPIRawText(rawText, title);
+
+    // ── TXT / MD ──
+    } else if(firstExt === 'txt' || firstExt === 'md'){
+      const rawText = await files[0].text();
       setRefStatus('🤖 Claude가 핵심 내용을 정리합니다...', 'loading');
-      const r = await callAPIRawText(rawText, title);
-      extractedText = r;
+      extractedText = await callAPIRawText(rawText, title);
+
+    // ── HWP 등 미지원 ──
     } else {
-      throw new Error('지원하지 않는 파일 형식입니다. (PDF, PPTX, TXT만 가능)');
+      throw new Error(
+        `"${firstExt.toUpperCase()}" 형식은 지원하지 않습니다.\n\n` +
+        '💡 해결 방법:\n' +
+        '① 한글(HWP) → "다른 이름으로 저장 → PDF"로 변환 후 업로드\n' +
+        '② 또는 내용을 복사해서 TXT 파일로 저장 후 업로드'
+      );
     }
 
     // Google Sheets에 저장
@@ -1710,16 +1734,15 @@ async function extractAndSave(){
       password: currentPw,
       id,
       title,
-      source: refSelectedFile.name,
+      source: files.map(f=>f.name).join(', '),
       content: extractedText
     });
 
-    // 로컬 목록 갱신
-    referencesList.push({ id, 제목: title, 출처: refSelectedFile.name, 내용: extractedText, 등록일: new Date().toLocaleDateString('ko-KR') });
+    referencesList.push({ id, '제목': title, '출처': files.map(f=>f.name).join(', '), '내용': extractedText, '등록일': new Date().toLocaleDateString('ko-KR') });
     updateRefBadge();
     renderRefList();
 
-    // 입력 초기화
+    // 초기화
     refSelectedFile = null;
     document.getElementById('refFileName').textContent = '-';
     document.getElementById('refSelectedFile').classList.add('hidden');
@@ -1727,7 +1750,7 @@ async function extractAndSave(){
     document.getElementById('refFileInput').value = '';
     setRefStatus(`✅ "${title}" 등록 완료! 모의지원 분석에 자동 반영됩니다.`, 'ok');
   } catch(e){
-    setRefStatus('❌ 오류: ' + e.message, 'err');
+    setRefStatus('❌ ' + e.message, 'err');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '✨ 추출 &amp; 저장';
@@ -1766,7 +1789,44 @@ async function callAPIWithDoc(base64, mediaType, title){
   throw new Error('PDF 직접 분석은 Anthropic 제공자만 지원됩니다.');
 }
 
-// 텍스트 → Claude API (일반 텍스트)
+// 이미지 파일들 → Claude vision API (다중 이미지 지원)
+async function callAPIWithImages(files, title){
+  if(apiProvider !== 'anthropic') throw new Error('이미지 분석은 Anthropic 제공자만 지원됩니다.');
+  const prompt = `아래 이미지들은 "${title}" 자료의 슬라이드입니다.\n대입 전형 분석에 활용할 수 있도록 핵심 정보를 추출해주세요.\n\n추출 항목:\n1. 핵심 전형 변경사항 (있을 경우)\n2. 평가 철학 / 평가 기준\n3. 세특·학생부 관련 중요 포인트\n4. 면접 관련 정보 (있을 경우)\n5. 기타 수험생이 반드시 알아야 할 사항\n\n핵심만 간결하게 불릿 포인트로 정리해주세요. 없는 항목은 생략하세요.`;
+
+  // 이미지 content 블록 생성 (최대 10장)
+  const imgFiles = files.slice(0, 10);
+  const imageBlocks = await Promise.all(imgFiles.map(async f => {
+    const b64 = await fileToBase64(f);
+    const ext = f.name.split('.').pop().toLowerCase();
+    const mediaType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+                    : ext === 'webp' ? 'image/webp'
+                    : ext === 'gif'  ? 'image/gif'
+                    : 'image/png';
+    return { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } };
+  }));
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [...imageBlocks, { type: 'text', text: prompt }]
+      }]
+    })
+  });
+  if(!r.ok){ const t=await r.text(); throw new Error('Claude API 오류: '+t.substring(0,100)); }
+  const d = await r.json();
+  return d.content?.[0]?.text || '';
+}
 async function callAPIRawText(rawText, title){
   const prompt = `아래는 "${title}" 자료에서 추출한 텍스트입니다.\n대입 전형 분석에 활용할 수 있도록 핵심 정보를 추출해주세요.\n\n추출 항목:\n1. 핵심 전형 변경사항 (있을 경우)\n2. 평가 철학 / 평가 기준\n3. 세특·학생부 관련 중요 포인트\n4. 면접 관련 정보 (있을 경우)\n5. 기타 수험생이 반드시 알아야 할 사항\n\n핵심만 간결하게 불릿 포인트로 정리해주세요. 없는 항목은 생략하세요.\n\n--- 자료 내용 ---\n${rawText.substring(0, 8000)}`;
   const text = await callAPI('당신은 입시 분석 전문가입니다.', [{ role:'user', content: prompt }], 2000);
