@@ -977,6 +977,21 @@ function toggleAllReason(pid){
   if(lbl) lbl.textContent=isOpen?'근거 보기':'근거 닫기';
 }
 
+// ========== 참고자료 대학명 필터 ==========
+function filterReferences(univInput) {
+  if (!referencesList.length) return [];
+  const norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
+  const univNorm = norm(univInput);
+  // "서울대학교" → "서울대" 처럼 접미사 제거해서 더 넓게 매칭
+  const univBase = univNorm.replace(/학교$|대학교$|대학$/, '');
+  return referencesList.filter(r => {
+    const title   = norm(r['제목'] || '');
+    const preview = norm((r['내용'] || '').substring(0, 300));
+    return title.includes(univBase)   || title.includes(univNorm) ||
+           preview.includes(univBase) || preview.includes(univNorm);
+  });
+}
+
 // ========== 합불 이력 조회 ==========
 function lookupAdmissions(univInput, deptInput) {
   if (!admissionsDB.length) return null;
@@ -1169,7 +1184,7 @@ ${compSummary}
 ${admissionsToPromptText(univ, dept)}
 
 【입시 참고자료】
-${referencesList.length ? referencesList.map(r=>`[${r['제목']||r.id}]\n${(r['내용']||'').substring(0,600)}`).join('\n\n') : '등록된 참고자료 없음'}
+${(()=>{ const matched=filterReferences(univ); return matched.length ? matched.map(r=>`[${r['제목']||r.id}]\n${(r['내용']||'').substring(0,600)}`).join('\n\n') : '해당 대학 관련 등록 자료 없음'; })()}
 
 【분석 요청】
 대학교: ${univ}
