@@ -590,8 +590,11 @@ function calcRank(currentData, filter){
 function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
+  const grade = parseInt(s.grade) || parseInt(String(s.hak)[0]);
   let data = grades[hak];
-  if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
+  // g2_hak 연결은 현재 2학년인 학생이 1학년 학번으로 된 데이터를 찾을 때만 허용
+  if(!data && grade === 2 && s.g2_hak) data = grades[String(s.g2_hak)];
+  if(!data && grade === 2 && s.g1_hak) data = grades[String(s.g1_hak)];
   if(!data || !data.grades){
     el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 학생들의 1학년 성적만 등록되어 있습니다)</small></div>`;
     return;
@@ -1051,8 +1054,10 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
 // ========== 세특 탭 ==========
 function renderSewtuk(el){
   const hak = String(currentStu.hak);
+  const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
   let data = sewtuk[hak];
-  if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
+  if(!data && grade === 2 && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
+  if(!data && grade === 2 && currentStu.g1_hak) data = sewtuk[String(currentStu.g1_hak)];
   if(!data || !data.subjects){
     el.innerHTML = `<div class="no-data">📋 세특 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 1반 학생들의 1학년 세특만 등록되어 있습니다 — 다른 반은 추후 업데이트 예정)</small></div>`;
     return;
@@ -1138,8 +1143,10 @@ const CHANGCHE_CATS   = ['전체','자율','동아리','진로'];
 
 function renderChangche(el){
   const hak = String(currentStu.hak);
+  const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
   let data = changche[hak];
-  if(!data && currentStu.g2_hak) data = changche[String(currentStu.g2_hak)];
+  if(!data && grade === 2 && currentStu.g2_hak) data = changche[String(currentStu.g2_hak)];
+  if(!data && grade === 2 && currentStu.g1_hak) data = changche[String(currentStu.g1_hak)];
   if(!data || !data.activities){
     el.innerHTML = `<div class="no-data">📋 창체 데이터가 없습니다<br><small style="color:#94a3b8;">(추후 업데이트 예정)</small></div>`;
     return;
