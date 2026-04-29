@@ -1131,18 +1131,32 @@ async function runApplyAnalysis(){
   const compEval = stuData?.종합역량평가 || null;
   const mockData = mock[hak] || [];
 
-  // 내신 요약
+  // 내신 요약 — 학년별 등급 체계 구분
   let gradesSummary = '내신 데이터 없음';
   const gradesData = grades[hak] || (grade===2&&currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null);
   if(gradesData?.grades){
     const lines = [];
     Object.entries(gradesData.grades).forEach(([sem, sd])=>{
+      // 학기 키(예: "1-1", "2-1", "3-1")에서 학년 추출해서 등급체계 표시
+      const semGrade = parseInt(sem.split('-')[0]) || grade;
+      const scaleNote = semGrade >= 3 ? '[9등급제]' : '[5등급제]';
       (sd.subjects||[]).forEach(s=>{
-        if(s.등급||s.원점수) lines.push(`[${sem}] ${s.과목}: 원점수${s.원점수??'-'} 등급${s.등급??'-'}${s.성취도?' 성취도'+s.성취도:''}`);
+        if(s.등급||s.원점수) lines.push(`${scaleNote}[${sem}] ${s.과목}: 원점수${s.원점수??'-'} 등급${s.등급??'-'}${s.성취도?' 성취도'+s.성취도:''}`);
       });
     });
     gradesSummary = lines.join('\n') || '내신 데이터 없음';
   }
+
+  // 등급 체계 안내 (Claude 해석 기준)
+  const gradeSystemGuide = grade >= 3
+    ? `※ 이 학생은 3학년으로 내신이 9등급제입니다.
+  - 9등급 기준: 1~2등급 최상위권 / 3~4등급 상위권 / 5등급 중위권 / 6등급 이하 하위권
+  - 교과전형: 상위권 대학 3등급 이내, 중위권 대학 4~5등급 가능
+  - 종합전형: 등급 자체보다 세특·활동의 질이 중요하나, 5등급 이하는 불리`
+    : `※ 이 학생은 ${grade}학년으로 내신이 5등급제입니다.
+  - 5등급 기준: 1등급 최상위(A) / 2등급 상위(B) / 3등급 중위(C) / 4등급 하위(D) / 5등급 최하위(E)
+  - 5등급제는 9등급제보다 등급 폭이 넓어 같은 숫자라도 다르게 해석해야 함
+  - 교과전형 지원 시 동일 대학의 9등급 환산 기준으로 비교 필요`;
 
   // 모의고사 최근 요약
   let mockSummary = '모의고사 데이터 없음';
@@ -1169,6 +1183,8 @@ async function runApplyAnalysis(){
 이름: ${currentStu.name} / ${hak[0]}학년
 
 【내신 성적】
+${gradeSystemGuide}
+
 ${gradesSummary}
 
 【모의고사】
@@ -1204,7 +1220,10 @@ ${note?`추가 요청: ${note}`:''}
   "주의사항": "지원 시 주의할 점 또는 불리한 요소 (음슴체)"
 }
 
-중요: 적합도는 학생 데이터와 목표 대학/학과의 실질적 연관성을 기준으로 엄격하게 평가하세요. 내신이 낮으면 교과전형에서 불리함을 명시하세요.`;
+중요: 적합도는 학생 데이터와 목표 대학/학과의 실질적 연관성을 기준으로 엄격하게 평가하세요.
+- 내신 등급 해석 시 반드시 위의 등급 체계(5등급제/9등급제)를 기준으로 판단하세요.
+- 5등급제 학생의 경우 9등급 환산을 고려하여 교과전형 가능성을 분석하세요.
+- 내신이 낮으면 교과전형에서 불리함을 명시하세요.`;
 
   try{
     const res = await fetch(API_URL, {
