@@ -151,9 +151,9 @@
   .og-C { background: #fef9c3; } .og-D { background: #fee2e2; } .og-X { background: #f1f5f9; }
   .overall-group-header { padding: 10px 14px 8px; border-bottom: 1px solid rgba(0,0,0,.06); }
   .overall-group-label { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: 0.3px; }
-  .overall-group-body { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px 14px; flex: 1; }
-  .overall-group-grade { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -1px; margin-left: -4px; }
-  .overall-sub-list { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+  .overall-group-body { display: flex; align-items: center; gap: 0; padding: 12px 14px 14px; flex: 1; }
+  .overall-group-grade { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -1px; flex: 0 0 38%; text-align: center; }
+  .overall-sub-list { flex: 1; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
   .overall-sub-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .overall-sub-name { color: #475569; font-weight: 500; }
   .overall-sub-grade { font-weight: 800; font-size: 14px; min-width: 14px; text-align: right; }
@@ -1021,6 +1021,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
     </div>` : '';
 
   const has근거 = !!(subjOverall?.학업역량?.근거 || subjOverall?.진로역량?.근거 || subjOverall?.공동체역량?.근거);
+  const 의견 = subjOverall?.종합의견 || null;
 
   return `<div class="overall-eval-panel">
     <div class="overall-eval-header">
