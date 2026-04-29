@@ -519,7 +519,7 @@ function renderMain(){
   if(!currentStu){ document.getElementById('main').innerHTML='<div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>'; return; }
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
-  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서'];
+  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가'];
   document.getElementById('main').innerHTML = `
     <div class="card stu-header">
       <h2>${s.name} (${s.hak})</h2>
@@ -547,6 +547,7 @@ function renderTab(){
   else if(currentTab==='내신') renderGrades(el);
   else if(currentTab==='세특') renderSewtuk(el);
   else if(currentTab==='창체') renderChangche(el);
+  else if(currentTab==='종합역량평가') renderCompEvalTab(el);
   else el.innerHTML = `<div class="placeholder">${currentTab} 탭 (준비중)</div>`;
 }
 
@@ -949,6 +950,25 @@ function toggleAllReason(pid){
   if(lbl) lbl.textContent=isOpen?'근거 보기':'근거 닫기';
 }
 
+// ========== 종합역량평가 탭 ==========
+function renderCompEvalTab(el){
+  const hak = String(currentStu.hak);
+  const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
+  let data = sewtuk[hak];
+  if(!data && grade===2 && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
+  if(!data && grade===2 && currentStu.g1_hak) data = sewtuk[String(currentStu.g1_hak)];
+
+  const eval_ = data?.종합역량평가 || null;
+
+  if(!eval_){
+    el.innerHTML = `<div class="no-data">📋 종합 역량 평가 데이터가 없습니다<br>
+      <small style="color:#94a3b8;">admin에서 🏆 종합 역량 평가 (내신+세특) 버튼으로 생성해주세요</small>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card" style="padding:16px;">${renderCompEvalPanel(eval_)}</div>`;
+}
+
 // ========== 종합 역량 평가 패널 (내신+세특 종합) ==========
 function renderCompEvalPanel(eval_){
   if(!eval_) return '';
@@ -1122,7 +1142,6 @@ function renderSewtuk(el){
   // 전체 과목: AI 종합평가 우선 / 특정 교과: 교과별평가 우선
   const aiOverall = (sewtukCat==='전체 과목' && data.종합평가) ? data.종합평가 : null;
   const subjOverall = (sewtukCat!=='전체 과목' && data.교과별평가?.[sewtukCat]) ? data.교과별평가[sewtukCat] : null;
-  const compEval = data.종합역량평가 || null;
 
   let html = `
     <div class="sewtuk-top-wrap">
@@ -1132,9 +1151,8 @@ function renderSewtuk(el){
         <div class="filter-row"><span class="filter-label">📖 과목</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
         <div style="color:#64748b;font-size:12px;margin-top:6px;">총 ${filtered.length}개 과목 · 클릭하면 전문이 펼쳐집니다</div>
       </div>
-      ${compEval && sewtukCat==='전체 과목' ? renderCompEvalPanel(compEval) : (aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle, subjOverall))}
+      ${aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle, subjOverall)}
     </div>
-    ${compEval && sewtukCat==='전체 과목' ? `<div style="margin-bottom:10px;">${aiOverall ? renderAIOverallPanel(aiOverall) : renderOverallEvalPanel(filtered, filterTitle, subjOverall)}</div>` : ''}
   `;
 
   if(filtered.length===0){
