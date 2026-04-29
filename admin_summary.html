@@ -515,6 +515,7 @@ function renderMain(){
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
         <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
         <button class="btn-overall" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
+        <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특)</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
@@ -1042,6 +1043,106 @@ async function generateSubjOverall(cat, silent=false){
   }catch(e){
     addMsg('assistant',`❌ ${cat} 교과 종합평가 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
+  }
+}
+
+/* ========== 종합 역량 평가 (내신 + 세특) ========== */
+async function generateComprehensiveEval(){
+  const hak=String(currentStu.hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
+
+  const btn=document.getElementById('btnCompEval');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
+
+  // 내신 데이터 로드
+  let gradesData=null;
+  try{
+    const g=await apiGet({action:'getGrades',password:currentPw});
+    gradesData=g?.[hak]||g?.[String(currentStu.g2_hak)]||null;
+  }catch(e){}
+
+  // 내신 요약 텍스트 생성
+  let gradesSummary='내신 데이터 없음';
+  if(gradesData?.grades){
+    const lines=[];
+    Object.entries(gradesData.grades).forEach(([sem,semData])=>{
+      const subjs=semData.subjects||[];
+      const semLabel=`${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
+      subjs.forEach(s=>{
+        if(s.등급||s.원점수){
+          lines.push(`[${semLabel}] ${s.교과} ${s.과목}: 원점수 ${s.원점수??'-'}, 성취도 ${s.성취도??'-'}, 등급 ${s.등급??'-'}${s.석차?`, 석차 ${s.석차}/${s.수강자수}`:''}${s.과목평균?`, 과목평균 ${s.과목평균}`:''}`);
+        }
+      });
+    });
+    gradesSummary=lines.join('\n')||'내신 데이터 없음';
+  }
+
+  // 세특 요약 텍스트
+  const sewtukSummary=subs.map(s=>
+    `[${s.교과} - ${s.과목}]\n${(s.내용||'').substring(0,400)}`
+  ).join('\n\n');
+
+  const systemPrompt=`당신은 대입 전형 전문 입학사정관입니다. 학생의 내신 성적과 세부능력특기사항을 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
+
+반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
+{
+  "학업역량": {
+    "grade": "B",
+    "학업성취도": {"grade":"B","comment":"300바이트 분량 구체적 근거 — 내신 석차등급·원점수·성취도·과목평균 등 수치 반드시 인용"},
+    "학업태도": {"grade":"A","comment":"300바이트 분량 — 자기주도 노력·수업참여·질문의 질 등 세특 근거"},
+    "탐구력": {"grade":"A","comment":"300바이트 분량 — 지적호기심·심화탐구·문제해결 사례 세특 근거"}
+  },
+  "진로역량": {
+    "grade": "B",
+    "전공관련교과이수": {"grade":"B","comment":"300바이트 분량 — 지원계열 필요과목 선택·이수·위계적학습 여부"},
+    "전공관련교과성취도": {"grade":"B","comment":"300바이트 분량 — 전공기초 교과목 수행 성과 내신 수치 인용"},
+    "진로탐색활동": {"grade":"A","comment":"300바이트 분량 — 교과 내 주제탐구·전공관련 지식확장 경험"}
+  },
+  "공동체역량": {
+    "grade": "A",
+    "협업소통": {"grade":"A","comment":"300바이트 분량 — 단체활동·경청·협력·공동목표 달성 세특 근거"},
+    "나눔배려": {"grade":"A","comment":"300바이트 분량 — 동료 성장 기여·존중·나눔 사례"},
+    "성실성규칙준수": {"grade":"A","comment":"300바이트 분량 — 책임감·의무이행·규칙준수 태도"},
+    "리더십": {"grade":"B","comment":"300바이트 분량 — 화합 주도·공동목표 계획·실행 주도 사례"}
+  },
+  "종합의견": "음슴체로 8~10문장. 내신 수치와 세특 구체 활동을 균형있게 인용하여 강점과 보완점 모두 서술"
+}
+
+【평가 기준】
+- 학업역량 > 학업성취도: 내신 석차등급·원점수·과목평균·성취도 등 수치를 반드시 근거로 사용
+- 내신 평균 1~2등급 → 학업성취도 A~S 가능 / 3~4등급 → 최대 B / 5등급 이하 → 최대 C
+- 세특이 아무리 좋아도 내신이 낮으면 학업성취도는 높게 줄 수 없음
+- 진로역량: 전공 방향이 불명확하면 B 이하
+- 공동체역량: 세특에 구체적 협력·리더십 사례가 없으면 B 이하
+- 종합의견: 반드시 음슴체("~함","~됨","~보임") 사용, "~다","~습니다" 절대 금지
+- 등급: S=최상위권(반복적 탁월) A=우수 B=양호 C=제한적 D=거의없음`;
+
+  try{
+    const text=await callAPI(systemPrompt,[{
+      role:'user',
+      content:`학생: ${currentStu.name} (${hak})\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항】\n${sewtukSummary}`
+    }],2000);
+
+    let obj;
+    try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
+    catch{throw new Error('JSON 파싱 실패: '+text.substring(0,120));}
+
+    // sewtuk에 저장
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].종합역량평가=obj;
+
+    addMsg('assistant',
+      `🏆 **${currentStu.name}** 종합 역량 평가 완료!\n\n`+
+      `📚 학업역량 **${obj.학업역량?.grade}** (성취도 ${obj.학업역량?.학업성취도?.grade} · 태도 ${obj.학업역량?.학업태도?.grade} · 탐구 ${obj.학업역량?.탐구력?.grade})\n`+
+      `🎯 진로역량 **${obj.진로역량?.grade}**\n`+
+      `🤝 공동체역량 **${obj.공동체역량?.grade}**`,
+      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'}]
+    );
+  }catch(e){
+    addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='🏆 종합 역량 평가 (내신+세특)';}
   }
 }
 
