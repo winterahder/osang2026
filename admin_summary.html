@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>세특 요약 생성기 — 오상고 관리자</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
   :root {
@@ -356,11 +357,11 @@
            ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handleRefDrop(event)">
-        <input type="file" id="refFileInput" accept=".pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp" multiple onchange="handleRefFileSelect(this)">
+        <input type="file" id="refFileInput" accept=".pdf,.pptx,.xlsx,.xls,.txt,.md,.png,.jpg,.jpeg,.webp" multiple onchange="handleRefFileSelect(this)">
         <div class="ref-upload-icon">📄</div>
         <div class="ref-upload-text">
           클릭하거나 파일을 드래그하세요<br>
-          <strong>PDF · PPTX · TXT · PNG/JPG</strong> 지원<br>
+          <strong>PDF · PPTX · XLSX · TXT · PNG/JPG</strong> 지원<br>
           <span style="font-size:11px;color:var(--muted);">이미지형 PPTX · HWP → PDF로 저장 후 업로드 · 슬라이드 캡처 이미지도 가능 (다중 선택 지원)</span>
         </div>
       </div>
@@ -1638,6 +1639,30 @@ function setRefStatus(msg, type){
   el.className = 'ref-status' + (type ? ' ' + type : '');
 }
 
+// XLSX에서 텍스트 추출 (SheetJS 사용)
+async function extractXlsxText(file){
+  const XLSX = window.XLSX;
+  if(!XLSX) throw new Error('SheetJS 라이브러리를 불러오지 못했습니다.');
+
+  const arrayBuffer = await file.arrayBuffer();
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+
+  const parts = [];
+  wb.SheetNames.forEach(sheetName => {
+    const ws = wb.Sheets[sheetName];
+    // 빈 시트 건너뜀
+    if(!ws['!ref']) return;
+    // CSV 형태로 변환 (헤더 포함, 최대 300행)
+    const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false });
+    const rows = csv.split('\n').filter(r => r.replace(/,/g,'').trim());
+    if(!rows.length) return;
+    // 시트명 + 내용 (최대 200행만 포함해서 토큰 절약)
+    parts.push(`[시트: ${sheetName}]\n` + rows.slice(0, 200).join('\n'));
+  });
+
+  return parts.join('\n\n');
+}
+
 // PPTX에서 텍스트 추출 (JSZip 사용)
 async function extractPptxText(file){
   const JSZip = window.JSZip;
@@ -1694,6 +1719,16 @@ async function extractAndSave(){
       setRefStatus('🤖 Claude가 PDF를 읽고 핵심을 추출합니다...', 'loading');
       const b64 = await fileToBase64(files[0]);
       extractedText = await callAPIWithDoc(b64, 'application/pdf', title);
+
+    // ── XLSX / XLS ──
+    } else if(firstExt === 'xlsx' || firstExt === 'xls'){
+      setRefStatus('📊 Excel 파일을 읽습니다...', 'loading');
+      const rawText = await extractXlsxText(files[0]);
+      if(!rawText || rawText.trim().length < 10){
+        throw new Error('Excel에서 데이터를 추출할 수 없습니다. 파일이 비어있거나 손상되었을 수 있습니다.');
+      }
+      setRefStatus('🤖 Claude가 핵심 내용을 정리합니다...', 'loading');
+      extractedText = await callAPIRawText(rawText, title);
 
     // ── PPTX ──
     } else if(firstExt === 'pptx'){
