@@ -1092,14 +1092,24 @@ function cutoffToPromptText(data, univ, dept, type){
   return `※ ${univ} ${dept} 최근 3개년 입결\n`+lines.join('\n');
 }
 
-// ========== 참고자료 대학명 필터 ==========
+// ========== 참고자료 대학명 + 학년 필터 ==========
 function filterReferences(univInput) {
   if (!referencesList.length) return [];
+
+  // 현재 학생 학년 기준 입시년도 계산
+  const stuGrade = currentStu ? (parseInt(currentStu.grade) || parseInt(String(currentStu.hak||'')[0])) : null;
+  const admYear = stuGrade === 3 ? '2027' : stuGrade === 2 ? '2028' : null;
+
   const norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
   const univNorm = norm(univInput);
-  // "서울대학교" → "서울대" 처럼 접미사 제거해서 더 넓게 매칭
   const univBase = univNorm.replace(/학교$|대학교$|대학$/, '');
+
   return referencesList.filter(r => {
+    // ① 학년 필터: 공통은 항상 포함, 해당 학년도 or 공통만
+    const target = r['적용학년'] || '공통';
+    if(admYear && target !== '공통' && target !== admYear) return false;
+
+    // ② 대학명 필터
     const title   = norm(r['제목'] || '');
     const preview = norm((r['내용'] || '').substring(0, 300));
     return title.includes(univBase)   || title.includes(univNorm) ||
@@ -1356,7 +1366,14 @@ ${cutoffText}
 ${admissionsToPromptText(univ, dept)}
 
 【입시 참고자료】
-${(()=>{ const matched=filterReferences(univ); return matched.length ? matched.map(r=>`[${r['제목']||r.id}]\n${(r['내용']||'').substring(0,600)}`).join('\n\n') : '해당 대학 관련 등록 자료 없음'; })()}
+${(()=>{
+  const matched = filterReferences(univ);
+  const admYear = grade>=3 ? '2027' : '2028';
+  const header = `※ ${admYear}학년도 기준 참고자료 (${grade}학년 · ${grade>=3?'2015':'2022'} 개정 교육과정)`;
+  return matched.length
+    ? header + '\n' + matched.map(r=>`[${r['제목']||r.id}(${r['적용학년']||'공통'})]\n${(r['내용']||'').substring(0,600)}`).join('\n\n')
+    : header + '\n해당 대학 관련 등록 자료 없음';
+})()}
 
 【분석 요청】
 대학교: ${univ}
