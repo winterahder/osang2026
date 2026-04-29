@@ -185,7 +185,8 @@
   .apply-section { margin-bottom: 14px; }
   .apply-section-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
   .apply-section-body { font-size: 13px; color: #475569; line-height: 1.8; white-space: pre-line; }
-  .apply-history-item { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: background .15s; }
+  .apply-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:apply-spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+  @keyframes apply-spin{to{transform:rotate(360deg)}}
   .apply-history-item:hover { background: #f1f5f9; color: #6366f1; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
   .status-badges { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
@@ -986,8 +987,11 @@ function onUnivInput(){
   const matches = Object.keys(cutoffIndex).filter(u => u.toLowerCase().includes(q)).slice(0,10);
   if(!matches.length){ drop.style.display='none'; return; }
   drop.innerHTML = matches.map(u =>
-    `<div onclick="selectUniv('${u.replace(/'/g,"\\'")}'')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${u}</div>`
+    `<div class="drop-item" data-val="${escapeHtml(u)}" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(u)}</div>`
   ).join('');
+  drop.querySelectorAll('.drop-item').forEach(el => {
+    el.addEventListener('click', () => selectUniv(el.dataset.val));
+  });
   drop.style.display = 'block';
 }
 
@@ -1004,14 +1008,16 @@ function onDeptInput(){
   const univ = document.getElementById('applyUniv').value.trim();
   const q    = document.getElementById('applyDept').value.trim().toLowerCase();
   const drop = document.getElementById('deptDrop');
-  // cutoffIndex에서 해당 대학 학과 목록 검색
   const univKey = Object.keys(cutoffIndex).find(u => u === univ || u.toLowerCase().includes(univ.toLowerCase()));
   const depts = univKey ? Object.keys(cutoffIndex[univKey]) : Object.keys(cutoffIndex).flatMap(u => Object.keys(cutoffIndex[u]));
   const matches = [...new Set(depts)].filter(d => !q || d.toLowerCase().includes(q)).slice(0,12);
   if(!matches.length){ drop.style.display='none'; return; }
   drop.innerHTML = matches.map(d =>
-    `<div onclick="selectDept('${d.replace(/'/g,"\\'")}')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${d}</div>`
+    `<div class="drop-item" data-val="${escapeHtml(d)}" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(d)}</div>`
   ).join('');
+  drop.querySelectorAll('.drop-item').forEach(el => {
+    el.addEventListener('click', () => selectDept(el.dataset.val));
+  });
   drop.style.display = 'block';
 }
 
@@ -1044,14 +1050,18 @@ function updateTypeSelect(types){
 
 function hideDropdown(id){ document.getElementById(id).style.display='none'; }
 
-// 입결 데이터 조회 → 프롬프트 텍스트 변환
+// 입결 데이터 조회 → 프롬프트 텍스트 변환 (10초 타임아웃)
 async function getCutoffPromptText(univ, dept, type){
   if(!univ || !dept) return '입결 데이터 없음';
   try{
-    const data = await apiGet({ action:'getCutoffData', password:currentPassword, univ, dept });
+    // 10초 타임아웃 설정
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000));
+    const fetch   = apiGet({ action:'getCutoffData', password:currentPassword, univ, dept });
+    const data    = await Promise.race([fetch, timeout]);
+
     if(!data || !data.length) return `※ "${univ} ${dept}" 입결 데이터 없음 (DB 미수록 대학/학과)`;
     const matched = data.filter(r => !type || type === '종합+교과' || String(r['전형']||'').includes(type));
-    const rows = (matched.length ? matched : data).slice(0,5);
+    const rows = (matched.length ? matched : data).slice(0, 5);
     const lines = rows.map(r =>
       `[${r['전형']} / ${r['세부전형명']||'-'}] ` +
       `50컷: ${r['50컷_2025']||'-'}(25) / ${r['50컷_2024']||'-'}(24) / ${r['50컷_2023']||'-'}(23) | ` +
@@ -1059,7 +1069,12 @@ async function getCutoffPromptText(univ, dept, type){
       `모집: ${r['모집인원_2025']||'-'}명 | 경쟁률: ${r['경쟁률_2025']||'-'}`
     );
     return `※ ${univ} ${dept} 최근 3개년 입결 (9등급 기준)\n` + lines.join('\n');
-  }catch(e){ return '입결 데이터 조회 실패'; }
+  } catch(e){
+    // 타임아웃이나 오류 시 건너뜀 (분석은 계속 진행)
+    return e.message === 'timeout'
+      ? '※ 입결 데이터 조회 시간 초과 (분석은 계속 진행)'
+      : '※ 입결 데이터 조회 실패';
+  }
 }
 
 // ========== 참고자료 대학명 필터 ==========
@@ -1266,10 +1281,11 @@ async function runApplyAnalysis(){
     compSummary = `학업역량 ${compEval.학업역량?.grade} / 진로역량 ${compEval.진로역량?.grade} / 공동체역량 ${compEval.공동체역량?.grade}\n${compEval.종합의견||''}`;
   }
 
-  // 입결 데이터 조회 (비동기)
-  setRefStatus?.('', '');
-  btn.innerHTML = '<span class="apply-spinner"></span> 입결 데이터 조회 중...';
+  // 입결 데이터 조회 (타임아웃 10초, 실패해도 분석 계속)
+  btn.disabled = true;
+  btn.innerHTML = '<span class="apply-spinner"></span> 입결 조회 중...';
   const cutoffText = await getCutoffPromptText(univ, dept, type);
+  btn.innerHTML = '<span class="apply-spinner"></span> Claude 분석 중...';
 
   const prompt = `당신은 대입 전형 전문 컨설턴트입니다. 다음 학생의 학생부 데이터를 분석하여 목표 대학/학과 적합성을 평가해주세요.
 
