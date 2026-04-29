@@ -822,12 +822,12 @@ async function generateOne(idx){
 
     pending[hak]=pending[hak]||{};
     pending[hak][sKey(s)]=arr;
-
+    renderPanel(); updateProgress();
     addMsg('assistant',
       `✅ **${s.과목}** 요약 완료!\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`,
-      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:`generateOne(${idx})`}]
+      [{label:'🔄 다시 생성',action:`generateOne(${idx})`}]
     );
-    renderPanel(); updateProgress();
+    await autoSave(hak);
   }catch(e){
     addMsg('assistant',`❌ **${s.과목}** 요약 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
@@ -881,17 +881,16 @@ ${s.내용}`}],
 
     pendingEval[hak]=pendingEval[hak]||{};
     pendingEval[hak][sKey(s)]=evalObj;
-
-    const grades=Object.values(evalObj).map(v=>v.grade).join(' / ');
+    renderPanel();
     addMsg('assistant',
       `📊 **${s.과목}** 평가 완료!
 
 [학업] 성취도 ${evalObj.학업성취도?.grade} · 태도 ${evalObj.학업태도?.grade} · 탐구 ${evalObj.탐구력?.grade}
 [진로] 전공 ${evalObj.전공적합성?.grade} · 탐색 ${evalObj.진로탐색?.grade}
 [공동체] 협업 ${evalObj.협업소통?.grade} · 나눔 ${evalObj.나눔배려?.grade} · 성실 ${evalObj.성실성?.grade} · 리더 ${evalObj.리더십?.grade}`,
-      [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 평가',action:`evaluateOne(${idx})`}]
+      [{label:'🔄 다시 평가',action:`evaluateOne(${idx})`}]
     );
-    renderPanel();
+    await autoSave(hak);
   }catch(e){
     addMsg('assistant',`❌ **${s.과목}** 평가 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
@@ -944,7 +943,7 @@ async function generateAll(){
   if(btnAll){btnAll.disabled=false;btnAll.innerHTML='✨ 전체 요약 생성';}
   addMsg('assistant',
     `🎉 전체 생성 완료! **${done}개** 요약이 준비되었습니다.`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
+    []
   );
 }
 
@@ -981,7 +980,7 @@ async function evaluateAll(){
   if(btn){btn.disabled=false;btn.innerHTML='📊 전체 평가 생성';}
   addMsg('assistant',
     `🎉 전체 평가 완료! **${done}개** 과목 평가가 준비되었습니다.`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
+    []
   );
 }
 
@@ -1037,8 +1036,9 @@ async function generateSubjOverall(cat, silent=false){
         `📖 **${cat}** 교과 종합평가 완료!\n\n`+
         `📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**\n\n`+
         `💬 ${obj.종합의견||''}`,
-        [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:`generateSubjOverall('${cat.replace(/'/g,"\\'")}')`}]
+        [{label:'🔄 다시 생성',action:`generateSubjOverall('${cat.replace(/'/g,"\\'")}')`}]
       );
+      await autoSave(hak);
     }
   }catch(e){
     addMsg('assistant',`❌ ${cat} 교과 종합평가 실패: ${e.message}`);
@@ -1211,10 +1211,10 @@ async function generateAllOverall(){
   if(lbl) lbl.textContent=`${total}/${total} 완료`;
   if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 및 교과역량 평가';}
 
+  await autoSave(hak);
   addMsg('assistant',
-    `🎉 모든 역량 평가 완료!\n\n`+
-    `✅ 종합 역량 평가 1건 + 교과별 평가 **${multiCats.length}건** (${multiCats.join(', ')})`,
-    [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'💾 시트 저장',action:'exportJSON()'}]
+    `🎉 모든 역량 평가 완료 및 저장!\n\n`+
+    `✅ 종합 역량 평가 1건 + 교과별 평가 **${multiCats.length}건** (${multiCats.join(', ')})`
   );
 }
 
@@ -1266,8 +1266,9 @@ async function generateOverallEval(silent=false){
         '🎯 **'+currentStu.name+'** 종합 역량 평가 완료!\n\n'+
         '📚 학업역량 **'+(obj.학업역량?.grade||'?')+'** · 🎯 진로역량 **'+(obj.진로역량?.grade||'?')+'** · 🤝 공동체역량 **'+(obj.공동체역량?.grade||'?')+'**\n\n'+
         '💬 '+(obj.종합의견||''),
-        [{label:'💾 저장 적용',action:'applyAndSave()',cls:'green'},{label:'다시 생성',action:'generateOverallEval()'}]
+        [{label:'🔄 다시 생성',action:'generateOverallEval()'}]
       );
+      await autoSave(hak);
     }
   }catch(e){
     console.error('종합평가 오류:', e);
@@ -1388,6 +1389,37 @@ async function sendChat(){
     addMsg('assistant',`오류: ${e.message}`);
   }
   btn.disabled=false;
+}
+
+/* ========== 자동 저장 헬퍼 ========== */
+async function autoSave(hak){
+  hak=String(hak);
+  const subs=sewtuk[hak]?.subjects||[];
+  const p=pending[hak]||{}; const pe=pendingEval[hak]||{};
+  // pending 데이터 sewtuk에 반영
+  subs.forEach(s=>{
+    const k=sKey(s);
+    if(p[k]!==undefined){s.요약=p[k];delete p[k];}
+    if(pe[k]!==undefined){s.평가=pe[k];delete pe[k];}
+  });
+  if(pendingOverall[hak]){
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].종합평가=pendingOverall[hak];
+    pendingOverall[hak]=null;
+  }
+  if(pendingSubjOverall[hak]&&Object.keys(pendingSubjOverall[hak]).length>0){
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].교과별평가=sewtuk[hak].교과별평가||{};
+    Object.assign(sewtuk[hak].교과별평가, pendingSubjOverall[hak]);
+    pendingSubjOverall[hak]={};
+  }
+  updateProgress(); renderPanel(); renderOverallSection();
+  // 시트에 저장
+  try{
+    await saveToSheet(hak);
+  }catch(e){
+    addMsg('assistant',`⚠️ 자동 저장 실패: ${e.message} — 상단 ☁️ 전체 저장 버튼으로 수동 저장해주세요.`);
+  }
 }
 
 /* ========== 저장 적용 ========== */
