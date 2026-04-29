@@ -357,11 +357,11 @@
            ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handleRefDrop(event)">
-        <input type="file" id="refFileInput" accept=".pdf,.pptx,.xlsx,.xls,.txt,.md,.png,.jpg,.jpeg,.webp" multiple onchange="handleRefFileSelect(this)">
+        <input type="file" id="refFileInput" accept=".pdf,.pptx,.xlsx,.xls,.xlsb,.txt,.md,.png,.jpg,.jpeg,.webp" multiple onchange="handleRefFileSelect(this)">
         <div class="ref-upload-icon">📄</div>
         <div class="ref-upload-text">
           클릭하거나 파일을 드래그하세요<br>
-          <strong>PDF · PPTX · XLSX · TXT · PNG/JPG</strong> 지원<br>
+          <strong>PDF · PPTX · XLSX · XLSB · TXT · PNG/JPG</strong> 지원<br>
           <span style="font-size:11px;color:var(--muted);">이미지형 PPTX · HWP → PDF로 저장 후 업로드 · 슬라이드 캡처 이미지도 가능 (다중 선택 지원)</span>
         </div>
       </div>
@@ -1721,7 +1721,7 @@ async function extractAndSave(){
       extractedText = await callAPIWithDoc(b64, 'application/pdf', title);
 
     // ── XLSX / XLS ──
-    } else if(firstExt === 'xlsx' || firstExt === 'xls'){
+    } else if(firstExt === 'xlsx' || firstExt === 'xls' || firstExt === 'xlsb'){
       setRefStatus('📊 Excel 파일을 읽습니다...', 'loading');
       const rawText = await extractXlsxText(files[0]);
       if(!rawText || rawText.trim().length < 10){
