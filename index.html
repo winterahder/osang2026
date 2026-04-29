@@ -31,9 +31,7 @@
   .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); overflow: hidden; }
   aside { background: #fff; border-radius: 8px; padding: 12px; overflow: hidden; display: flex; flex-direction: column; }
   aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
-  aside .filters { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-  #gradeFilterBtns button { padding: 4px 12px; border-radius: 20px; border: 1px solid #e2e8f0; background: #fff; font-size: 12px; cursor: pointer; font-family: inherit; transition: all .15s; color: #374151; }
-  #gradeFilterBtns button:hover { background: #f1f5f9; }
+  aside .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
   .stu-list { flex: 1; overflow-y: auto; margin-top: 6px; }
   .stu-item { display: grid; grid-template-columns: 55px 1fr; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; align-items: center; }
   .stu-item:hover { background: #f1f5f9; }
@@ -243,8 +241,8 @@
   <aside>
     <input id="search" placeholder="🔍 이름 또는 학번 검색">
     <div class="filters">
-      <div id="gradeFilterBtns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-      <select id="gradeFilter" style="display:none;"><option value="" selected>전체</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+      <div id="gradeFilterBtns" style="display:none;"></div>
+      <select id="gradeFilter"><option value="" selected>전체학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
       <select id="classFilter"><option value="">전체 반</option></select>
     </div>
     <div class="stu-list" id="stuList"></div>
@@ -1398,64 +1396,37 @@ function getAxisConfig(mode){
 // 2학년 전용: 반 목록 자동 초기화 (renderList 이후 호출)
 function initClassFilter(){
   const gf = document.getElementById('gradeFilter');
-
-  // 학년 버튼 생성 (role에 따라)
-  const btnWrap = document.getElementById('gradeFilterBtns');
-  const grades = currentRole === 'admin'
-    ? ['', '1', '2', '3']
-    : [currentRole.replace('grade','')];
-
-  if(currentRole === 'admin'){
-    btnWrap.innerHTML = ['전체학년','1학년','2학년','3학년'].map((label, i) => {
-      const val = i === 0 ? '' : String(i);
-      return `<button onclick="setGradeFilter('${val}')" id="gfBtn-${val}">${label}</button>`;
-    }).join('');
-    gf.value = '';
-    document.getElementById('headerYear').textContent = '전체';
-  } else {
-    btnWrap.innerHTML = '';
+  if(currentRole && currentRole !== 'admin'){
     const g = currentRole.replace('grade','');
     gf.value = g;
+    gf.style.display = 'none'; // 단일 학년이면 숨김
     document.getElementById('headerYear').textContent = g + '학년';
+  } else {
+    gf.value = '';
+    gf.style.display = '';
+    document.getElementById('headerYear').textContent = '전체';
   }
-  updateGradeFilterBtnStyle();
-
-  // 반 필터
-  const cf = document.getElementById('classFilter');
-  const cur = cf.value;
-  cf.innerHTML = '<option value="">전체 반</option>';
-  const gfVal = gf.value;
-  const filtered = gfVal ? students.filter(s=>String(s.hak)[0]===gfVal) : students;
-  const classes = new Set(filtered.map(s=>String(s.hak).substring(1,3)));
-  [...classes].sort().forEach(c=>{ cf.innerHTML += `<option value="${c}"${cur===c?' selected':''}>${parseInt(c)}반</option>`; });
+  updateClassFilter();
 }
 
 function setGradeFilter(val){
   document.getElementById('gradeFilter').value = val;
   document.getElementById('headerYear').textContent = val ? val+'학년' : '전체';
-  updateGradeFilterBtnStyle();
-  // 반 필터도 초기화
-  const cf = document.getElementById('classFilter');
-  cf.innerHTML = '<option value="">전체 반</option>';
-  const filtered = val ? students.filter(s=>String(s.hak)[0]===val) : students;
-  const classes = new Set(filtered.map(s=>String(s.hak).substring(1,3)));
-  [...classes].sort().forEach(c=>{ cf.innerHTML += `<option value="${c}">${parseInt(c)}반</option>`; });
+  updateClassFilter();
   renderList();
 }
 
-function updateGradeFilterBtnStyle(){
-  const cur = document.getElementById('gradeFilter').value;
-  ['','1','2','3'].forEach(v=>{
-    const btn = document.getElementById('gfBtn-'+v);
-    if(!btn) return;
-    if(v === cur){
-      btn.style.background='#2563eb'; btn.style.color='#fff'; btn.style.borderColor='#2563eb';
-    } else {
-      btn.style.background='#fff'; btn.style.color='#374151'; btn.style.borderColor='#e2e8f0';
-    }
-  });
+function updateClassFilter(){
+  const gfVal = document.getElementById('gradeFilter').value;
+  const cf = document.getElementById('classFilter');
+  cf.innerHTML = '<option value="">전체 반</option>';
+  const filtered = gfVal ? students.filter(s=>String(s.hak)[0]===gfVal) : students;
+  const classes = new Set(filtered.map(s=>String(s.hak).substring(1,3)));
+  [...classes].sort().forEach(c=>{ cf.innerHTML += `<option value="${c}">${parseInt(c)}반</option>`; });
 }
-document.getElementById('gradeFilter').onchange = ()=>{ renderList(); };
+
+function updateGradeFilterBtnStyle(){} // 더 이상 사용 안함
+document.getElementById('gradeFilter').onchange = ()=>{ updateClassFilter(); renderList(); };
 document.getElementById('classFilter').onchange = renderList;
 document.getElementById('search').oninput = renderList;
 
