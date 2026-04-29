@@ -1303,16 +1303,31 @@ async function runApplyAnalysis(){
   const cutoffText = cutoffToPromptText(cutoffRaw, univ, dept, type);
   btn.innerHTML = '<span class="apply-spinner"></span> Claude 분석 중...';
 
-  // 학생 내신 평균 계산 (카드 표시용)
+  // 학생 내신 평균 계산 — 1·2학년은 9등급 환산, 3학년은 직접 사용
   let stuGradeAvg = null;
+  let stuGradeAvgNote = '';
   if(gradesData?.grades){
-    let totalCredit=0, weighted=0;
+    let totalCredit=0, weighted=0, estCount=0, totalCount=0;
+    const is9 = grade >= 3;
     Object.values(gradesData.grades).forEach(sd=>{
       (sd.subjects||[]).forEach(s=>{
-        if(s.등급!=null && s.학점){ totalCredit+=s.학점; weighted+=s.등급*s.학점; }
+        if(s.등급==null || !s.학점) return;
+        let g;
+        if(is9){
+          g = s.등급; // 3학년: 이미 9등급제
+        } else {
+          // 1·2학년: estGrade9()로 9등급 환산
+          const est = estGrade9(s);
+          if(est){ g = est.grade; if(est.source==='추정') estCount++; }
+          totalCount++;
+        }
+        if(g!=null){ totalCredit+=s.학점; weighted+=g*s.학점; }
       });
     });
-    if(totalCredit>0) stuGradeAvg = (weighted/totalCredit).toFixed(2);
+    if(totalCredit>0){
+      stuGradeAvg = (weighted/totalCredit).toFixed(2);
+      stuGradeAvgNote = is9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
+    }
   }
 
   const prompt = `당신은 대입 전형 전문 컨설턴트입니다. 다음 학생의 학생부 데이터를 분석하여 목표 대학/학과 적합성을 평가해주세요.
@@ -1401,7 +1416,7 @@ ${note?`추가 요청: ${note}`:''}
     const typeMatched = cutoffRaw.filter(r=>!type||type==='종합+교과'||String(r['전형']||'').includes(type));
     const cutoffRows  = (typeMatched.length ? typeMatched : cutoffRaw).slice(0,3);
     const years = ['2025','2024','2023'];
-    const scaleNote = grade>=3 ? '(9등급 기준)' : '(5등급 기준, 참고용)';
+    const scaleNote = grade>=3 ? '(9등급 기준)' : '(5→9등급 환산)';
 
     function gradeCompare(stuG, cutG){
       if(!stuG||!cutG) return {icon:'—',cls:'#94a3b8',diff:''};
@@ -1419,7 +1434,7 @@ ${note?`추가 요청: ${note}`:''}
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
           <span style="font-size:11px;color:#64748b;">내 내신 평균</span>
           <span style="font-size:26px;font-weight:900;color:#1e293b;">${stuGradeAvg||'-'}</span>
-          <span style="font-size:11px;color:#94a3b8;">등급</span>
+          <span style="font-size:11px;color:#94a3b8;">등급 ${stuGradeAvgNote}</span>
         </div>
         ${cutoffRows.map(r=>{
           const sejeon = r['세부전형명']||r['전형']||'-';
