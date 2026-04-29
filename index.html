@@ -296,7 +296,7 @@ const SEWTUK_CATEGORIES = ['전체 과목','국어','영어','수학','사회(�
 const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
-let students=[], mock={}, grades={}, sewtuk={}, changche={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+let students=[], mock={}, grades={}, sewtuk={}, changche={}, admissionsDB=[], currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
 let currentPassword = '';
 let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
@@ -503,6 +503,7 @@ async function init(password){
     try{ const g = await apiGet({ action: 'getGrades', password }); if(g) grades = g; }catch(e){}
     try{ const sw = await apiGet({ action: 'getSewtuk', password }); if(sw) sewtuk = sw; }catch(e){}
     try{ const cc = await apiGet({ action: 'getChangche', password }); if(cc) changche = cc; }catch(e){}
+    try{ const adm = await apiGet({ action: 'getAdmissions', password }); if(adm) admissionsDB = adm; }catch(e){}
 
     const gradeLabel = currentRole === 'admin' ? '전체' : currentRole.replace('grade','') + '학년';
     document.getElementById('status').textContent =
@@ -975,6 +976,72 @@ function toggleAllReason(pid){
   if(lbl) lbl.textContent=isOpen?'근거 보기':'근거 닫기';
 }
 
+// ========== 합불 이력 조회 ==========
+function lookupAdmissions(univInput, deptInput) {
+  if (!admissionsDB.length) return null;
+  const norm = s => String(s||'').replace(/\s/g,'').replace(/[()（）\[\]]/g,'').toLowerCase();
+  const univNorm = norm(univInput);
+  const deptNorm = norm(deptInput);
+
+  const univMatch = (dbUniv) => {
+    const db = norm(dbUniv);
+    const dbBase = db.replace(/\(.*?\)/g, '');
+    return db.includes(univNorm) || univNorm.includes(dbBase) || dbBase.includes(univNorm);
+  };
+  const deptMatch = (dbDept) => {
+    const db = norm(dbDept);
+    if (deptNorm.length < 2) return false;
+    return db.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(db));
+  };
+
+  const matched = admissionsDB.filter(r => univMatch(r['대학명']) && deptMatch(r['모집단위']));
+  if (!matched.length) return null;
+
+  const byType = {};
+  matched.forEach(r => {
+    const tf = r['전형유형'];
+    if (!byType[tf]) byType[tf] = [];
+    byType[tf].push(r);
+  });
+  return { matched, byType };
+}
+
+function admissionsToPromptText(univInput, deptInput) {
+  const result = lookupAdmissions(univInput, deptInput);
+  if (!result) return '※ 우리 학교 선배 지원 이력 없음 (해당 대학/학과 데이터 없음)';
+
+  const { matched, byType } = result;
+  const univNames = [...new Set(matched.map(r => r['대학명']))].join(', ');
+  const deptNames = [...new Set(matched.map(r => r['모집단위']))].join(' / ');
+
+  let text = `※ 우리 학교 선배 합불 이력 (2021~2026, ${univNames} — ${deptNames})\n`;
+
+  const typeOrder = ['교과', '종합', '논술', '정시', '기타'];
+  for (const tf of typeOrder) {
+    if (!byType[tf]) continue;
+    const rows = byType[tf];
+    let pass_n = 0, fail_n = 0;
+    let passGrades = [], failGrades = [];
+    rows.forEach(r => {
+      pass_n += Number(r['합격건수']) || 0;
+      fail_n += Number(r['불합격건수']) || 0;
+      if (r['합격평균등급']) passGrades.push(Number(r['합격평균등급']));
+      if (r['불합격평균등급']) failGrades.push(Number(r['불합격평균등급']));
+    });
+    const passAvg = passGrades.length ? (passGrades.reduce((a,b)=>a+b,0)/passGrades.length).toFixed(2) : null;
+    const failAvg = failGrades.length ? (failGrades.reduce((a,b)=>a+b,0)/failGrades.length).toFixed(2) : null;
+    const passMin = passGrades.length ? Math.min(...passGrades).toFixed(2) : null;
+    const passMax = passGrades.length ? Math.max(...passGrades).toFixed(2) : null;
+
+    let line = `  [${tf}전형] 합격 ${pass_n}건`;
+    if (passAvg) line += ` (합격 평균 ${passAvg}등급, 범위 ${passMin}~${passMax})`;
+    line += ` / 불합격 ${fail_n}건`;
+    if (failAvg) line += ` (불합격 평균 ${failAvg}등급)`;
+    text += line + '\n';
+  }
+  return text.trim();
+}
+
 // ========== 모의지원 탭 ==========
 let applyHistory = {}; // hak → [{univ, dept, type, result}]
 
@@ -1096,6 +1163,9 @@ ${sewtukSummary}
 
 【종합역량평가】
 ${compSummary}
+
+【우리 학교 선배 합불 이력】
+${admissionsToPromptText(univ, dept)}
 
 【분석 요청】
 대학교: ${univ}
