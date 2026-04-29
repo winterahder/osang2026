@@ -1126,8 +1126,17 @@ ${note?`추가 요청: ${note}`:''}
     if(data.error) throw new Error(data.error);
 
     let obj;
-    try{ obj = JSON.parse(data.text.replace(/```json|```/g,'').trim()); }
-    catch{ throw new Error('결과 파싱 실패'); }
+    try{
+      let clean = data.text.replace(/```json|```/g,'').trim();
+      if(!clean.endsWith('}')){
+        const last = clean.lastIndexOf('}');
+        if(last > 0) clean = clean.substring(0, last+1);
+        const opens = (clean.match(/{/g)||[]).length;
+        const closes = (clean.match(/}/g)||[]).length;
+        for(let i=0; i<opens-closes; i++) clean += '}';
+      }
+      obj = JSON.parse(clean);
+    }catch{ throw new Error('결과 파싱 실패 — 잠시 후 다시 시도해주세요'); }
 
     // 기록 저장
     applyHistory[hak] = applyHistory[hak] || [];
