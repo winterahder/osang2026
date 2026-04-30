@@ -519,7 +519,6 @@ async function init(password){
     try{ const g = await apiGet({ action: 'getGrades', password }); if(g) grades = g; }catch(e){}
     try{ const sw = await apiGet({ action: 'getSewtuk', password }); if(sw) sewtuk = sw; }catch(e){}
     try{ const cc = await apiGet({ action: 'getChangche', password }); if(cc) changche = cc; }catch(e){}
-    try{ const adm = await apiGet({ action: 'getAdmissions', password }); if(adm) admissionsDB = adm; }catch(e){}
     try{ const refs = await apiGet({ action: 'getReferences', password }); if(refs) referencesList = refs; }catch(e){}
     try{ const ci = await apiGet({ action: 'getCutoffIndex', password }); if(ci) cutoffIndex = ci; }catch(e){}
 
@@ -1117,69 +1116,83 @@ function filterReferences(univInput) {
   });
 }
 
-// ========== 합불 이력 조회 ==========
-function lookupAdmissions(univInput, deptInput) {
-  if (!admissionsDB.length) return null;
-  const norm = s => String(s||'').replace(/\s/g,'').replace(/[()（）\[\]]/g,'').toLowerCase();
-  const univNorm = norm(univInput);
-  const deptNorm = norm(deptInput);
-
-  const univMatch = (dbUniv) => {
-    const db = norm(dbUniv);
-    const dbBase = db.replace(/\(.*?\)/g, '');
-    return db.includes(univNorm) || univNorm.includes(dbBase) || dbBase.includes(univNorm);
-  };
-  const deptMatch = (dbDept) => {
-    const db = norm(dbDept);
-    if (deptNorm.length < 2) return false;
-    return db.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(db));
-  };
-
-  const matched = admissionsDB.filter(r => univMatch(r['대학명']) && deptMatch(r['모집단위']));
-  if (!matched.length) return null;
-
-  const byType = {};
-  matched.forEach(r => {
-    const tf = r['전형유형'];
-    if (!byType[tf]) byType[tf] = [];
-    byType[tf].push(r);
-  });
-  return { matched, byType };
+// ========== 합불 이력 조회 (온디맨드) ==========
+async function fetchAdmissionCases(univ, dept) {
+  if (!univ || !dept) return { school: [], gb: [] };
+  try {
+    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 10000));
+    const data = await Promise.race([
+      apiGet({ action: 'getAdmissionCases', password: currentPassword, univ, dept }),
+      timeout
+    ]);
+    return data || { school: [], gb: [] };
+  } catch(e) { return { school: [], gb: [] }; }
 }
 
-function admissionsToPromptText(univInput, deptInput) {
-  const result = lookupAdmissions(univInput, deptInput);
-  if (!result) return '※ 우리 학교 선배 지원 이력 없음 (해당 대학/학과 데이터 없음)';
+function admissionsToPromptText(cases, univInput, deptInput) {
+  const { school = [], gb = [] } = cases || {};
+  if (!school.length && !gb.length) return '※ 합불 이력 없음 (해당 대학/학과 데이터 없음)';
 
-  const { matched, byType } = result;
-  const univNames = [...new Set(matched.map(r => r['대학명']))].join(', ');
-  const deptNames = [...new Set(matched.map(r => r['모집단위']))].join(' / ');
+  let text = '';
 
-  let text = `※ 우리 학교 선배 합불 이력 (2021~2026, ${univNames} — ${deptNames})\n`;
-
-  const typeOrder = ['교과', '종합', '논술', '정시', '기타'];
-  for (const tf of typeOrder) {
-    if (!byType[tf]) continue;
-    const rows = byType[tf];
-    let pass_n = 0, fail_n = 0;
-    let passGrades = [], failGrades = [];
-    rows.forEach(r => {
-      pass_n += Number(r['합격건수']) || 0;
-      fail_n += Number(r['불합격건수']) || 0;
-      if (r['합격평균등급']) passGrades.push(Number(r['합격평균등급']));
-      if (r['불합격평균등급']) failGrades.push(Number(r['불합격평균등급']));
+  // ① 우리 학교 자료 (집계형: 합격건수, 합격평균등급 등)
+  if (school.length) {
+    text += `※ 우리 학교 선배 합불 이력 (${univInput} — ${deptInput})\n`;
+    const typeOrder = ['교과', '종합', '논술', '정시', '기타'];
+    const byType = {};
+    school.forEach(r => {
+      const tf = String(r['전형유형'] || '기타');
+      const key = typeOrder.find(t => tf.includes(t)) || '기타';
+      if (!byType[key]) byType[key] = [];
+      byType[key].push(r);
     });
-    const passAvg = passGrades.length ? (passGrades.reduce((a,b)=>a+b,0)/passGrades.length).toFixed(2) : null;
-    const failAvg = failGrades.length ? (failGrades.reduce((a,b)=>a+b,0)/failGrades.length).toFixed(2) : null;
-    const passMin = passGrades.length ? Math.min(...passGrades).toFixed(2) : null;
-    const passMax = passGrades.length ? Math.max(...passGrades).toFixed(2) : null;
-
-    let line = `  [${tf}전형] 합격 ${pass_n}건`;
-    if (passAvg) line += ` (합격 평균 ${passAvg}등급, 범위 ${passMin}~${passMax})`;
-    line += ` / 불합격 ${fail_n}건`;
-    if (failAvg) line += ` (불합격 평균 ${failAvg}등급)`;
-    text += line + '\n';
+    for (const tf of typeOrder) {
+      if (!byType[tf]) continue;
+      byType[tf].forEach(r => {
+        let line = `  [${r['전형유형']}] 합격 ${r['합격건수'] || 0}건`;
+        if (r['합격평균등급']) line += ` (평균 ${r['합격평균등급']}등급, 범위 ${r['합격최고등급']}~${r['합격최저등급']})`;
+        line += ` / 불합격 ${r['불합격건수'] || 0}건`;
+        if (r['불합격평균등급']) line += ` (불합 평균 ${r['불합격평균등급']}등급)`;
+        text += line + '\n';
+      });
+    }
   }
+
+  // ② 경북 지역 자료 (개별 사례형: 최종결과, 환산등급 등)
+  if (gb.length) {
+    text += `\n※ 경북 지역 합불 사례 (${univInput} — ${deptInput})\n`;
+    const byType = {};
+    gb.forEach(r => {
+      const tf = String(r['전형유형'] || '');
+      const key = tf.includes('교과') ? '교과' : tf.includes('종합') ? '종합' : tf.includes('논술') ? '논술' : '기타';
+      if (!byType[key]) byType[key] = { pass: [], fail: [] };
+      const result = String(r['최종결과'] || '');
+      const grade = parseFloat(r['환산등급']);
+      if (result.includes('합격')) {
+        byType[key].pass.push(grade);
+      } else {
+        byType[key].fail.push({ grade, reason: r['불합사유'] || '' });
+      }
+    });
+    for (const tf of ['교과', '종합', '논술', '기타']) {
+      if (!byType[tf]) continue;
+      const { pass, fail } = byType[tf];
+      const passGrades = pass.filter(g => !isNaN(g));
+      const failGrades = fail.map(f => f.grade).filter(g => !isNaN(g));
+      const passAvg = passGrades.length ? (passGrades.reduce((a,b)=>a+b,0)/passGrades.length).toFixed(2) : null;
+      const passMin = passGrades.length ? Math.min(...passGrades).toFixed(2) : null;
+      const passMax = passGrades.length ? Math.max(...passGrades).toFixed(2) : null;
+      const failAvg = failGrades.length ? (failGrades.reduce((a,b)=>a+b,0)/failGrades.length).toFixed(2) : null;
+      const reasons = [...new Set(fail.map(f=>f.reason).filter(Boolean))].join(', ');
+      let line = `  [${tf}전형] 합격 ${pass.length}건`;
+      if (passAvg) line += ` (평균 ${passAvg}등급, 범위 ${passMin}~${passMax})`;
+      line += ` / 불합 ${fail.length}건`;
+      if (failAvg) line += ` (불합 평균 ${failAvg}등급)`;
+      if (reasons) line += ` — 불합사유: ${reasons}`;
+      text += line + '\n';
+    }
+  }
+
   return text.trim();
 }
 
@@ -1306,10 +1319,13 @@ async function runApplyAnalysis(){
     compSummary = `학업역량 ${compEval.학업역량?.grade} / 진로역량 ${compEval.진로역량?.grade} / 공동체역량 ${compEval.공동체역량?.grade}\n${compEval.종합의견||''}`;
   }
 
-  // 입결 데이터 조회 (타임아웃 10초, 실패해도 분석 계속)
+  // 입결 + 합불사례 동시 조회
   btn.disabled = true;
   btn.innerHTML = '<span class="apply-spinner"></span> 입결 조회 중...';
-  const cutoffRaw = await fetchCutoffData(univ, dept);
+  const [cutoffRaw, admCases] = await Promise.all([
+    fetchCutoffData(univ, dept),
+    fetchAdmissionCases(univ, dept)
+  ]);
   const cutoffText = cutoffToPromptText(cutoffRaw, univ, dept, type);
   btn.innerHTML = '<span class="apply-spinner"></span> Claude 분석 중...';
 
@@ -1363,7 +1379,7 @@ ${compSummary}
 ${cutoffText}
 
 【우리 학교 선배 합불 이력】
-${admissionsToPromptText(univ, dept)}
+${admissionsToPromptText(admCases, univ, dept)}
 
 【입시 참고자료】
 ${(()=>{
