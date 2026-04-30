@@ -313,6 +313,7 @@ const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
 let students=[], mock={}, grades={}, sewtuk={}, changche={}, admissionsDB=[], referencesList=[], cutoffIndex={}, currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
+let admissionsAllCache = null; // 전체 합불 DB (GitHub JSON)
 let currentPassword = '';
 let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
@@ -527,6 +528,7 @@ async function init(password){
       `${gradeLabel} ${students.length}명 · 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects?.length).length}명`;
     renderList();
     initClassFilter();
+    preloadAdmissions(); // 백그라운드에서 합불 JSON 프리로드
   }catch(e){
     document.getElementById('status').textContent = '오류: '+e.message;
   }
@@ -1116,17 +1118,86 @@ function filterReferences(univInput) {
   });
 }
 
-// ========== 합불 이력 조회 (온디맨드) ==========
+// ========== 합불 이력 조회 (GitHub JSON + 메모리 캐시) ==========
+let _admAllCache = null;      // 전체 데이터 메모리 캐시
+let _admAllLoading = null;    // 중복 fetch 방지
+
+const ADM_JSON_URL = './admissions_all.json';  // GitHub Pages 경로
+
+async function loadAdmissionsAll() {
+  if (_admAllCache) return _admAllCache;
+  if (_admAllLoading) return _admAllLoading;
+  _admAllLoading = fetch(ADM_JSON_URL)
+    .then(r => r.json())
+    .then(json => {
+      _admAllCache = json;  // { h: [...], d: [[...], ...] }
+      _admAllLoading = null;
+      return json;
+    })
+    .catch(() => { _admAllLoading = null; return null; });
+  return _admAllLoading;
+}
+
+// 접속 직후 백그라운드 프리로드
+function preloadAdmissions() { loadAdmissionsAll(); }
+
 async function fetchAdmissionCases(univ, dept) {
   if (!univ || !dept) return { school: [], gb: [] };
+
+  // ① GitHub JSON에서 전국 사례 필터
+  let gb = [];
   try {
-    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 10000));
+    const json = await loadAdmissionsAll();
+    if (json && json.h && json.d) {
+      const hi = {};
+      json.h.forEach((h, i) => hi[h] = i);
+      const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
+      const univNorm = norm(univ);
+      const deptNorm = norm(dept);
+      gb = json.d
+        .filter(r => {
+          const u = norm(r[hi['대학명']] || '');
+          const uBase = u.replace(/학교$|대학교$|대학$/, '');
+          const d = norm(r[hi['모집단위']] || '');
+          const univMatch = u.includes(univNorm) || univNorm.includes(uBase) || uBase.includes(univNorm);
+          const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
+          return univMatch && deptMatch;
+        })
+        .map(r => ({
+          대학명:   r[hi['대학명']],
+          모집단위: r[hi['모집단위']],
+          전형유형: r[hi['전형']],
+          최종결과: r[hi['결과']],
+          불합사유: r[hi['불합사유']],
+          환산등급: r[hi['등급']],
+        }));
+    }
+  } catch(e) { gb = []; }
+
+  // ② Apps Script에서 우리 학교 자료 fetch
+  let school = [];
+  try {
+    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000));
     const data = await Promise.race([
-      apiGet({ action: 'getAdmissionCases', password: currentPassword, univ, dept }),
+      apiGet({ action: 'getAdmissions', password: currentPassword }),
       timeout
     ]);
-    return data || { school: [], gb: [] };
-  } catch(e) { return { school: [], gb: [] }; }
+    if (data && Array.isArray(data)) {
+      const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
+      const univNorm = norm(univ);
+      const deptNorm = norm(dept);
+      school = data.filter(r => {
+        const u = norm(r['대학명'] || '');
+        const uBase = u.replace(/학교$|대학교$|대학$/, '');
+        const d = norm(r['모집단위'] || '');
+        const univMatch = u.includes(univNorm) || univNorm.includes(uBase) || uBase.includes(univNorm);
+        const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
+        return univMatch && deptMatch;
+      });
+    }
+  } catch(e) { school = []; }
+
+  return { school, gb };
 }
 
 function admissionsToPromptText(cases, univInput, deptInput) {
