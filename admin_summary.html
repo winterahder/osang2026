@@ -1381,7 +1381,7 @@ async function renderChangchePanel(){
         <button class="btn-cc-overall" id="btnCcOverall" onclick="generateCcOverall()">✨ AI 종합 평가 생성</button>
       </div>
       <div class="cc-overall-body" id="ccOverallBody">
-        ${overallSaved ? `<div style="white-space:pre-wrap;">${overallSaved}</div>` : '<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'}
+        <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
       </div>
     </div>`;
 
@@ -1404,13 +1404,19 @@ async function renderChangchePanel(){
         </div>
         <div class="cc-item-body" id="ccItem${i}">
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
-          ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">${saved}</div>` : ''}
+          ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
+            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
+          </div>` : ''}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
         </div>
       </div>`;
   }).join('');
 
   panel.innerHTML = overallHtml + actCards;
+  // 저장된 종합평가 렌더링
+  if(overallSaved && typeof overallSaved === 'object') {
+    setTimeout(()=>renderCcOverallSection(overallSaved, false), 0);
+  }
 }
 
 function toggleCcItem(i){
@@ -1421,22 +1427,42 @@ function toggleCcItem(i){
 async function generateCcItemSummary(idx){
   const hak = String(currentStu.hak);
   const btn = document.getElementById('btnCcItem'+idx);
-  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const res = await apiGet({action:'getChangche', password:currentPw});
     const acts = res?.[hak]?.activities || [];
     const a = acts[idx];
     if(!a) throw new Error('활동 데이터 없음');
-    const prompt = `학생 ${currentStu.name}의 창체 활동 요약을 3줄로 작성하세요.
+
+    const text = await callAPI(
+      `당신은 학생부 전문가입니다. 창체 활동의 핵심을 3가지로 요약하세요.
+
+반드시 아래 JSON 배열 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+["활동 핵심1 (관련 역량명)", "활동 핵심2 (관련 역량명)", "활동 핵심3 (관련 역량명)"]
+
+규칙:
+- 음슴체("~함","~됨") 사용
+- 각 항목 40~70자 이내
+- 괄호 안에 구체적 역량명 명시 (진로탐색역량, 공동체역량, 자기주도역량, 의사소통역량, 창의적사고역량 등)
+- 활동 원문 키워드를 살려 구체적으로 서술`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
 활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
-내용: ${a.내용}`;
-    const text = await callAPI('당신은 학생부 전문가입니다. 창체 활동을 3줄로 핵심만 요약하세요. 음슴체("~함","~됨") 사용.',
-      [{role:'user', content:prompt}], 500);
+내용: ${a.내용}`}],
+      600
+    );
+
+    let arr;
+    try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
+    catch{ arr=[text.trim()]; }
+
     if(!sewtuk[hak]) sewtuk[hak]={};
     if(!sewtuk[hak].창체요약) sewtuk[hak].창체요약={};
-    sewtuk[hak].창체요약[idx] = text.trim();
+    sewtuk[hak].창체요약[idx] = arr;
     await saveToSheet(hak);
-    addMsgToChat('chatBodyCc', 'assistant', `✅ ${a.활동명} 요약 완료`);
+    addMsgToChat('chatBodyCc', 'assistant',
+      `✅ **${a.활동명}** 요약 완료!
+
+${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
     renderChangchePanel();
     document.getElementById('ccItem'+idx)?.classList.add('open');
   }catch(e){
@@ -1449,28 +1475,70 @@ async function generateCcItemSummary(idx){
 async function generateCcOverall(){
   const hak = String(currentStu.hak);
   const btn = document.getElementById('btnCcOverall');
-  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const res = await apiGet({action:'getChangche', password:currentPw});
     const acts = res?.[hak]?.activities || [];
     if(!acts.length) throw new Error('창체 데이터 없음');
-    const summary = acts.map(a=>`[${a.학년}학년 ${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,200)}`).join('\n');
-    const text = await callAPI(
-      '당신은 대입 전문 입학사정관입니다. 학생의 창체 활동 전체를 종합 분석하여 진로역량, 공동체역량, 자기계발 측면에서 5~7문장으로 평가하세요. 음슴체 사용.',
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+    const summary = acts.map(a=>`[${a.학년}학년 ${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,300)}`).join('\n');
 
-창체 활동 전체:
-${summary}`}], 1000);
+    const text = await callAPI(
+      `당신은 대입 전형 전문 입학사정관입니다. 학생의 창의적 체험활동 전체를 분석하여 3개 역량과 세부 지표를 평가하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{"학업역량":{"grade":"A","근거":"창체에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","근거":"공동체역량 근거 30자이내"},"자율활동":{"grade":"A","comment":"자율활동 평가 20자이내"},"동아리활동":{"grade":"B","comment":"동아리활동 평가 20자이내"},"진로활동":{"grade":"A","comment":"진로활동 평가 20자이내"},"종합의견":"창체 전체를 종합한 5~7문장 평가. 음슴체 사용."}
+
+등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n\n창체 활동 전체:\n${summary}`}],
+      1500
+    );
+
+    let obj;
+    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch{ throw new Error('JSON 파싱 실패'); }
+
     if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].창체종합평가 = text.trim();
+    sewtuk[hak].창체종합평가 = obj;
     await saveToSheet(hak);
-    document.getElementById('ccOverallBody').innerHTML = `<div style="white-space:pre-wrap;">${text.trim()}</div>`;
-    addMsgToChat('chatBodyCc','assistant','✅ 창체 종합 평가 완료 및 저장!');
+    renderCcOverallSection(obj, false);
+    addMsgToChat('chatBodyCc','assistant',
+      `✅ 창체 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
   }catch(e){
     addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
   }
+}
+
+function renderCcOverallSection(data, isPend){
+  const el = document.getElementById('ccOverallBody');
+  if(!el) return;
+  if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
+  const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
+  el.innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      ${['학업역량','진로역량','공동체역량'].map(k=>{
+        const d=data[k]; if(!d) return '';
+        return `<div class="overall-card">
+          <div class="overall-card-label">${k}</div>
+          <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+          <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+      ${['자율활동','동아리활동','진로활동'].map(k=>{
+        const d=data[k]; if(!d) return '';
+        return `<div style="background:var(--surface2);border-radius:6px;padding:7px 9px;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
+          <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+          <div style="font-size:10px;color:var(--muted2)">${d.comment||''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 창체 종합 의견</div>${data.종합의견}</div>`:''}
+  `;
 }
 
 /* ========== 행발 패널 ========== */
@@ -1498,7 +1566,7 @@ function renderHaengbalPanel(){
         <button class="btn-cc-overall" id="btnHbOverall" onclick="generateHbOverall()">✨ AI 종합 평가 생성</button>
       </div>
       <div class="cc-overall-body" id="hbOverallBody">
-        ${hbOverall ? `<div style="white-space:pre-wrap;">${hbOverall}</div>` : '<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'}
+        <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
       </div>
     </div>`;
 
@@ -1510,31 +1578,53 @@ function renderHaengbalPanel(){
       <div class="hb-item">
         <div class="hb-grade-title">${gradeLabels[g]} 행동특성 및 종합의견</div>
         <div class="hb-content">${(haengbal[g]||'').substring(0,400)}${(haengbal[g]||'').length>400?'...':''}</div>
-        ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;"><strong style="color:var(--green);">✓ 요약:</strong> ${saved}</div>` : ''}
+        ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
+          ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : `<strong style="color:var(--green);">✓ 요약:</strong> ${saved}`}
+        </div>` : ''}
         <button class="btn-subj-overall" onclick="generateHbSummary('${g}')" id="btnHb${g}">✨ ${g}학년 요약 생성</button>
       </div>`;
   });
 
   panel.innerHTML = html;
+  // 저장된 종합평가 렌더링
+  if(hbOverall && typeof hbOverall === 'object') {
+    setTimeout(()=>renderHbOverallSection(hbOverall, false), 0);
+  }
 }
 
 async function generateHbSummary(grade){
   const hak = String(currentStu.hak);
   const btn = document.getElementById('btnHb'+grade);
-  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const hw = sewtuk[hak]?.['행발']?.[grade];
     if(!hw) throw new Error('행발 데이터 없음');
+
     const text = await callAPI(
-      '당신은 학생부 전문가입니다. 행동특성 및 종합의견을 3줄로 핵심만 요약하세요. 음슴체 사용.',
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})
-${grade}학년 행발:
-${hw}`}], 500);
+      `당신은 학생부 전문가입니다. 행동특성 및 종합의견의 핵심을 3가지로 요약하세요.
+
+반드시 아래 JSON 배열 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+["핵심1 (관련 역량명)", "핵심2 (관련 역량명)", "핵심3 (관련 역량명)"]
+
+규칙:
+- 음슴체("~함","~됨") 사용
+- 각 항목 40~70자 이내
+- 괄호 안에 구체적 역량명 명시 (인성역량, 리더십역량, 공동체역량, 자기관리역량, 의사소통역량 등)
+- 원문 키워드를 살려 구체적으로 서술`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n${grade}학년 행발:\n${hw}`}],
+      600
+    );
+
+    let arr;
+    try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
+    catch{ arr=[text.trim()]; }
+
     if(!sewtuk[hak]) sewtuk[hak]={};
     if(!sewtuk[hak].행발요약) sewtuk[hak].행발요약={};
-    sewtuk[hak].행발요약[grade] = text.trim();
+    sewtuk[hak].행발요약[grade] = arr;
     await saveToSheet(hak);
-    addMsgToChat('chatBodyHb','assistant',`✅ ${grade}학년 행발 요약 완료`);
+    addMsgToChat('chatBodyHb','assistant',
+      `✅ **${grade}학년** 행발 요약 완료!\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
     renderHaengbalPanel();
   }catch(e){
     addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
@@ -1546,27 +1636,71 @@ ${hw}`}], 500);
 async function generateHbOverall(){
   const hak = String(currentStu.hak);
   const btn = document.getElementById('btnHbOverall');
-  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const hw = sewtuk[hak]?.['행발'] || {};
     if(!Object.keys(hw).length) throw new Error('행발 데이터 없음');
     const summary = ['1','2','3'].filter(g=>hw[g]).map(g=>`[${g}학년] ${hw[g]}`).join('\n\n');
-    const text = await callAPI(
-      '당신은 대입 전문 입학사정관입니다. 학생의 학년별 행동특성 및 종합의견을 종합 분석하여 인성, 리더십, 성실성, 공동체 의식 측면에서 5~7문장으로 평가하세요. 음슴체 사용.',
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})
 
-${summary}`}], 1000);
+    const text = await callAPI(
+      `당신은 대입 전형 전문 입학사정관입니다. 학생의 학년별 행동특성 및 종합의견을 분석하여 3개 역량과 세부 지표를 평가하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{"학업역량":{"grade":"A","근거":"행발에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","근거":"공동체역량 근거 30자이내"},"인성":{"grade":"A","comment":"인성 평가 20자이내"},"리더십":{"grade":"B","comment":"리더십 평가 20자이내"},"성실성":{"grade":"A","comment":"성실성 평가 20자이내"},"종합의견":"학년별 성장 과정을 포함한 5~7문장 종합 평가. 음슴체 사용."}
+
+등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n\n${summary}`}],
+      1500
+    );
+
+    let obj;
+    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch{ throw new Error('JSON 파싱 실패'); }
+
     if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].행발종합평가 = text.trim();
+    sewtuk[hak].행발종합평가 = obj;
     await saveToSheet(hak);
-    document.getElementById('hbOverallBody').innerHTML = `<div style="white-space:pre-wrap;">${text.trim()}</div>`;
-    addMsgToChat('chatBodyHb','assistant','✅ 행발 종합 평가 완료 및 저장!');
+    renderHbOverallSection(obj, false);
+    addMsgToChat('chatBodyHb','assistant',
+      `✅ 행발 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
   }catch(e){
     addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
   }
 }
+
+function renderHbOverallSection(data, isPend){
+  const el = document.getElementById('hbOverallBody');
+  if(!el) return;
+  if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
+  const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
+  el.innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      ${['학업역량','진로역량','공동체역량'].map(k=>{
+        const d=data[k]; if(!d) return '';
+        return `<div class="overall-card">
+          <div class="overall-card-label">${k}</div>
+          <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+          <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+      ${['인성','리더십','성실성'].map(k=>{
+        const d=data[k]; if(!d) return '';
+        return `<div style="background:var(--surface2);border-radius:6px;padding:7px 9px;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
+          <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+          <div style="font-size:10px;color:var(--muted2)">${d.comment||''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 행발 종합 의견</div>${data.종합의견}</div>`:''}
+  `;
+}
+
 
 // 창체/행발 채팅 헬퍼
 function addMsgToChat(chatBodyId, role, text){
