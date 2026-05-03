@@ -708,6 +708,9 @@ function renderHaengbal(el){
   const hak = String(s.hak);
   const sw = sewtuk[hak] || {};
   const haengbal = sw['행발'] || {};
+  const hbSummaries = sw['행발요약'] || {};
+  const hbOverall = sw['행발종합평가'] || null;
+  const colorMap = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
 
   if(!Object.keys(haengbal).length){
     el.innerHTML = `<div class="placeholder">행동특성 및 종합의견 데이터가 없습니다.</div>`;
@@ -715,20 +718,52 @@ function renderHaengbal(el){
   }
 
   const gradeLabels = {'1':'1학년','2':'2학년','3':'3학년'};
-  let html = `<div style="display:flex;flex-direction:column;gap:16px;">`;
+  let html = `<div style="display:flex;flex-direction:column;gap:14px;padding:16px;">`;
 
-  // 학년 순서대로 표시
+  // 종합평가 카드 (저장된 경우)
+  if(hbOverall && typeof hbOverall === 'object'){
+    html += `<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;">
+      <div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 행발 종합 역량 평가</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        ${['학업역량','진로역량','공동체역량'].map(k=>{
+          const d=hbOverall[k]; if(!d) return '';
+          return `<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:#64748b;margin-bottom:4px;">${k}</div>
+            <div style="font-size:22px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+            <div style="font-size:10px;color:#94a3b8;">${d.근거||''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        ${['인성','리더십','성실성'].map(k=>{
+          const d=hbOverall[k]; if(!d) return '';
+          return `<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;">
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">${k}</div>
+            <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+            <div style="font-size:10px;color:#94a3b8;">${d.comment||''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${hbOverall.종합의견?`<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">${hbOverall.종합의견}</div>`:''}
+    </div>`;
+  }
+
+  // 학년별 카드
   ['1','2','3'].forEach(g => {
     if(!haengbal[g]) return;
+    const summary = hbSummaries[g];
     html += `
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;">
-        <div style="font-weight:700;font-size:15px;color:#1e40af;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #dbeafe;">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
+        <div style="font-weight:700;font-size:14px;color:#1e40af;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #dbeafe;">
           📋 ${gradeLabels[g]} 행동특성 및 종합의견
         </div>
-        <div style="font-size:14px;line-height:1.9;color:#334155;white-space:pre-wrap;">${haengbal[g]}</div>
-        <div style="margin-top:10px;font-size:12px;color:#94a3b8;text-align:right;">
-          ${haengbal[g].length}자
-        </div>
+        ${summary ? `<div style="background:#f0fdf4;border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;line-height:1.8;color:#15803d;">
+          ${Array.isArray(summary) ? summary.map((t,i)=>`<div style="margin-bottom:4px;"><span style="font-weight:700;margin-right:4px;">${['①','②','③'][i]||i+1}</span>${t}</div>`).join('') : summary}
+        </div>` : ''}
+        <details>
+          <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${haengbal[g].length}자)</summary>
+          <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${haengbal[g]}</div>
+        </details>
       </div>`;
   });
 
@@ -2180,7 +2215,31 @@ function renderChangche(el){
     return true;
   });
 
-  let html = `
+  const ccOverall = sewtuk[hak]?.창체종합평가;
+  const colorMap = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
+  let html = '';
+
+  // 종합평가 카드 표시
+  if(ccOverall && typeof ccOverall === 'object'){
+    html += `<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 창체 종합 역량 평가</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        \${['학업역량','진로역량','공동체역량'].map(k=>{
+          const d=ccOverall[k]; if(!d) return '';
+          return '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">'+k+'</div><div style="font-size:22px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.근거||'')+'</div></div>';
+        }).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        \${['자율활동','동아리활동','진로활동'].map(k=>{
+          const d=ccOverall[k]; if(!d) return '';
+          return '<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:10px;color:#64748b;margin-bottom:2px;">'+k+'</div><div style="font-size:18px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.comment||'')+'</div></div>';
+        }).join('')}
+      </div>
+      \${ccOverall.종합의견?'<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">'+ccOverall.종합의견+'</div>':''}
+    </div>`;
+  }
+
+  html += `
     <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
     <div class="filter-row"><span class="filter-label">🎯 분류</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
     <div style="color:#64748b;font-size:12px;margin-bottom:12px;">총 ${filtered.length}개 활동 · 클릭하면 전문이 펼쳐집니다</div>
@@ -2201,7 +2260,12 @@ function renderChangche(el){
                 <span class="sub-name">${a.활동명}</span>
                 <span class="sub-meta">${a.학년}학년</span>
               </div>
-              ${renderSummary(a.요약||'')}
+              ${(()=>{
+                const allActs2 = data.activities || [];
+                const actIdx2 = allActs2.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
+                const saved = (sewtuk[hak]||{}).창체요약?.[actIdx2] || a.요약 || '';
+                return renderSummary(saved);
+              })()}
             </div>
             <span class="arrow">▶</span>
           </div>
