@@ -312,7 +312,7 @@
 
     <label class="remember-row">
       <input type="checkbox" id="rememberMe">
-      <span>API 키 오늘 하루 기억</span>
+      <span>API 키 기억 (로그아웃 전까지 유지)</span>
     </label>
 
     <button class="lock-btn" onclick="handleGoogleLogin()" id="googleLoginBtn" style="display:flex;align-items:center;justify-content:center;gap:10px;">
@@ -567,12 +567,10 @@ function handleGoogleLogin(){
 
         // 세션 저장
         const remember=document.getElementById('rememberMe').checked;
-        if(remember){
-          const exp=Date.now()+8*60*60*1000;
-          sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
-            email, token:result.token, provider:apiProvider, apiKey:ak, exp
-          }));
-        }
+        // 로그아웃 전까지 유지 (remember 체크 여부 관계없이 항상 저장)
+        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+          email, token:result.token, provider:apiProvider, apiKey:ak
+        }));
 
         await loadData();
       }catch(e){
@@ -610,8 +608,8 @@ async function loadData(){
 document.addEventListener('DOMContentLoaded',()=>{
   // 저장된 세션 복원
   try{
-    const saved=JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY)||'null');
-    if(saved && saved.exp>Date.now()){
+    const saved=JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY)||'null');
+    if(saved && saved.token){
       currentPw=saved.token;
       apiKey=saved.apiKey;
       selectProvider(saved.provider||'anthropic');
