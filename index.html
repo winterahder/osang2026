@@ -639,7 +639,8 @@ function renderMain(){
   if(!currentStu){ document.getElementById('main').innerHTML='<div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>'; return; }
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
-  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가','모의지원'];
+  const isStudent = currentRole && currentRole.startsWith('student_');
+  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가', ...(isStudent ? [] : ['모의지원'])];
   document.getElementById('main').innerHTML = `
     <div class="card stu-header">
       <h2>${s.name} (${s.hak})</h2>
