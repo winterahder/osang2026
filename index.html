@@ -523,7 +523,7 @@ function handleGoogleLogin() {
 
         // 세션 저장
         const exp = Date.now() + 8 * 60 * 60 * 1000; // 8시간
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp }));
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp: 9999999999999 })); // 로그아웃 전까지 유지
 
         await init(result.token);
         document.getElementById('lockScreen').classList.add('hidden');
@@ -550,7 +550,7 @@ function showLogoutBtn(email) {
   btn.className = 'logout-btn';
   btn.textContent = '로그아웃 (' + email.replace('@osang.hs.kr','') + ')';
   btn.onclick = () => {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     location.reload();
   };
   document.body.appendChild(btn);
@@ -559,8 +559,8 @@ function showLogoutBtn(email) {
 document.addEventListener('DOMContentLoaded', () => {
   // 세션 복원 시도
   try {
-    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    if(saved && saved.exp > Date.now()) {
+    const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    if(saved && saved.token) {
       currentRole = saved.role;
       currentEmail = saved.email;
       currentPassword = saved.token;
@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLogoutBtn(saved.email);
       }).catch(() => {
         clearTimeout(autoTimer);
-        sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(SESSION_KEY);
         document.getElementById('lockSpinner').classList.remove('show');
       });
     }
