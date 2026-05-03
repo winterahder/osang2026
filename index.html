@@ -306,14 +306,38 @@ const ROUND_ORDER = ['g1_3월','g1_6월','g1_9월','g1_11월','g2_3월','g2_6월
 const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월':'1학년 9월','g1_11월':'1학년 11월','g2_3월':'2학년 3월','g2_6월':'2학년 6월','g2_9월':'2학년 9월','g2_11월':'2학년 11월','g3_3월':'3학년 3월','g3_6월':'3학년 6월','g3_9월':'3학년 9월','g3_11월':'3학년 11월' };
 
 // 교과별 필터 — 멀티 선택 방식
+// 교과 분류 기준: 2015/2022 교육과정 교과군 기준
 const SUBJECT_FILTER_MAP = {
-  '국어': ['국어'],
-  '영어': ['영어'],
-  '수학': ['수학'],
-  '사회': ['사회(역사/도덕포함)','사회','역사','도덕','지리','윤리','일반사회'],
-  '과학': ['과학','물리학','화학','생명과학','지구과학','물리','화학I','화학II','생명과학I','생명과학II'],
-  '기타': null  // 등급 있는 과목 중 위 교과 외 모든 것
+  '국어': ['국어'],          // 교과군: 국어
+  '영어': ['영어'],          // 교과군: 영어
+  '수학': ['수학'],          // 교과군: 수학
+  '사회': [                  // 교과군: 사회(역사/도덕 포함)
+    '사회(역사/도덕포함)', '사회', '역사', '도덕',
+    '지리', '윤리', '일반사회', '한국사', '세계사',
+    '동아시아사', '경제', '정치와법', '사회문화',
+    '생활과윤리', '윤리와사상', '한국지리', '세계지리',
+    '여행지리', '역사로탐구하는현대세계', '통합사회'
+  ],
+  '과학': [                  // 교과군: 과학
+    '과학', '물리학', '화학', '생명과학', '지구과학',
+    '물리', '물리I', '물리II', '물리학I', '물리학II',
+    '화학I', '화학II', '생명과학I', '생명과학II',
+    '지구과학I', '지구과학II', '통합과학', '과학탐구실험',
+    '과학사', '융합과학', '기후변화와환경생태'
+  ],
+  '기타': null  // 국영수사과 외 등급 있는 과목 (체육, 예술, 기술가정, 제2외국어, 한문, 교양 등)
 };
+
+// 교과군 판별 함수 — 교과명이 위 목록에 포함되는지 정확히 매칭
+function getSubjectGroup(교과명) {
+  if(!교과명) return '기타';
+  const norm = 교과명.trim();
+  for(const [group, keywords] of Object.entries(SUBJECT_FILTER_MAP)){
+    if(group === '기타') continue;
+    if(keywords.some(k => norm === k || norm.includes(k) || k.includes(norm))) return group;
+  }
+  return '기타';
+}
 let selectedSubjectFilters = new Set(); // 선택된 교과 집합 (비어있으면 전체)
 // 기존 호환용
 const GRADE_FILTERS = { '전체': null };
@@ -823,15 +847,12 @@ function getActiveSubjectFilter(){
 
 function isSubjectInFilter(subj){
   if(selectedSubjectFilters.size===0) return subj.등급!=null; // 전체: 등급 있는 과목만
-  const 교과 = subj.교과||'';
+  const group = getSubjectGroup(subj.교과||'');
   for(const k of selectedSubjectFilters){
     if(k==='기타'){
-      // 기타: 국영수사과에 해당 안 되고 등급 있는 과목
-      const mainSubjects = ['국어','영어','수학','사회(역사/도덕포함)','사회','역사','도덕','지리','윤리','일반사회','과학','물리학','화학','생명과학','지구과학','물리','화학I','화학II','생명과학I','생명과학II'];
-      if(!mainSubjects.some(s=>교과.includes(s)||s.includes(교과)) && subj.등급!=null) return true;
+      if(group==='기타' && subj.등급!=null) return true;
     } else {
-      const arr = SUBJECT_FILTER_MAP[k]||[];
-      if(arr.some(s=>교과.includes(s)||s.includes(교과))) return true;
+      if(group===k) return true;
     }
   }
   return false;
