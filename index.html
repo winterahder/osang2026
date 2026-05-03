@@ -305,14 +305,18 @@ const COLORS = { '국어':'#3b82f6','수학':'#ef4444','영어':'#10b981','한�
 const ROUND_ORDER = ['g1_3월','g1_6월','g1_9월','g1_11월','g2_3월','g2_6월','g2_9월','g2_11월','g3_3월','g3_6월','g3_9월','g3_11월'];
 const ROUND_LABEL = { 'g1_3월':'1학년 3월','g1_6월':'1학년 6월','g1_9월':'1학년 9월','g1_11월':'1학년 11월','g2_3월':'2학년 3월','g2_6월':'2학년 6월','g2_9월':'2학년 9월','g2_11월':'2학년 11월','g3_3월':'3학년 3월','g3_6월':'3학년 6월','g3_9월':'3학년 9월','g3_11월':'3학년 11월' };
 
-const GRADE_FILTERS = {
-  '전체': null,
-  '국영수사과': ['국어','영어','수학','사회(역사/도덕포함)','과학'],
-  '국영수': ['국어','영어','수학'],
-  '국영수사': ['국어','영어','수학','사회(역사/도덕포함)'],
-  '국영수과': ['국어','영어','수학','과학'],
-  '영수과': ['영어','수학','과학']
+// 교과별 필터 — 멀티 선택 방식
+const SUBJECT_FILTER_MAP = {
+  '국어': ['국어'],
+  '영어': ['영어'],
+  '수학': ['수학'],
+  '사회': ['사회(역사/도덕포함)','사회','역사','도덕','지리','윤리','일반사회'],
+  '과학': ['과학','물리학','화학','생명과학','지구과학','물리','화학I','화학II','생명과학I','생명과학II'],
+  '기타': null  // 등급 있는 과목 중 위 교과 외 모든 것
 };
+let selectedSubjectFilters = new Set(); // 선택된 교과 집합 (비어있으면 전체)
+// 기존 호환용
+const GRADE_FILTERS = { '전체': null };
 
 const SEWTUK_CATEGORIES = ['전체 과목','국어','영어','수학','사회(역사/도덕포함)','과학','예술','체육','교양','제2외국어/한문'];
 const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
@@ -757,12 +761,15 @@ function renderGrades(el){
     el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다<br><small style="color:#94a3b8;">(현재 2학년 학생들의 1학년 성적만 등록되어 있습니다)</small></div>`;
     return;
   }
-  const filterBtns = Object.keys(GRADE_FILTERS).map(k=>`<button class="toggle-btn ${k===currentGradeFilter?'active':''}" data-gfilter="${k}">${k}</button>`).join('');
+  const subjectBtns = ['전체','국어','영어','수학','사회','과학','기타'].map(k=>{
+    const isActive = k==='전체' ? selectedSubjectFilters.size===0 : selectedSubjectFilters.has(k);
+    return `<button class="toggle-btn ${isActive?'active':''}" data-subjfilter="${k}">${k}</button>`;
+  }).join('');
   const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
   const rankBtn  = `<button class="toggle-btn rank-btn ${showRank?'active':''}" data-rank="toggle">🏅 학교 등수</button>`;
   const semesters = Object.keys(data.grades).sort();
 
-  let html = `<div style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;"><span class="filter-label">📐 계열:</span><div class="toggle-group" style="margin:0;">${filterBtns}${scaleBtn}${rankBtn}</div></div>`;
+  let html = `<div style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;"><span class="filter-label">📚 교과:</span><div class="toggle-group" style="margin:0;">${subjectBtns}${scaleBtn}${rankBtn}</div></div>`;
 
   if(gradeScale === 9){
     html += `<div class="est-info">
@@ -777,7 +784,17 @@ function renderGrades(el){
   el.innerHTML = html;
 
   // 이벤트
-  el.querySelectorAll('[data-gfilter]').forEach(b=>{ b.onclick = ()=>{ currentGradeFilter = b.dataset.gfilter; renderTab(); }; });
+  el.querySelectorAll('[data-subjfilter]').forEach(b=>{ b.onclick = ()=>{
+    const k = b.dataset.subjfilter;
+    if(k==='전체'){
+      selectedSubjectFilters.clear();
+    } else {
+      if(selectedSubjectFilters.has(k)) selectedSubjectFilters.delete(k);
+      else selectedSubjectFilters.add(k);
+      if(selectedSubjectFilters.size===0) selectedSubjectFilters.clear();
+    }
+    renderTab();
+  }; });
   el.querySelectorAll('[data-scale]').forEach(b=>{ b.onclick = ()=>{ gradeScale = gradeScale===5 ? 9 : 5; renderTab(); }; });
   el.querySelectorAll('[data-rank]').forEach(b=>{ b.onclick = ()=>{ showRank = !showRank; renderTab(); }; });
 
@@ -792,11 +809,42 @@ function calcSemAvg(semData){
   return credit>0 ? weighted/credit : null;
 }
 
+function getActiveSubjectFilter(){
+  // 선택된 교과들로부터 실제 교과명 배열 반환
+  if(selectedSubjectFilters.size===0) return null; // 전체
+  let result = [];
+  selectedSubjectFilters.forEach(k=>{
+    if(k==='기타') return; // 기타는 별도 처리
+    const arr = SUBJECT_FILTER_MAP[k];
+    if(arr) result = result.concat(arr);
+  });
+  return result.length > 0 ? result : null;
+}
+
+function isSubjectInFilter(subj){
+  if(selectedSubjectFilters.size===0) return subj.등급!=null; // 전체: 등급 있는 과목만
+  const 교과 = subj.교과||'';
+  for(const k of selectedSubjectFilters){
+    if(k==='기타'){
+      // 기타: 국영수사과에 해당 안 되고 등급 있는 과목
+      const mainSubjects = ['국어','영어','수학','사회(역사/도덕포함)','사회','역사','도덕','지리','윤리','일반사회','과학','물리학','화학','생명과학','지구과학','물리','화학I','화학II','생명과학I','생명과학II'];
+      if(!mainSubjects.some(s=>교과.includes(s)||s.includes(교과)) && subj.등급!=null) return true;
+    } else {
+      const arr = SUBJECT_FILTER_MAP[k]||[];
+      if(arr.some(s=>교과.includes(s)||s.includes(교과))) return true;
+    }
+  }
+  return false;
+}
+
 function renderGradeFilterSummary(data, semesters){
-  const filter = GRADE_FILTERS[currentGradeFilter];
+  const filter = getActiveSubjectFilter();
+  const filterLabel = selectedSubjectFilters.size===0 ? '전체' : [...selectedSubjectFilters].join('+');
   const allSubjects = [];
   Object.entries(data.grades).forEach(([sem,semData])=>{ (semData.subjects||[]).forEach(sub=>{ allSubjects.push({...sub, sem}); }); });
-  const filtered = filter ? allSubjects.filter(s=>filter.includes(s.교과)) : allSubjects.filter(s=>s.등급!=null);
+  const filtered = selectedSubjectFilters.size===0
+    ? allSubjects.filter(s=>s.등급!=null)
+    : allSubjects.filter(s=>isSubjectInFilter(s));
   let totalCredit=0, weighted=0, cntWithGrade=0;
   filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; cntWithGrade++; } });
   const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
@@ -812,7 +860,7 @@ function renderGradeFilterSummary(data, semesters){
       const pct = ((rankInfo.rank / rankInfo.total)*100).toFixed(0);
       rankCardHtml = `
         <div class="grade-stat-card rank-card">
-          <div class="sc-label">🏅 ${currentGradeFilter} 학교 등수${scaleLabel}</div>
+          <div class="sc-label">🏅 ${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"): "전체"} 학교 등수${scaleLabel}</div>
           <div class="rank-right">
             <span class="rank-val">${rankInfo.rank}위</span>
             <span class="rank-sub">/ ${rankInfo.total}명 (상위 ${pct}%)</span>
@@ -827,9 +875,9 @@ function renderGradeFilterSummary(data, semesters){
     <div class="grade-summary-panel">
       <div class="grade-stats">
         <div class="grade-avg-big ${is9?'is9':''}">
-          <div class="avg-label">${currentGradeFilter} 평균등급${scaleLabel}</div>
+          <div class="avg-label">${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"):"전체"} 평균등급${scaleLabel}</div>
           <div class="avg-val">${avg}</div>
-          <div class="avg-filter">${filter?'계열 필터 적용':'전체 등급 과목 반영'}</div>
+          <div class="avg-filter">${selectedSubjectFilters.size>0?filterLabel+' 교과 필터':'전체 등급 과목 반영'}</div>
         </div>
         <div class="grade-stat-row">
           <div class="grade-stat-card"><div class="sc-label">반영 학점</div><div class="sc-val">${totalCredit}</div></div>
@@ -853,7 +901,7 @@ function drawGradeChart(data, semesters){
 
   // 전체 평균과 필터 평균 두 선
   const labels = semesters.map(sem=>`${sem.split('-')[0]}학년\n${sem.split('-')[1]}학기`);
-  const filter = GRADE_FILTERS[currentGradeFilter];
+  const filter = getActiveSubjectFilter();
 
   function semAvgForFilter(semData, f){
     const subjects = semData.subjects||[];
@@ -907,7 +955,7 @@ function drawGradeChart(data, semesters){
   };
 
   const datasets = [];
-  if(currentGradeFilter === '전체' || !filter){
+  if(selectedSubjectFilters.size === 0 || !filter){
     // 전체 선택 시: 전체 평균만 표시
     datasets.push({
       label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
@@ -917,7 +965,7 @@ function drawGradeChart(data, semesters){
   } else {
     // 계열 필터 선택 시: 해당 계열 평균만 표시 (전체 평균 숨김)
     datasets.push({
-      label: currentGradeFilter, data: toXY(filtAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
+      label: selectedSubjectFilters.size>0?[...selectedSubjectFilters].join('+'):'전체', data: toXY(filtAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
       tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
       fill: true, spanGaps: true
     });
@@ -968,13 +1016,15 @@ function renderSemesterBlock(sem, semData){
   const summary = semData.summary || {};
   const subjects = semData.subjects || [];
   const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
-  const filter = GRADE_FILTERS[currentGradeFilter];
+  const filter = getActiveSubjectFilter();
   let semCredit=0, semWeighted=0;
   subjects.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; } });
   const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
   const rows = subjects.map(s=>{
-    const highlighted = filter && filter.includes(s.교과);
-    const rowStyle = filter && !highlighted ? 'opacity:0.4;' : '';
+    // 필터 적용: 선택된 교과만 표시 (전체면 등급 있는 과목만)
+    if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return '';
+    if(selectedSubjectFilters.size === 0 && s.등급 == null) return ''; // 전체모드: 등급없는 과목 제외
+    const rowStyle = '';
     const g = getG(s);
     const gradeClass = g!=null ? 'grade-'+g : '';
     let estTag = '';
