@@ -47,6 +47,9 @@
   .aside-search{width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;}
   .aside-search:focus{border-color:var(--accent);}
   .filter-tabs{display:flex;gap:3px;}
+  .grade-class-filter{display:flex;gap:4px;margin-bottom:6px;}
+  .gc-select{flex:1;padding:5px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;font-weight:600;outline:none;cursor:pointer;}
+  .gc-select:focus{border-color:var(--accent);}
   .filter-tab{flex:1;padding:5px 3px;text-align:center;font-size:11px;font-weight:600;background:var(--surface2);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted2);transition:all .15s;}
   .filter-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   .progress-wrap{padding:8px 0 2px;display:none;}
@@ -340,6 +343,17 @@
   <aside>
     <div class="aside-top">
       <input class="aside-search" id="search" placeholder="🔍 이름 / 학번 검색" oninput="renderList()">
+      <div class="grade-class-filter">
+        <select class="gc-select" id="gradeFilter" onchange="renderList()">
+          <option value="">전체학년</option>
+          <option value="1">1학년</option>
+          <option value="2">2학년</option>
+          <option value="3">3학년</option>
+        </select>
+        <select class="gc-select" id="classFilter" onchange="renderList()">
+          <option value="">전체반</option>
+        </select>
+      </div>
       <div class="filter-tabs">
         <div class="filter-tab active" data-f="all" onclick="setFilter(this)">전체</div>
         <div class="filter-tab" data-f="none" onclick="setFilter(this)">미완료</div>
@@ -653,9 +667,28 @@ function setFilter(el){
 }
 function renderList(){
   const q=document.getElementById('search').value.trim().toLowerCase();
+  const gf=document.getElementById('gradeFilter')?.value||'';
+  const cf=document.getElementById('classFilter')?.value||'';
+
+  // 반 필터 동적 생성
+  const classEl=document.getElementById('classFilter');
+  if(classEl && gf){
+    const classes=[...new Set(students
+      .filter(s=>String(s.hak)[0]===gf)
+      .map(s=>parseInt(String(s.hak).substring(1,3)))
+    )].sort((a,b)=>a-b);
+    const curVal=classEl.value;
+    classEl.innerHTML='<option value="">전체반</option>'+classes.map(c=>`<option value="${c}" ${String(c)===curVal?'selected':''}>${c}반</option>`).join('');
+  } else if(classEl && !gf){
+    classEl.innerHTML='<option value="">전체반</option>';
+  }
+
   const list=students.filter(s=>{
-    if(!sewtuk[String(s.hak)]?.subjects?.length) return false;
-    if(q&&!s.name.toLowerCase().includes(q)&&!String(s.hak).includes(q)) return false;
+    const hak=String(s.hak);
+    if(!sewtuk[hak]?.subjects?.length) return false;
+    if(gf && hak[0]!==gf) return false;
+    if(cf && parseInt(hak.substring(1,3))!==parseInt(cf)) return false;
+    if(q&&!s.name.toLowerCase().includes(q)&&!hak.includes(q)) return false;
     const st=getStuStatus(s.hak);
     if(filterMode==='none'&&st!=='none') return false;
     if(filterMode==='partial'&&st!=='partial') return false;
@@ -708,7 +741,7 @@ function renderMain(){
         <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
         <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
         <button class="btn-overall" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
-        <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특)</button>
+        <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특+창체+행발)</button>
         <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
@@ -1276,7 +1309,28 @@ async function generateComprehensiveEval(){
     `[${s.교과} - ${s.과목}]\n${(s.내용||'').substring(0,400)}`
   ).join('\n\n');
 
-  const systemPrompt=`당신은 대입 전형 전문 입학사정관입니다. 학생의 내신 성적과 세부능력특기사항을 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
+  // 창체 데이터
+  let changcheSummary='창체 데이터 없음';
+  try{
+    const ccRes=await apiGet({action:'getChangche',password:currentPw});
+    const ccData=ccRes?.[hak]||ccRes?.[String(currentStu.g2_hak)]||null;
+    if(ccData?.activities?.length){
+      changcheSummary=ccData.activities.map(a=>
+        `[${a.학년||''}학년 ${a.분류||''}] ${a.활동명||''}: ${(a.내용||'').substring(0,200)}`
+      ).join('\n');
+    }
+  }catch(e){}
+
+  // 행발 데이터
+  const haengbal=sewtuk[hak]?.['행발']||{};
+  let haengbalSummary='행발 데이터 없음';
+  if(Object.keys(haengbal).length){
+    haengbalSummary=['1','2','3'].filter(g=>haengbal[g]).map(g=>
+      `[${g}학년] ${(haengbal[g]||'').substring(0,300)}`
+    ).join('\n');
+  }
+
+  const systemPrompt=`당신은 대입 전형 전문 입학사정관입니다. 학생의 내신 성적, 세부능력특기사항, 창의적 체험활동, 행동특성 및 종합의견을 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
 
 반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
 {
@@ -1314,7 +1368,7 @@ async function generateComprehensiveEval(){
   try{
     const text=await callAPI(systemPrompt,[{
       role:'user',
-      content:`학생: ${currentStu.name} (${hak})\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항】\n${sewtukSummary}`
+      content:`학생: ${currentStu.name} (${hak})\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항】\n${sewtukSummary}\n\n【창의적 체험활동】\n${changcheSummary}\n\n【행동특성 및 종합의견】\n${haengbalSummary}`
     }],4000);
 
     // JSON 추출 및 파싱 (잘린 경우 복구 시도)
@@ -1350,7 +1404,7 @@ async function generateComprehensiveEval(){
   }catch(e){
     addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='🏆 종합 역량 평가 (내신+세특)';}
+    if(btn){btn.disabled=false;btn.innerHTML='🏆 종합 역량 평가 (내신+세특+창체+행발)';}
   }
 }
 
