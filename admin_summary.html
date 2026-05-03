@@ -98,6 +98,30 @@
 
   /* 콘텐츠 영역 */
   .content-area{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;}
+  .main-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:var(--surface);flex-shrink:0;}
+  .main-tab-btn{padding:10px 20px;font-size:13px;font-weight:600;color:var(--muted2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;font-family:'Noto Sans KR',sans-serif;}
+  .main-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .main-tab-btn:hover:not(.active){color:var(--text);}
+  .main-tab-panel{display:none;flex:1;overflow:hidden;}
+  .main-tab-panel.active{display:grid;grid-template-columns:1fr 360px;}
+  .changche-panel{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);}
+  .haengbal-panel{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);}
+  .cc-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .cc-item-head{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;background:var(--surface2);}
+  .cc-item-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .cc-item-body{padding:12px 14px;display:none;}
+  .cc-item-body.open{display:block;}
+  .cc-content-text{font-size:12.5px;color:var(--muted2);line-height:1.7;margin-bottom:10px;max-height:120px;overflow-y:auto;}
+  .hb-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+  .hb-grade-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .hb-content{font-size:12.5px;color:var(--muted2);line-height:1.8;white-space:pre-wrap;margin-bottom:10px;}
+  .cc-overall-section{margin:0 0 12px;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;overflow:hidden;background:var(--surface);}
+  .cc-overall-head{padding:10px 14px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));display:flex;align-items:center;justify-content:space-between;}
+  .cc-overall-title{font-size:12px;font-weight:700;color:#10b981;display:flex;align-items:center;gap:5px;}
+  .cc-overall-body{padding:10px 14px;font-size:12.5px;line-height:1.75;color:var(--text);}
+  .btn-cc-overall{padding:6px 11px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:opacity .2s;}
+  .btn-cc-overall:hover{opacity:.85;}
+  .btn-cc-overall:disabled{opacity:.4;cursor:not-allowed;}
 
   /* 세특 패널 */
   .sewtuk-panel{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:0;border-right:1px solid var(--border);}
@@ -710,7 +734,7 @@ function renderList(){
 /* ========== 학생 선택 ========== */
 function selectStu(hak){
   currentStu=students.find(s=>String(s.hak)===String(hak));
-  chatHistory=[]; isGenAll=false; pendingEval[hak]=pendingEval[hak]||{}; pendingOverall[hak]=pendingOverall[hak]||null; pendingSubjOverall[hak]=pendingSubjOverall[hak]||{}; openItems=new Set(); closedItems=new Set();
+  chatHistory=[]; chatHistoryCc=[]; chatHistoryHb=[]; isGenAll=false; pendingEval[hak]=pendingEval[hak]||{}; pendingOverall[hak]=pendingOverall[hak]||null; pendingSubjOverall[hak]=pendingSubjOverall[hak]||{}; openItems=new Set(); closedItems=new Set();
   pending[hak]=pending[hak]||{};
   renderList(); renderMain();
   const subs=sewtuk[String(hak)]?.subjects||[];
@@ -751,7 +775,12 @@ function renderMain(){
       <div class="all-prog-bg"><div class="all-prog-fill" id="allProgFill" style="width:0%"></div></div>
       <div class="all-prog-label" id="allProgLabel"></div>
     </div>
-    <div class="content-area">
+    <div class="main-tab-bar">
+      <button class="main-tab-btn active" data-maintab="sewtuk" onclick="switchMainTab('sewtuk',this)">📝 세특</button>
+      <button class="main-tab-btn" data-maintab="changche" onclick="switchMainTab('changche',this)">🎭 창체</button>
+      <button class="main-tab-btn" data-maintab="haengbal" onclick="switchMainTab('haengbal',this)">📋 행발</button>
+    </div>
+    <div class="main-tab-panel active" id="tabSewtuk">
       <div class="sewtuk-panel" id="sewtukPanel">
         <div id="overallSection"></div>
         <div id="subjectList" style="display:flex;flex-direction:column;gap:8px;"></div>
@@ -767,8 +796,42 @@ function renderMain(){
         </div>
       </div>
     </div>
+    <div class="main-tab-panel" id="tabChangche">
+      <div class="changche-panel" id="changchePanel"></div>
+      <div class="chat-panel">
+        <div class="chat-header">💬 AI 어시스턴트</div>
+        <div class="chat-body" id="chatBodyCc"></div>
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <input id="chatInputCc" placeholder="예: 동아리 활동 더 자세히 분석해줘" onkeydown="if(event.key==='Enter')sendChatCc()">
+            <button class="send-btn" onclick="sendChatCc()">전송</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="main-tab-panel" id="tabHaengbal">
+      <div class="haengbal-panel" id="haengbalPanel"></div>
+      <div class="chat-panel">
+        <div class="chat-header">💬 AI 어시스턴트</div>
+        <div class="chat-body" id="chatBodyHb"></div>
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <input id="chatInputHb" placeholder="예: 3학년 행발 핵심 강점 뽑아줘" onkeydown="if(event.key==='Enter')sendChatHb()">
+            <button class="send-btn" onclick="sendChatHb()">전송</button>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
   renderPanel(); renderChatBody(); renderOverallSection();
+  // 탭 상태 초기화
+  currentMainTab = 'sewtuk';
+  document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
+  const firstBtn = document.querySelector('[data-maintab="sewtuk"]');
+  if(firstBtn) firstBtn.classList.add('active');
+  const firstPanel = document.getElementById('tabSewtuk');
+  if(firstPanel) firstPanel.classList.add('active');
 }
 
 /* ========== 세특 패널 ========== */
@@ -1270,6 +1333,274 @@ async function generateSubjOverall(cat, silent=false){
     addMsg('assistant',`❌ ${cat} 교과 종합평가 실패: ${e.message}`);
     if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
   }
+}
+
+/* ========== 메인 탭 전환 ========== */
+let currentMainTab = 'sewtuk';
+let chatHistoryCc = [], chatHistoryHb = [];
+
+function switchMainTab(tab, btn){
+  currentMainTab = tab;
+  document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  if(tab==='changche') renderChangchePanel();
+  if(tab==='haengbal') renderHaengbalPanel();
+}
+
+/* ========== 창체 패널 ========== */
+async function renderChangchePanel(){
+  const panel = document.getElementById('changchePanel');
+  if(!currentStu){ panel.innerHTML='<div style="color:var(--muted);padding:20px;">학생을 선택하세요</div>'; return; }
+  const hak = String(currentStu.hak);
+
+  // 창체 데이터 로드
+  panel.innerHTML = '<div style="color:var(--muted);padding:20px;">창체 데이터 불러오는 중...</div>';
+  let ccData = null;
+  try{
+    const res = await apiGet({action:'getChangche', password:currentPw});
+    ccData = res?.[hak] || null;
+  }catch(e){}
+
+  if(!ccData?.activities?.length){
+    panel.innerHTML = '<div style="color:var(--muted);padding:20px;">창체 데이터가 없습니다.</div>';
+    return;
+  }
+
+  const acts = ccData.activities;
+  const sw = sewtuk[hak] || {};
+  if(!sw.창체요약) sw.창체요약 = {};
+
+  // 종합평가 섹션
+  const overallSaved = sw.창체종합평가;
+  let overallHtml = `
+    <div class="cc-overall-section">
+      <div class="cc-overall-head">
+        <div class="cc-overall-title">🎭 창체 종합 평가</div>
+        <button class="btn-cc-overall" id="btnCcOverall" onclick="generateCcOverall()">✨ AI 종합 평가 생성</button>
+      </div>
+      <div class="cc-overall-body" id="ccOverallBody">
+        ${overallSaved ? `<div style="white-space:pre-wrap;">${overallSaved}</div>` : '<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'}
+      </div>
+    </div>`;
+
+  // 활동별 카드
+  const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
+  const actCards = acts.map((a,i)=>{
+    const icon = cats[a.분류] || '📌';
+    const saved = sw.창체요약[i];
+    return `
+      <div class="cc-item">
+        <div class="cc-item-head" onclick="toggleCcItem(${i})">
+          <div class="cc-item-title">
+            <span style="font-size:11px;padding:2px 7px;background:var(--surface2);border-radius:4px;color:var(--muted2);">${a.학년||''}학년 ${a.분류||''}</span>
+            ${icon} ${a.활동명||'활동'}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약완료</span>':'<span style="font-size:10px;color:var(--muted);">미완료</span>'}
+            <span style="font-size:11px;color:var(--muted);">▼</span>
+          </div>
+        </div>
+        <div class="cc-item-body" id="ccItem${i}">
+          <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
+          ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">${saved}</div>` : ''}
+          <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  panel.innerHTML = overallHtml + actCards;
+}
+
+function toggleCcItem(i){
+  const el = document.getElementById('ccItem'+i);
+  if(el) el.classList.toggle('open');
+}
+
+async function generateCcItemSummary(idx){
+  const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnCcItem'+idx);
+  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  try{
+    const res = await apiGet({action:'getChangche', password:currentPw});
+    const acts = res?.[hak]?.activities || [];
+    const a = acts[idx];
+    if(!a) throw new Error('활동 데이터 없음');
+    const prompt = `학생 ${currentStu.name}의 창체 활동 요약을 3줄로 작성하세요.
+활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
+내용: ${a.내용}`;
+    const text = await callAPI('당신은 학생부 전문가입니다. 창체 활동을 3줄로 핵심만 요약하세요. 음슴체("~함","~됨") 사용.',
+      [{role:'user', content:prompt}], 500);
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    if(!sewtuk[hak].창체요약) sewtuk[hak].창체요약={};
+    sewtuk[hak].창체요약[idx] = text.trim();
+    await saveToSheet(hak);
+    addMsgToChat('chatBodyCc', 'assistant', `✅ ${a.활동명} 요약 완료`);
+    renderChangchePanel();
+    document.getElementById('ccItem'+idx)?.classList.add('open');
+  }catch(e){
+    addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='✨ AI 요약 생성'; }
+  }
+}
+
+async function generateCcOverall(){
+  const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnCcOverall');
+  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  try{
+    const res = await apiGet({action:'getChangche', password:currentPw});
+    const acts = res?.[hak]?.activities || [];
+    if(!acts.length) throw new Error('창체 데이터 없음');
+    const summary = acts.map(a=>`[${a.학년}학년 ${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,200)}`).join('\n');
+    const text = await callAPI(
+      '당신은 대입 전문 입학사정관입니다. 학생의 창체 활동 전체를 종합 분석하여 진로역량, 공동체역량, 자기계발 측면에서 5~7문장으로 평가하세요. 음슴체 사용.',
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+
+창체 활동 전체:
+${summary}`}], 1000);
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].창체종합평가 = text.trim();
+    await saveToSheet(hak);
+    document.getElementById('ccOverallBody').innerHTML = `<div style="white-space:pre-wrap;">${text.trim()}</div>`;
+    addMsgToChat('chatBodyCc','assistant','✅ 창체 종합 평가 완료 및 저장!');
+  }catch(e){
+    addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
+  }
+}
+
+/* ========== 행발 패널 ========== */
+function renderHaengbalPanel(){
+  const panel = document.getElementById('haengbalPanel');
+  if(!currentStu){ panel.innerHTML='<div style="color:var(--muted);padding:20px;">학생을 선택하세요</div>'; return; }
+  const hak = String(currentStu.hak);
+  const sw = sewtuk[hak] || {};
+  const haengbal = sw['행발'] || {};
+
+  if(!Object.keys(haengbal).length){
+    panel.innerHTML = '<div style="color:var(--muted);padding:20px;">행발 데이터가 없습니다.</div>';
+    return;
+  }
+
+  const gradeLabels = {'1':'1학년','2':'2학년','3':'3학년'};
+  const hbSummaries = sw.행발요약 || {};
+  const hbOverall = sw.행발종합평가 || '';
+
+  // 종합평가 섹션
+  let html = `
+    <div class="cc-overall-section">
+      <div class="cc-overall-head">
+        <div class="cc-overall-title">📋 행발 종합 평가</div>
+        <button class="btn-cc-overall" id="btnHbOverall" onclick="generateHbOverall()">✨ AI 종합 평가 생성</button>
+      </div>
+      <div class="cc-overall-body" id="hbOverallBody">
+        ${hbOverall ? `<div style="white-space:pre-wrap;">${hbOverall}</div>` : '<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'}
+      </div>
+    </div>`;
+
+  // 학년별 카드
+  ['1','2','3'].forEach(g=>{
+    if(!haengbal[g]) return;
+    const saved = hbSummaries[g];
+    html += `
+      <div class="hb-item">
+        <div class="hb-grade-title">${gradeLabels[g]} 행동특성 및 종합의견</div>
+        <div class="hb-content">${(haengbal[g]||'').substring(0,400)}${(haengbal[g]||'').length>400?'...':''}</div>
+        ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;"><strong style="color:var(--green);">✓ 요약:</strong> ${saved}</div>` : ''}
+        <button class="btn-subj-overall" onclick="generateHbSummary('${g}')" id="btnHb${g}">✨ ${g}학년 요약 생성</button>
+      </div>`;
+  });
+
+  panel.innerHTML = html;
+}
+
+async function generateHbSummary(grade){
+  const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnHb'+grade);
+  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  try{
+    const hw = sewtuk[hak]?.['행발']?.[grade];
+    if(!hw) throw new Error('행발 데이터 없음');
+    const text = await callAPI(
+      '당신은 학생부 전문가입니다. 행동특성 및 종합의견을 3줄로 핵심만 요약하세요. 음슴체 사용.',
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+${grade}학년 행발:
+${hw}`}], 500);
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    if(!sewtuk[hak].행발요약) sewtuk[hak].행발요약={};
+    sewtuk[hak].행발요약[grade] = text.trim();
+    await saveToSheet(hak);
+    addMsgToChat('chatBodyHb','assistant',`✅ ${grade}학년 행발 요약 완료`);
+    renderHaengbalPanel();
+  }catch(e){
+    addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent=`✨ ${grade}학년 요약 생성`; }
+  }
+}
+
+async function generateHbOverall(){
+  const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnHbOverall');
+  if(btn){ btn.disabled=true; btn.textContent='생성 중...'; }
+  try{
+    const hw = sewtuk[hak]?.['행발'] || {};
+    if(!Object.keys(hw).length) throw new Error('행발 데이터 없음');
+    const summary = ['1','2','3'].filter(g=>hw[g]).map(g=>`[${g}학년] ${hw[g]}`).join('\n\n');
+    const text = await callAPI(
+      '당신은 대입 전문 입학사정관입니다. 학생의 학년별 행동특성 및 종합의견을 종합 분석하여 인성, 리더십, 성실성, 공동체 의식 측면에서 5~7문장으로 평가하세요. 음슴체 사용.',
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+
+${summary}`}], 1000);
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    sewtuk[hak].행발종합평가 = text.trim();
+    await saveToSheet(hak);
+    document.getElementById('hbOverallBody').innerHTML = `<div style="white-space:pre-wrap;">${text.trim()}</div>`;
+    addMsgToChat('chatBodyHb','assistant','✅ 행발 종합 평가 완료 및 저장!');
+  }catch(e){
+    addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
+  }
+}
+
+// 창체/행발 채팅 헬퍼
+function addMsgToChat(chatBodyId, role, text){
+  const el = document.getElementById(chatBodyId);
+  if(!el) return;
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendChatCc(){
+  const inp = document.getElementById('chatInputCc');
+  const msg = inp?.value.trim();
+  if(!msg || !currentStu) return;
+  inp.value='';
+  addMsgToChat('chatBodyCc','user',msg);
+  chatHistoryCc.push({role:'user',content:msg});
+  callAPI('당신은 학생부 창체 전문 분석가입니다.', chatHistoryCc, 800)
+    .then(t=>{ chatHistoryCc.push({role:'assistant',content:t}); addMsgToChat('chatBodyCc','assistant',t); })
+    .catch(e=>addMsgToChat('chatBodyCc','assistant','❌ '+e.message));
+}
+
+function sendChatHb(){
+  const inp = document.getElementById('chatInputHb');
+  const msg = inp?.value.trim();
+  if(!msg || !currentStu) return;
+  inp.value='';
+  addMsgToChat('chatBodyHb','user',msg);
+  chatHistoryHb.push({role:'user',content:msg});
+  callAPI('당신은 학생부 행발 전문 분석가입니다.', chatHistoryHb, 800)
+    .then(t=>{ chatHistoryHb.push({role:'assistant',content:t}); addMsgToChat('chatBodyHb','assistant',t); })
+    .catch(e=>addMsgToChat('chatBodyHb','assistant','❌ '+e.message));
 }
 
 /* ========== 종합 역량 평가 (내신 + 세특) ========== */
