@@ -797,8 +797,9 @@ function renderList(){
   list.querySelectorAll('.stu-item').forEach(el=>{
     el.onclick = ()=>{
       const hak = el.dataset.hak;
+      const savedTab = currentTab; // 현재 탭 저장
       currentStu = students.find(s=>String(s.hak)===hak);
-      // currentTab은 유지 — 탭을 바꾸지 않음
+      currentTab = savedTab; // 탭 명시적 복원
       openAccordions.clear();
       renderList();
       renderMain();
@@ -2560,8 +2561,9 @@ function renderChangche(el){
       const isOpen = openAccordions.has(key);
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
-      const saved = (data?.창체요약 || {})[actIdx] || a.요약 || '';
-      const ccEval = (data?.창체활동평가 || {})[actIdx] || null;
+      const _rawSaved = (data?.창체요약 || {})[String(actIdx)] || (data?.창체요약 || {})[actIdx] || a.요약 || null;
+      const saved = (Array.isArray(_rawSaved) && _rawSaved.length === 0) ? null : _rawSaved;
+      const ccEval = (data?.창체활동평가 || {})[String(actIdx)] || (data?.창체활동평가 || {})[actIdx] || null;
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
