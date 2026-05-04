@@ -115,10 +115,12 @@
   .hb-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
   .hb-grade-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
   .hb-content{font-size:12.5px;color:var(--muted2);line-height:1.8;white-space:pre-wrap;margin-bottom:10px;}
-  .cc-overall-section{margin:0 0 12px;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;overflow:hidden;background:var(--surface);}
-  .cc-overall-head{padding:10px 14px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));display:flex;align-items:center;justify-content:space-between;}
+  .cc-overall-section{margin:0 0 12px;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;background:var(--surface);}
+  .cc-overall-head{padding:10px 14px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-radius:10px 10px 0 0;}
+  .cc-overall-head.collapsed{border-radius:10px;}
   .cc-overall-title{font-size:12px;font-weight:700;color:#10b981;display:flex;align-items:center;gap:5px;}
-  .cc-overall-body{padding:10px 14px;font-size:12.5px;line-height:1.75;color:var(--text);}
+  .cc-overall-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 14px;font-size:12.5px;line-height:1.75;color:var(--text);}
+  .cc-overall-body.open{max-height:2000px;padding:10px 14px;}
   .btn-cc-overall{padding:6px 11px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:opacity .2s;}
   .btn-cc-overall:hover{opacity:.85;}
   .btn-cc-overall:disabled{opacity:.4;cursor:not-allowed;}
@@ -762,11 +764,15 @@ function renderMain(){
         <span class="badge">${st==='done'?'✅ 완료':st==='partial'?'🔄 진행중':'⏳ 미완료'}</span>
       </div>
       <div class="header-btns">
-        <button class="btn-all" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
-        <button class="btn-all" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
-        <button class="btn-overall" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
+        <!-- 세특 전용 버튼 -->
+        <button class="btn-all tab-btn-sewtuk" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
+        <button class="btn-all tab-btn-sewtuk" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
+        <button class="btn-overall tab-btn-sewtuk" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
+        <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
+        <!-- 창체 전용 버튼 -->
+        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
+        <!-- 공통 버튼 -->
         <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특+창체+행발)</button>
-        <button class="btn-one" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
       </div>
@@ -824,8 +830,12 @@ function renderMain(){
     </div>
   `;
   renderPanel(); renderChatBody(); renderOverallSection();
-  // 탭 상태 초기화
+  // 탭 상태 초기화 + 탭별 버튼 초기화
   currentMainTab = 'sewtuk';
+  setTimeout(()=>{
+    document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display='none');
+    document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display='');
+  },0);
   document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
   const firstBtn = document.querySelector('[data-maintab="sewtuk"]');
@@ -1345,6 +1355,9 @@ function switchMainTab(tab, btn){
   document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  // 탭별 버튼 show/hide
+  document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display=(tab==='sewtuk'?'':'none'));
+  document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=(tab==='changche'?'':'none'));
   if(tab==='changche') renderChangchePanel();
   if(tab==='haengbal') renderHaengbalPanel();
 }
@@ -1376,11 +1389,11 @@ async function renderChangchePanel(){
   const overallSaved = sw.창체종합평가;
   let overallHtml = `
     <div class="cc-overall-section">
-      <div class="cc-overall-head">
-        <div class="cc-overall-title">🎭 창체 종합 평가</div>
-        <button class="btn-cc-overall" id="btnCcOverall" onclick="generateCcOverall()">✨ AI 종합 평가 생성</button>
+      <div class="cc-overall-head" id="ccOverallHead" onclick="toggleCcOverall()">
+        <div class="cc-overall-title">🎭 창체 종합 평가 <span id="ccOverallArrow" style="margin-left:4px;">▲</span></div>
+        <button class="btn-cc-overall" id="btnCcOverall" onclick="event.stopPropagation();generateCcOverall()">✨ AI 종합 평가 생성</button>
       </div>
-      <div class="cc-overall-body" id="ccOverallBody">
+      <div class="cc-overall-body open" id="ccOverallBody">
         <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
       </div>
     </div>`;
@@ -1422,6 +1435,38 @@ async function renderChangchePanel(){
 function toggleCcItem(i){
   const el = document.getElementById('ccItem'+i);
   if(el) el.classList.toggle('open');
+}
+
+function toggleCcOverall(){
+  const body = document.getElementById('ccOverallBody');
+  const head = document.getElementById('ccOverallHead');
+  const arrow = document.getElementById('ccOverallArrow');
+  if(!body) return;
+  const isOpen = body.classList.toggle('open');
+  if(head) head.classList.toggle('collapsed', !isOpen);
+  if(arrow) arrow.textContent = isOpen ? '▲' : '▼';
+}
+
+function toggleHbOverall(){
+  const body = document.getElementById('hbOverallBody');
+  const head = document.getElementById('hbOverallHead');
+  const arrow = document.getElementById('hbOverallArrow');
+  if(!body) return;
+  const isOpen = body.classList.toggle('open');
+  if(head) head.classList.toggle('collapsed', !isOpen);
+  if(arrow) arrow.textContent = isOpen ? '▲' : '▼';
+}
+
+async function generateAllCcSummary(){
+  const hak = String(currentStu.hak);
+  const res = await apiGet({action:'getChangche', password:currentPw});
+  const ccData = res?.[hak];
+  if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
+  addMsgToChat('chatBodyCc','assistant',`🎭 창체 전체 요약을 시작합니다. 총 ${ccData.activities.length}개 활동을 순서대로 생성합니다.`);
+  for(let i=0;i<ccData.activities.length;i++){
+    await generateCcItemSummary(i);
+  }
+  addMsgToChat('chatBodyCc','assistant','✅ 창체 전체 요약 완료!');
 }
 
 async function generateCcItemSummary(idx){
@@ -1561,11 +1606,11 @@ function renderHaengbalPanel(){
   // 종합평가 섹션
   let html = `
     <div class="cc-overall-section">
-      <div class="cc-overall-head">
-        <div class="cc-overall-title">📋 행발 종합 평가</div>
-        <button class="btn-cc-overall" id="btnHbOverall" onclick="generateHbOverall()">✨ AI 종합 평가 생성</button>
+      <div class="cc-overall-head" id="hbOverallHead" onclick="toggleHbOverall()">
+        <div class="cc-overall-title">📋 행발 종합 평가 <span id="hbOverallArrow" style="margin-left:4px;">▲</span></div>
+        <button class="btn-cc-overall" id="btnHbOverall" onclick="event.stopPropagation();generateHbOverall()">✨ AI 종합 평가 생성</button>
       </div>
-      <div class="cc-overall-body" id="hbOverallBody">
+      <div class="cc-overall-body open" id="hbOverallBody">
         <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
       </div>
     </div>`;
