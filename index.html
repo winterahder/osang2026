@@ -2539,7 +2539,7 @@ function renderChangche(el){
   });
 
   // 종합평가 데이터 (전체: 창체종합평가, 분류별: 창체종합평가 내 분류 데이터 활용)
-  const ccOverall = sewtuk[hak]?.창체종합평가 || null;
+  const ccOverall = data?.창체종합평가 || null;
 
   let html = `
     <div class="sewtuk-top-wrap">
@@ -2560,8 +2560,8 @@ function renderChangche(el){
       const isOpen = openAccordions.has(key);
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
-      const saved = (sewtuk[hak]||{}).창체요약?.[actIdx] || a.요약 || '';
-      const ccEval = (sewtuk[hak]?.창체활동평가 || {})[actIdx] || null;
+      const saved = (data?.창체요약 || {})[actIdx] || a.요약 || '';
+      const ccEval = (data?.창체활동평가 || {})[actIdx] || null;
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
