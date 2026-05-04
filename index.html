@@ -1408,6 +1408,60 @@ function renderEvalDetail(evalData){
   </div>`;
 }
 
+
+// 창체 활동별 오른쪽 평가 패널
+function renderCcEvalPanel(evalData){
+  if(!evalData || typeof evalData !== 'object') return '<div class="acc-right"></div>';
+  const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+
+  const subItems = (sebu, keys, labels) => keys.map((k,i)=>{
+    const g = sebu?.[k]; if(!g) return '';
+    return `<div class="eval-sub-item"><span>${labels[i]}</span><span class="eval-sub-grade g-${g}">${g}</span></div>`;
+  }).join('');
+
+  const group = (key, label, keys, labels) => {
+    const d = evalData[key]; if(!d?.grade) return '';
+    return `<div class="eval-panel-group">
+      <div class="eval-panel-left">
+        <div class="eval-panel-label">${label}</div>
+        <div class="eval-panel-grade g-${d.grade}">${d.grade}</div>
+      </div>
+      <div class="eval-panel-subs">${subItems(d.세부, keys, labels)}</div>
+    </div>`;
+  };
+
+  return `<div class="acc-right"><div class="eval-panel">
+    ${group('학업역량','학업역량',['학업성취도','학업태도','탐구력'],['성취도','태도','탐구력'])}
+    ${group('진로역량','진로역량',['전공적합성','진로탐색'],['전공','진로탐색'])}
+    ${group('공동체역량','공동체역량',['협업소통','나눔배려','성실성','리더십'],['협업','나눔','성실','리더'])}
+  </div></div>`;
+}
+
+// 창체 활동별 펼침 상세 평가
+function renderCcEvalDetail(evalData){
+  if(!evalData || typeof evalData !== 'object') return '';
+  const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+
+  const item = (label, domKey, parentKey) => {
+    const g = evalData[parentKey]?.세부?.[domKey]; if(!g) return '';
+    return `<div class="eval-detail-item">
+      <span class="eval-detail-name">${label}</span>
+      <span class="eval-detail-grade g-${g}">${g}</span>
+      <span class="eval-detail-comment"></span>
+    </div>`;
+  };
+  const group = (label, items) =>
+    `<div class="eval-detail-group"><div class="eval-detail-group-label">${label}</div>${items}</div>`;
+
+  const 근거 = evalData.근거 ? `<div style="font-size:12px;color:#475569;padding:8px 12px;background:#f8fafc;border-radius:6px;margin:8px 20px;border-left:3px solid #06b6d4;">💬 ${escapeHtml(evalData.근거)}</div>` : '';
+
+  return `<div class="eval-detail-section">
+    ${group('학업역량', item('성취도','학업성취도','학업역량')+item('학업태도','학업태도','학업역량')+item('탐구력','탐구력','학업역량'))}
+    ${group('진로역량', item('전공적합','전공적합성','진로역량')+item('진로탐색','진로탐색','진로역량'))}
+    ${group('공동체역량', item('협업·소통','협업소통','공동체역량')+item('나눔·배려','나눔배려','공동체역량')+item('성실성','성실성','공동체역량')+item('리더십','리더십','공동체역량'))}
+  </div>${근거}`;
+}
+
 function toggleAllReason(pid){
   const bars=document.querySelectorAll(`.overall-reason-bar[data-pid="${pid}"]`);
   const arr=document.getElementById(pid+'-arr');
@@ -2417,16 +2471,49 @@ function renderCcOverallPanel(ccOverall, cat){
     const pid = 'ccp-'+Math.random().toString(36).slice(2,6);
     if(!d) return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 '+cat+' 분류 평가 없음</div></div>';
     const color = GC[d.grade]||'#64748b';
+
+    // 역량별 세부 지표 (분류별 패널에도 표시)
+    const subRow = (g, label) => g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade" style="color:${GC[g]||'#94a3b8'}">${g}</span></div>` : '';
+    const 학업D = d.세부역량?.학업역량 || {};
+    const 진로D = d.세부역량?.진로역량 || {};
+    const 공동D = d.세부역량?.공동체역량 || {};
+    const hasDetail = !!(학업D.학업성취도||진로D.전공적합성||공동D.협업소통);
+
+    const detailGrid = hasDetail ? `<div class="overall-eval-grid" style="margin-top:8px;">
+      ${학업D.학업성취도||학업D.학업태도||학업D.탐구력 ? `<div class="overall-eval-group" style="border-top:3px solid ${GC[d.세부역량?.학업역량?.grade]||'#64748b'};">
+        <div class="overall-group-header"><div class="overall-group-label">📚 학업역량</div></div>
+        <div class="overall-group-body">
+          <div class="overall-group-grade" style="color:${GC[d.세부역량?.학업역량?.grade]||'#64748b'}">${d.세부역량?.학업역량?.grade||''}</div>
+          <div class="overall-sub-list">${subRow(학업D.학업성취도,'성취도')+subRow(학업D.학업태도,'태도')+subRow(학업D.탐구력,'탐구력')}</div>
+        </div>
+      </div>` : ''}
+      ${진로D.전공적합성||진로D.진로탐색 ? `<div class="overall-eval-group" style="border-top:3px solid ${GC[d.세부역량?.진로역량?.grade]||'#64748b'};">
+        <div class="overall-group-header"><div class="overall-group-label">🎯 진로역량</div></div>
+        <div class="overall-group-body">
+          <div class="overall-group-grade" style="color:${GC[d.세부역량?.진로역량?.grade]||'#64748b'}">${d.세부역량?.진로역량?.grade||''}</div>
+          <div class="overall-sub-list">${subRow(진로D.전공적합성,'전공적합')+subRow(진로D.진로탐색,'진로탐색')}</div>
+        </div>
+      </div>` : ''}
+      ${공동D.협업소통||공동D.나눔배려||공동D.성실성||공동D.리더십 ? `<div class="overall-eval-group" style="border-top:3px solid ${GC[d.세부역량?.공동체역량?.grade]||'#64748b'};">
+        <div class="overall-group-header"><div class="overall-group-label">🤝 공동체역량</div></div>
+        <div class="overall-group-body">
+          <div class="overall-group-grade" style="color:${GC[d.세부역량?.공동체역량?.grade]||'#64748b'}">${d.세부역량?.공동체역량?.grade||''}</div>
+          <div class="overall-sub-list">${subRow(공동D.협업소통,'협업')+subRow(공동D.나눔배려,'나눔')+subRow(공동D.성실성,'성실')+subRow(공동D.리더십,'리더')}</div>
+        </div>
+      </div>` : ''}
+    </div>` : '';
+
     return `<div class="overall-eval-panel">
       <div class="overall-eval-header">
         <div class="overall-eval-header-title">${catIcon} ${cat}활동 평가</div>
         <span class="overall-eval-scope">AI 분석</span>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;padding:12px 14px;background:#f8fafc;border-radius:10px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:16px;padding:12px 14px;background:#f8fafc;border-radius:10px;margin-bottom:8px;">
         <div style="font-size:48px;font-weight:900;color:${color};line-height:1;">${d.grade||'?'}</div>
         <div style="font-size:13px;color:#475569;line-height:1.8;">${escapeHtml(d.근거||d.comment||'')}</div>
       </div>
-      ${d.종합의견?`<div style="font-size:13px;color:#475569;line-height:1.7;padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color};">💬 ${escapeHtml(d.종합의견)}</div>`:''}
+      ${detailGrid}
+      ${d.종합의견?`<div style="font-size:13px;color:#475569;line-height:1.7;padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color};margin-top:8px;">💬 ${escapeHtml(d.종합의견)}</div>`:''}
     </div>`;
   }
 }
@@ -2474,6 +2561,7 @@ function renderChangche(el){
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
       const saved = (sewtuk[hak]||{}).창체요약?.[actIdx] || a.요약 || '';
+      const ccEval = (sewtuk[hak]?.창체활동평가 || {})[actIdx] || null;
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
@@ -2484,13 +2572,15 @@ function renderChangche(el){
                 <span class="sub-meta">${a.학년}학년</span>
                 <div class="status-badges">
                   <span class="status-badge ${saved?'sb-done':'sb-none'}">${saved?'✓ 요약':'요약 미완료'}</span>
+                  <span class="status-badge ${ccEval?'sb-done':'sb-none'}">${ccEval?'✓ 평가':'평가 미완료'}</span>
                 </div>
               </div>
               ${renderSummary(saved)}
             </div>
+            ${ccEval ? renderCcEvalPanel(ccEval) : '<div class="acc-right"></div>'}
             <span class="arrow">▶</span>
           </div>
-          <div class="accordion-body">${escapeHtml(a.내용)}</div>
+          <div class="accordion-body">${escapeHtml(a.내용)}${ccEval ? renderCcEvalDetail(ccEval) : ''}</div>
         </div>
       `;
     });
