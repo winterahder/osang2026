@@ -256,6 +256,111 @@
   .est-info { background: linear-gradient(135deg, #faf5ff, #f3e8ff); border: 1px solid #e9d5ff; color: #6b21a8; padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
   .est-info strong { color: #a855f7; }
   .est-tag { display: inline-block; padding: 2px 6px; background: #f3e8ff; color: #a855f7; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 4px; }
+
+  /* ===== 모바일 반응형 ===== */
+  .mobile-bar { display: none; }
+
+  @media (max-width: 768px) {
+    html, body { height: 100%; }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+    header { flex-shrink: 0; padding: 10px 16px; }
+    header h1 { font-size: 15px; }
+    #status { font-size: 12px; }
+    .logout-btn { top: 8px; right: 8px; font-size: 11px; padding: 4px 8px; }
+
+    /* 모바일 학생 선택 바 */
+    .mobile-bar {
+      display: flex; gap: 6px; padding: 8px 12px;
+      background: #fff; border-bottom: 1px solid #e5e7eb;
+      flex-shrink: 0; z-index: 50;
+    }
+    .m-sel {
+      flex: 1; padding: 7px 4px;
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      font-size: 13px; background: #f8fafc; color: #334155;
+      min-width: 0; outline: none;
+    }
+
+    /* 데스크탑 사이드바 숨김 */
+    aside { display: none !important; }
+
+    /* 레이아웃 재구성 */
+    .layout {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; padding: 0; gap: 0; height: auto;
+    }
+    main {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; gap: 0; background: #f5f6fa;
+    }
+
+    /* 모바일 학생 헤더 */
+    .m-stu-header {
+      padding: 10px 14px; background: #fff;
+      border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .m-stu-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
+
+    /* 모바일 본문: 세로탭 + 콘텐츠 */
+    .m-body { flex: 1; display: flex; overflow: hidden; }
+
+    /* 세로 탭 */
+    .m-vtabs {
+      width: 66px; flex-shrink: 0;
+      background: #fff; border-right: 1px solid #e5e7eb;
+      overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .m-vtab {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 10px 2px; cursor: pointer;
+      border-left: 3px solid transparent;
+      color: #64748b; gap: 4px;
+      transition: all 0.15s; min-height: 58px;
+    }
+    .m-vtab:active { background: #f1f5f9; }
+    .m-vtab.active {
+      background: #eff6ff; border-left-color: #2563eb;
+      color: #2563eb; font-weight: 700;
+    }
+    .m-vtab-icon { font-size: 18px; line-height: 1; }
+    .m-vtab-label { font-size: 10px; text-align: center; line-height: 1.3; }
+
+    /* 콘텐츠 영역 */
+    .m-content {
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* 카드 모바일 조정 */
+    .card { border-radius: 6px; padding: 12px 14px; margin: 8px; }
+    .tab-content { border-radius: 6px; padding: 12px 14px; margin: 0 8px 8px; }
+    .card.placeholder { margin: 40px 16px; }
+
+    /* 테이블 */
+    .m-content table { font-size: 12px; }
+    .m-content table th, .m-content table td { padding: 6px 5px; }
+
+    /* 차트 */
+    .chart-wrap { height: 200px; }
+    .grade-chart-wrap { min-height: 110px; }
+
+    /* 내신 요약 패널 */
+    .grade-summary-panel { grid-template-columns: 1fr; }
+    .grade-avg-big .avg-val { font-size: 44px; }
+
+    /* 세특 아코디언 */
+    .acc-left { max-width: 100%; padding-right: 4px; }
+    .acc-right { display: none; }
+
+    /* 종합평가 그리드 */
+    .overall-eval-grid { grid-template-columns: 1fr; }
+
+    /* 모의지원 */
+    .apply-wrap { padding: 8px; }
+    .apply-input-row { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -283,6 +388,21 @@
   <h1>📋 오상고 상담카드 시스템 <span class="year" id="headerYear"></span></h1>
   <div id="status">로딩중...</div>
 </header>
+<!-- 모바일 학생 선택 바 (교사/관리자용) -->
+<div class="mobile-bar" id="mobileBar" style="display:none;">
+  <select class="m-sel" id="mGradeFilter" onchange="updateMobileClass()">
+    <option value="">전체학년</option>
+    <option value="1">1학년</option>
+    <option value="2">2학년</option>
+    <option value="3">3학년</option>
+  </select>
+  <select class="m-sel" id="mClassFilter" onchange="updateMobileStudents()">
+    <option value="">전체반</option>
+  </select>
+  <select class="m-sel" id="mStudentSelect" onchange="selectMobileStudent()">
+    <option value="">학생 선택</option>
+  </select>
+</div>
 <div class="layout">
   <aside>
     <input id="search" placeholder="🔍 이름 또는 학번 검색">
@@ -654,6 +774,7 @@ async function init(password){
     renderList();
     initClassFilter();
     preloadAdmissions(); // 백그라운드에서 합불 JSON 프리로드
+    initMobileUI();      // 모바일 UI 초기화
   }catch(e){
     document.getElementById('status').textContent = '오류: '+e.message;
   }
@@ -685,27 +806,64 @@ function renderList(){
 }
 
 function renderMain(){
-  if(!currentStu){ document.getElementById('main').innerHTML='<div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>'; return; }
+  const mainEl = document.getElementById('main');
+  if(!currentStu){
+    mainEl.innerHTML = isMobile()
+      ? '<div class="card placeholder" style="margin:40px 16px;">👆 위에서 학생을 선택하세요</div>'
+      : '<div class="card placeholder">👈 왼쪽에서 학생을 선택하세요</div>';
+    return;
+  }
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
   const isStudent = currentRole && currentRole.startsWith('student_');
   const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가', ...(isStudent ? [] : ['모의지원'])];
-  document.getElementById('main').innerHTML = `
-    <div class="card stu-header">
-      <h2>${s.name} (${s.hak})</h2>
-      <div class="badges">
-        <span class="badge">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
-        <span class="badge ${genderClass}">${s.gender}</span>
-        ${s.g1_hak?`<span class="badge">1학년 학번: ${s.g1_hak}</span>`:''}
-        ${s.g2_hak?`<span class="badge">2학년 학번: ${s.g2_hak}</span>`:''}
+
+  if(isMobile()){
+    // ===== 모바일 레이아웃 =====
+    mainEl.innerHTML = `
+      <div class="m-stu-header">
+        <div>
+          <h2>${s.name}</h2>
+          <div class="badges" style="margin-top:4px;">
+            <span class="badge">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
+            <span class="badge ${genderClass}">${s.gender}</span>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="tabs">${tabs.map(t=>`<div class="tab ${t===currentTab?'active':''}" data-tab="${t}">${t}</div>`).join('')}</div>
-    <div class="tab-content" id="tabContent"></div>
-  `;
-  document.querySelectorAll('.tab').forEach(el=>{
-    el.onclick = ()=>{ currentTab = el.dataset.tab; renderMain(); };
-  });
+      <div class="m-body">
+        <div class="m-vtabs" id="mVtabs">
+          ${tabs.map(t=>`
+            <div class="m-vtab ${t===currentTab?'active':''}" data-tab="${t}">
+              <span class="m-vtab-icon">${TAB_META[t]?.icon||'📄'}</span>
+              <span class="m-vtab-label">${TAB_META[t]?.label||t}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="m-content" id="tabContent"></div>
+      </div>
+    `;
+    document.querySelectorAll('.m-vtab').forEach(el=>{
+      el.onclick = ()=>{ currentTab = el.dataset.tab; renderMain(); };
+    });
+  } else {
+    // ===== 데스크탑 레이아웃 (기존) =====
+    mainEl.innerHTML = `
+      <div class="card stu-header">
+        <h2>${s.name} (${s.hak})</h2>
+        <div class="badges">
+          <span class="badge">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
+          <span class="badge ${genderClass}">${s.gender}</span>
+          ${s.g1_hak?`<span class="badge">1학년 학번: ${s.g1_hak}</span>`:''}
+          ${s.g2_hak?`<span class="badge">2학년 학번: ${s.g2_hak}</span>`:''}
+        </div>
+      </div>
+      <div class="tabs">${tabs.map(t=>`<div class="tab ${t===currentTab?'active':''}" data-tab="${t}">${t}</div>`).join('')}</div>
+      <div class="tab-content" id="tabContent"></div>
+    `;
+    document.querySelectorAll('.tab').forEach(el=>{
+      el.onclick = ()=>{ currentTab = el.dataset.tab; renderMain(); };
+    });
+  }
   renderTab();
 }
 
@@ -2582,6 +2740,97 @@ function updateGradeFilterBtnStyle(){} // 더 이상 사용 안함
 document.getElementById('gradeFilter').onchange = ()=>{ updateClassFilter(); renderList(); };
 document.getElementById('classFilter').onchange = renderList;
 document.getElementById('search').oninput = renderList;
+
+// ========== 모바일 전용 ==========
+function isMobile(){ return window.innerWidth <= 768; }
+
+const TAB_META = {
+  '기본정보':    { icon:'📋', label:'기본' },
+  '모의고사':    { icon:'📊', label:'모고' },
+  '내신':       { icon:'📚', label:'내신' },
+  '세특':       { icon:'✏️', label:'세특' },
+  '창체':       { icon:'🎭', label:'창체' },
+  '행발':       { icon:'📝', label:'행발' },
+  '수상':       { icon:'🏆', label:'수상' },
+  '독서':       { icon:'📖', label:'독서' },
+  '종합역량평가': { icon:'⭐', label:'평가' },
+  '모의지원':   { icon:'🎯', label:'지원' },
+};
+
+function initMobileUI(){
+  if(!isMobile()) return;
+  const bar = document.getElementById('mobileBar');
+  const isStudent = currentRole && currentRole.startsWith('student_');
+
+  if(isStudent){
+    // 학생: 본인 데이터 자동 표시, 선택 바 불필요
+    if(bar) bar.style.display = 'none';
+    if(students.length > 0 && !currentStu){
+      currentStu = students[0];
+      renderMain();
+    }
+  } else {
+    // 교사/관리자: 선택 바 표시
+    if(bar) bar.style.display = 'flex';
+
+    // 역할별 드롭다운 제한
+    const mGf = document.getElementById('mGradeFilter');
+    const mCf = document.getElementById('mClassFilter');
+    if(currentRole && currentRole.startsWith('grade')){
+      const g = currentRole.replace('grade','');
+      if(mGf){ mGf.value = g; mGf.disabled = true; }
+    } else if(currentRole && currentRole.startsWith('class_')){
+      const parts = currentRole.split('_');
+      if(mGf){ mGf.value = parts[1]; mGf.disabled = true; }
+      updateMobileClass();
+      if(mCf){ mCf.value = parseInt(parts[2]); mCf.disabled = true; }
+    }
+    updateMobileClass();
+  }
+}
+
+function updateMobileClass(){
+  const gf = document.getElementById('mGradeFilter')?.value || '';
+  const classEl = document.getElementById('mClassFilter');
+  if(!classEl) return;
+  const classes = [...new Set(
+    students.filter(s => !gf || String(s.hak)[0] === gf)
+      .map(s => parseInt(String(s.hak).substring(1,3)))
+  )].sort((a,b) => a-b);
+  classEl.innerHTML = '<option value="">전체반</option>' +
+    classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+  updateMobileStudents();
+}
+
+function updateMobileStudents(){
+  const gf = document.getElementById('mGradeFilter')?.value || '';
+  const cf = document.getElementById('mClassFilter')?.value || '';
+  const stuEl = document.getElementById('mStudentSelect');
+  if(!stuEl) return;
+  const filtered = students.filter(s => {
+    const hak = String(s.hak);
+    if(gf && hak[0] !== gf) return false;
+    if(cf && parseInt(hak.substring(1,3)) !== parseInt(cf)) return false;
+    return true;
+  });
+  stuEl.innerHTML = '<option value="">학생 선택</option>' +
+    filtered.map(s => `<option value="${s.hak}">${s.name} (${s.hak})</option>`).join('');
+  // 현재 선택된 학생 유지
+  if(currentStu) stuEl.value = String(currentStu.hak);
+}
+
+function selectMobileStudent(){
+  const hak = document.getElementById('mStudentSelect')?.value;
+  if(!hak){ currentStu = null; renderMain(); return; }
+  currentStu = students.find(s => String(s.hak) === hak);
+  if(currentStu){ openAccordions.clear(); renderMain(); }
+}
+
+// 화면 회전/크기 변경 대응
+window.addEventListener('resize', ()=>{
+  if(currentRole) initMobileUI();
+  if(currentStu) renderMain();
+});
 
 </script>
 </body>
