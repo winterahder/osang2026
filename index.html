@@ -832,6 +832,9 @@ function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
   const grade = parseInt(s.grade) || parseInt(String(s.hak)[0]);
+  // 3학년은 9등급제 자동 설정, 1~2학년은 5등급제
+  if(grade >= 3) gradeScale = 9;
+  else gradeScale = 5;
   let data = grades[hak];
   // 현재학번으로 못 찾으면 이전 학번으로 fallback (2학년/3학년 공통)
   if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
@@ -852,7 +855,8 @@ function renderGrades(el){
     const isActive = k==='전체' ? selectedSubjectFilters.size===0 : selectedSubjectFilters.has(k);
     return `<button class="toggle-btn ${isActive?'active':''}" data-subjfilter="${k}">${k}</button>`;
   }).join('');
-  const scaleBtn = `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
+  // 3학년은 이미 9등급제이므로 환산 버튼 숨김
+  const scaleBtn = grade >= 3 ? '' : `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
   const rankBtn  = `<button class="toggle-btn rank-btn ${showRank?'active':''}" data-rank="toggle">🏅 학교 등수</button>`;
   const semesters = Object.keys(data.grades).sort();
 
