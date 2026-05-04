@@ -501,7 +501,7 @@ async function loadJSON(url,pw){
 }
 
 /* ========== 상태 ========== */
-let students=[],sewtuk={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
+let students=[],sewtuk={},changche={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
 let chatHistory=[],filterMode='all',isGenAll=false;
 let pending={};
 let pendingOverall={};
@@ -626,12 +626,14 @@ async function loadData(){
   const errEl=document.getElementById('lockError');
   errEl.textContent='데이터 불러오는 중...';
   try{
-    const [s, sw]=await Promise.all([
+    const [s, sw, cc]=await Promise.all([
       apiGet({action:'getStudents',password:currentPw}),
-      apiGet({action:'getSewtuk',password:currentPw})
+      apiGet({action:'getSewtuk',password:currentPw}),
+      apiGet({action:'getChangche',password:currentPw}).catch(()=>({}))
     ]);
     students=s||[];
     sewtuk=sw||{};
+    changche=cc||{};
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('progressWrap').style.display='block';
     updateProgress(); renderList();
@@ -1368,13 +1370,8 @@ async function renderChangchePanel(){
   if(!currentStu){ panel.innerHTML='<div style="color:var(--muted);padding:20px;">학생을 선택하세요</div>'; return; }
   const hak = String(currentStu.hak);
 
-  // 창체 데이터 로드
-  panel.innerHTML = '<div style="color:var(--muted);padding:20px;">창체 데이터 불러오는 중...</div>';
-  let ccData = null;
-  try{
-    const res = await apiGet({action:'getChangche', password:currentPw});
-    ccData = res?.[hak] || null;
-  }catch(e){}
+  // ★ 캐시된 데이터 사용 (서버 재호출 없음)
+  const ccData = changche[hak] || null;
 
   if(!ccData?.activities?.length){
     panel.innerHTML = '<div style="color:var(--muted);padding:20px;">창체 데이터가 없습니다.</div>';
@@ -1459,8 +1456,7 @@ function toggleHbOverall(){
 
 async function generateAllCcSummary(){
   const hak = String(currentStu.hak);
-  const res = await apiGet({action:'getChangche', password:currentPw});
-  const ccData = res?.[hak];
+  const ccData = changche[hak];
   if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
   addMsgToChat('chatBodyCc','assistant',`🎭 창체 전체 요약을 시작합니다. 총 ${ccData.activities.length}개 활동을 순서대로 생성합니다.`);
   for(let i=0;i<ccData.activities.length;i++){
@@ -1474,8 +1470,7 @@ async function generateCcItemSummary(idx){
   const btn = document.getElementById('btnCcItem'+idx);
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
-    const res = await apiGet({action:'getChangche', password:currentPw});
-    const acts = res?.[hak]?.activities || [];
+    const acts = changche[hak]?.activities || [];
     const a = acts[idx];
     if(!a) throw new Error('활동 데이터 없음');
 
@@ -1522,8 +1517,7 @@ async function generateCcOverall(){
   const btn = document.getElementById('btnCcOverall');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
-    const res = await apiGet({action:'getChangche', password:currentPw});
-    const acts = res?.[hak]?.activities || [];
+    const acts = changche[hak]?.activities || [];
     if(!acts.length) throw new Error('창체 데이터 없음');
     const summary = acts.map(a=>`[${a.학년}학년 ${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,300)}`).join('\n');
 
@@ -1819,17 +1813,14 @@ async function generateComprehensiveEval(){
     `[${s.교과} - ${s.과목}]\n${(s.내용||'').substring(0,400)}`
   ).join('\n\n');
 
-  // 창체 데이터
+  // 창체 데이터 (★ 캐시 사용)
   let changcheSummary='창체 데이터 없음';
-  try{
-    const ccRes=await apiGet({action:'getChangche',password:currentPw});
-    const ccData=ccRes?.[hak]||ccRes?.[String(currentStu.g2_hak)]||null;
-    if(ccData?.activities?.length){
-      changcheSummary=ccData.activities.map(a=>
-        `[${a.학년||''}학년 ${a.분류||''}] ${a.활동명||''}: ${(a.내용||'').substring(0,200)}`
-      ).join('\n');
-    }
-  }catch(e){}
+  const ccData = changche[hak] || changche[String(currentStu.g2_hak)] || null;
+  if(ccData?.activities?.length){
+    changcheSummary = ccData.activities.map(a=>
+      `[${a.학년||''}학년 ${a.분류||''}] ${a.활동명||''}: ${(a.내용||'').substring(0,200)}`
+    ).join('\n');
+  }
 
   // 행발 데이터
   const haengbal=sewtuk[hak]?.['행발']||{};
