@@ -1403,8 +1403,8 @@ async function renderChangchePanel(){
   const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
-    const saved = sw.창체요약?.[String(i)] || sw.창체요약?.[i];
-    const ccEval = sw.창체활동평가?.[String(i)] || sw.창체활동평가?.[i];
+    const saved = sw.창체요약?.[String(i)] || sw.창체요약?.[i] || a.요약 || null;
+    const ccEval = sw.창체활동평가?.[String(i)] || sw.창체활동평가?.[i] || a.평가 || null;
     return `
       <div class="cc-item">
         <div class="cc-item-head" onclick="toggleCcItem(${i})">
@@ -1421,7 +1421,7 @@ async function renderChangchePanel(){
         <div class="cc-item-body" id="ccItem${i}">
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
           ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
-            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
+            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : (typeof saved==='string'?saved:JSON.stringify(saved))}
           </div>` : ''}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
         </div>
