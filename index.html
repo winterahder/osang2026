@@ -368,7 +368,8 @@ let currentPassword = '';
 let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
 let openAccordions = new Set();
-let gradeScale = 5; // 5 or 9
+let gradeScale = 5; // 5 or 9 (1·2학년 전용 변환 토글)
+let currentGradeIs9 = false; // 현재 학생이 3학년(9등급제)인지 — 레이블·축 표시 전용
 let changcheGrade = '전체 학년', changcheCat = '전체';
 
 // ========== 9등급 환산 로직 (성취도 분포 + 원점수 기반 추정) ==========
@@ -832,9 +833,8 @@ function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
   const grade = parseInt(s.grade) || parseInt(String(s.hak)[0]);
-  // 3학년은 9등급제 자동 설정, 1~2학년은 5등급제
-  if(grade >= 3) gradeScale = 9;
-  else gradeScale = 5;
+  // 3학년은 원래 9등급제 데이터 — gradeScale 변환 로직은 건드리지 않고 표시 전용 플래그만 세팅
+  currentGradeIs9 = (grade >= 3);
   let data = grades[hak];
   // 현재학번으로 못 찾으면 이전 학번으로 fallback (2학년/3학년 공통)
   if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
@@ -862,7 +862,7 @@ function renderGrades(el){
 
   let html = `<div style="margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;"><span class="filter-label">📚 교과:</span><div class="toggle-group" style="margin:0;">${subjectBtns}${scaleBtn}${rankBtn}</div></div>`;
 
-  if(gradeScale === 9){
+  if(gradeScale === 9 && !currentGradeIs9){
     html += `<div class="est-info">
       <strong>📊 9등급 환산</strong> — 실제 석차 기반으로 표준 내신 9등급 컷(상위 4/11/23/40/60/77/89/96%)에 따라 환산합니다.
       석차 없는 과목(체육·예술 등)은 기존 성취도 표시.<br>
@@ -937,7 +937,7 @@ function renderGradeFilterSummary(data, semesters){
   filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; cntWithGrade++; } });
   const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
   const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
-  const is9 = gradeScale===9;
+  const is9 = currentGradeIs9 || gradeScale===9;
   const scaleLabel = is9 ? ' (9등급)' : '';
 
   // 등수 카드
@@ -1026,7 +1026,7 @@ function drawGradeChart(data, semesters){
   const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
   const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
 
-  const is9       = gradeScale === 9;
+  const is9       = currentGradeIs9 || gradeScale === 9;
   const mainColor = is9 ? '#9333ea' : '#2563eb';
   const maxG      = is9 ? 9 : 5;
 
