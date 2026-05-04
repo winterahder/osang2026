@@ -2221,22 +2221,21 @@ function renderChangche(el){
 
   // 종합평가 카드 표시
   if(ccOverall && typeof ccOverall === 'object'){
-    html += `<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 창체 종합 역량 평가</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-        \${['학업역량','진로역량','공동체역량'].map(k=>{
-          const d=ccOverall[k]; if(!d) return '';
-          return '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">'+k+'</div><div style="font-size:22px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.근거||'')+'</div></div>';
-        }).join('')}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-        \${['자율활동','동아리활동','진로활동'].map(k=>{
-          const d=ccOverall[k]; if(!d) return '';
-          return '<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:10px;color:#64748b;margin-bottom:2px;">'+k+'</div><div style="font-size:18px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.comment||'')+'</div></div>';
-        }).join('')}
-      </div>
-      \${ccOverall.종합의견?'<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">'+ccOverall.종합의견+'</div>':''}
-    </div>`;
+    const roleCards = ['학업역량','진로역량','공동체역량'].map(k=>{
+      const d=ccOverall[k]; if(!d) return '';
+      return '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">'+k+'</div><div style="font-size:22px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.근거||'')+'</div></div>';
+    }).join('');
+    const actCards = ['자율활동','동아리활동','진로활동'].map(k=>{
+      const d=ccOverall[k]; if(!d) return '';
+      return '<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:10px;color:#64748b;margin-bottom:2px;">'+k+'</div><div style="font-size:18px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.comment||'')+'</div></div>';
+    }).join('');
+    const opinionHtml = ccOverall.종합의견 ? '<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">'+ccOverall.종합의견+'</div>' : '';
+    html += '<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;margin-bottom:14px;">'
+          + '<div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 창체 종합 역량 평가</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">' + roleCards + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">' + actCards + '</div>'
+          + opinionHtml
+          + '</div>';
   }
 
   html += `
