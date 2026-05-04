@@ -1082,6 +1082,7 @@ function drawGradeChart(data, semesters){
     data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: is9 ? 28 : 18 } },
       plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
         tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2)+'등급' : '-'}` } }
