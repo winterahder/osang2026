@@ -832,9 +832,6 @@ function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
   const grade = parseInt(s.grade) || parseInt(String(s.hak)[0]);
-  // 3학년은 9등급제 자동 설정, 1~2학년은 5등급제
-  if(grade >= 3) gradeScale = 9;
-  else gradeScale = 5;
   let data = grades[hak];
   // 현재학번으로 못 찾으면 이전 학번으로 fallback (2학년/3학년 공통)
   if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
