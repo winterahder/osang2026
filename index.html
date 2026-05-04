@@ -2599,6 +2599,16 @@ function renderMock(el){
   if(rounds.length===0){ el.innerHTML='<div class="placeholder">모의고사 데이터가 없습니다</div>'; return; }
   rounds.sort((a,b)=>ROUND_ORDER.indexOf(a.round)-ROUND_ORDER.indexOf(b.round));
 
+  // ★ 선택과목명 추출 (선택 필드가 있는 경우)
+  const subjectNames = {};
+  rounds.forEach(r => {
+    SUBJECTS.forEach(sub => {
+      const sel = r[sub]?.선택;
+      if(sel && sel.trim() && !subjectNames[sub]) subjectNames[sub] = sel.trim();
+    });
+  });
+  const hasSubjectNames = Object.keys(subjectNames).length > 0;
+
   // 모드별 평균/합계 열 헤더 텍스트
   const summaryHeaders = {
     '등급':    '평균등급<br><span style="font-weight:400;font-size:11px;">(한국사 제외)</span>',
@@ -2617,14 +2627,12 @@ function renderMock(el){
     if(mode === '등급')   return getHeatClass(Math.round(parseFloat(val)), '등급', '국어');
     if(mode === '백분위') return getHeatClass(parseFloat(val), '백분위', '국어');
     if(mode === '표준점수'){
-      // 합계 기준 (국수탐1탐2, 만점 400점대)
       const s = parseFloat(val);
       if(s>=360) return 'heat-1'; if(s>=330) return 'heat-2'; if(s>=300) return 'heat-3';
       if(s>=270) return 'heat-4'; if(s>=240) return 'heat-5'; if(s>=210) return 'heat-6';
       if(s>=180) return 'heat-7'; if(s>=150) return 'heat-8'; return 'heat-9';
     }
     if(mode === '원점수'){
-      // 합계 기준 (국수영탐1탐2, 만점 500점)
       const s = parseFloat(val);
       if(s>=450) return 'heat-1'; if(s>=400) return 'heat-2'; if(s>=350) return 'heat-3';
       if(s>=300) return 'heat-4'; if(s>=250) return 'heat-5'; if(s>=200) return 'heat-6';
@@ -2633,7 +2641,7 @@ function renderMock(el){
     return '';
   }
 
-  // 회차별 행
+  // 회차별 행 — 헤더 과목명과 다른 회차는 셀 안에 별도 표시
   const roundRows = rounds.map(r=>{
     const summary = calcMockSummary(r, currentMode);
     const hc = summary ? getSummaryHeatClass(summary.val, currentMode) : '';
@@ -2645,7 +2653,21 @@ function renderMock(el){
         <div style="font-size:13px;font-weight:600;color:#334155;">${ROUND_LABEL[r.round]||r.round}</div>
       </td>
       ${summaryCell}
-      ${SUBJECTS.map(sub=>renderCell(r,sub)).join('')}
+      ${SUBJECTS.map(sub=>{
+        const d = r[sub];
+        const cell = renderCell(r, sub);
+        const sel = d?.선택?.trim();
+        if(!sel) return cell;
+        // 탐구1/탐구2: 회차마다 과목이 다를 수 있으므로 셀 안에 항상 표시
+        if(sub === '탐구1' || sub === '탐구2'){
+          return cell.replace('</td>', `<div style="font-size:9px;color:#6366f1;margin-top:1px;">${sel}</div></td>`);
+        }
+        // 그 외(수학 등): 헤더와 다를 때만 표시
+        if(sel !== subjectNames[sub]){
+          return cell.replace('</td>', `<div style="font-size:9px;color:#6366f1;margin-top:1px;">${sel}</div></td>`);
+        }
+        return cell;
+      }).join('')}
     </tr>`;
   }).join('');
 
@@ -2655,10 +2677,14 @@ function renderMock(el){
       <thead><tr>
         <th>회차</th>
         <th style="color:#6d28d9;">${summaryHeaders[currentMode]||''}</th>
-        ${SUBJECTS.map(s=>`<th>${s}</th>`).join('')}
+        ${SUBJECTS.map(s=>{
+          const sn = subjectNames[s];
+          return `<th>${s}${sn ? `<br><span style="font-size:10px;font-weight:400;color:#6366f1;">${sn}</span>` : ''}</th>`;
+        }).join('')}
       </tr></thead>
       <tbody>${roundRows}</tbody>
     </table>
+    ${hasSubjectNames ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;padding:0 2px;">📌 선택과목: ${Object.entries(subjectNames).map(([k,v])=>`${k} → ${v}`).join(' · ')}</div>` : ''}
     <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
   `;
   el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
