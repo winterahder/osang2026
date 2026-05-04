@@ -816,6 +816,7 @@ function renderMain(){
         <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <!-- 창체 전용 버튼 -->
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
+        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#06b6d4,#0891b2);display:none;" onclick="generateAllCcEval()">📊 전체 역량 평가 생성</button>
         <!-- 공통 버튼 -->
         <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특+창체+행발)</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
@@ -1461,6 +1462,7 @@ async function renderChangchePanel(){
             ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
           </div>` : ''}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
+          <button class="btn-subj-overall" onclick="generateCcItemEval(${i})" id="btnCcEval${i}" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:4px;">📊 역량 평가 생성</button>
         </div>
       </div>`;
   }).join('');
@@ -1497,6 +1499,58 @@ function toggleHbOverall(){
   if(arrow) arrow.textContent = isOpen ? '▲' : '▼';
 }
 
+
+async function generateCcItemEval(idx){
+  const hak = String(currentStu.hak);
+  const btnId = 'btnCcEval'+idx;
+  const btn = document.getElementById(btnId);
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 평가 중...'; }
+  try{
+    const acts = changche[hak]?.activities || [];
+    const a = acts[idx];
+    if(!a) throw new Error('활동 데이터 없음');
+    const text = await callAPI(
+      `당신은 대입 전형 전문 입학사정관입니다. 창체 활동 1개를 분석하여 역량 평가를 생성하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{"학업역량":{"grade":"A","세부":{"학업성취도":"B","학업태도":"A","탐구력":"A"}},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"A"}},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"B","성실성":"A","리더십":"C"}},"근거":"이 활동에서 드러난 핵심 역량 근거 40자이내"}
+
+등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
+내용: ${a.내용}`}],
+      800
+    );
+    let obj;
+    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch{ throw new Error('JSON 파싱 실패'); }
+    if(!changche[hak]) changche[hak]={};
+    if(!changche[hak].창체활동평가) changche[hak].창체활동평가={};
+    changche[hak].창체활동평가[idx] = obj;
+    await saveChangcheToSheet(hak);
+    addMsgToChat('chatBodyCc','assistant',
+      `✅ **${a.활동명}** 역량 평가 완료!
+
+📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`
+    );
+    renderChangchePanel();
+  }catch(e){
+    addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='📊 역량 평가 생성'; }
+  }
+}
+
+async function generateAllCcEval(){
+  const hak = String(currentStu.hak);
+  const ccData = changche[hak];
+  if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
+  addMsgToChat('chatBodyCc','assistant',`📊 창체 전체 역량 평가를 시작합니다. 총 ${ccData.activities.length}개 활동을 순서대로 생성합니다.`);
+  for(let i=0;i<ccData.activities.length;i++){
+    await generateCcItemEval(i);
+  }
+  addMsgToChat('chatBodyCc','assistant','✅ 창체 전체 역량 평가 완료!');
+}
 async function generateAllCcSummary(){
   const hak = String(currentStu.hak);
   const ccData = changche[hak];
@@ -1538,10 +1592,10 @@ async function generateCcItemSummary(idx){
     try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
     catch{ arr=[text.trim()]; }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    if(!sewtuk[hak].창체요약) sewtuk[hak].창체요약={};
-    sewtuk[hak].창체요약[idx] = arr;
-    await saveToSheet(hak);
+    if(!changche[hak]) changche[hak]={};
+    if(!changche[hak].창체요약) changche[hak].창체요약={};
+    changche[hak].창체요약[idx] = arr;
+    await saveChangcheToSheet(hak);
     addMsgToChat('chatBodyCc', 'assistant',
       `✅ **${a.활동명}** 요약 완료!
 
@@ -1579,9 +1633,9 @@ async function generateCcOverall(){
     try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
     catch{ throw new Error('JSON 파싱 실패'); }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].창체종합평가 = obj;
-    await saveToSheet(hak);
+    if(!changche[hak]) changche[hak]={};
+    changche[hak].창체종합평가 = obj;
+    await saveChangcheToSheet(hak);
     renderCcOverallSection(obj, false);
     addMsgToChat('chatBodyCc','assistant',
       `✅ 창체 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
@@ -2273,6 +2327,12 @@ async function saveToSheet(hak){
   const data=sewtuk[String(hak)];
   if(!data) return;
   await apiPost({action:'saveSewtuk', password:currentPw, hak:String(hak), sewtukData:data});
+}
+
+async function saveChangcheToSheet(hak){
+  const cc = changche[String(hak)];
+  if(!cc) return;
+  await apiPost({action:'saveChangche', password:currentPw, hak:String(hak), changcheData:cc});
 }
 
 async function exportJSON(){
