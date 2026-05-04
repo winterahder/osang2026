@@ -820,7 +820,15 @@ function renderGrades(el){
   // 현재학번으로 못 찾으면 이전 학번으로 fallback (2학년/3학년 공통)
   if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
   if(!data && s.g1_hak) data = grades[String(s.g1_hak)];
-  if(!data || !data.grades){
+  if(!data){
+    el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다</div>`;
+    return;
+  }
+  // {"grades":{...}} 구조와 {"1-1":{...}} 구조 모두 대응
+  if(!data.grades && (data['1-1'] || data['1-2'] || data['2-1'] || data['2-2'])) {
+    data = { grades: data };
+  }
+  if(!data.grades){
     el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다</div>`;
     return;
   }
