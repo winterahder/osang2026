@@ -2004,8 +2004,10 @@ function renderCompEvalPanel(eval_){
 }
 
 // ========== AI 종합 평가 패널 (admin에서 생성한 데이터) ==========
-function renderAIOverallPanel(overall){
+function renderAIOverallPanel(overall, title, scope){
   if(!overall) return '';
+  title = title || '🎯 AI 종합 역량 평가';
+  scope = scope || '전체 세특 AI 분석';
   const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
   const pid=`aop-${Math.random().toString(36).slice(2,6)}`;
 
@@ -2032,8 +2034,8 @@ function renderAIOverallPanel(overall){
 
   return `<div class="overall-eval-panel">
     <div class="overall-eval-header">
-      <div class="overall-eval-header-title">🎯 AI 종합 역량 평가</div>
-      <span class="overall-eval-scope">전체 세특 AI 분석</span>
+      <div class="overall-eval-header-title">${title}</div>
+      <span class="overall-eval-scope">${scope}</span>
     </div>
     <div class="overall-eval-grid">
       ${card('학업역량','📚 학업역량')}
@@ -2196,6 +2198,34 @@ function renderSewtuk(el){
 const CHANGCHE_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const CHANGCHE_CATS   = ['전체','자율','동아리','진로'];
 
+function renderCcOverallPanel(ccOverall, cat){
+  // 전체: 창체종합평가(AI 생성) 사용
+  // 분류별: 창체분류평가[cat] 사용
+  if(cat === '전체'){
+    if(!ccOverall || typeof ccOverall !== 'object') return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 창체 종합 평가 없음<br><small>admin에서 AI 종합 평가를 먼저 생성해주세요</small></div></div>';
+    return renderAIOverallPanel(ccOverall, '🎭 창체 종합 역량 평가', '창체 AI 분석');
+  } else {
+    const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+    if(!ccOverall || typeof ccOverall !== 'object') return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 '+cat+' 평가 없음<br><small>admin에서 AI 종합 평가를 먼저 생성해주세요</small></div></div>';
+    const catIcon = {'자율':'🏫','동아리':'🎸','진로':'🎯'}[cat]||'📌';
+    const d = ccOverall[cat+'활동'] || ccOverall[cat];
+    const pid = 'ccp-'+Math.random().toString(36).slice(2,6);
+    if(!d) return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 '+cat+' 분류 평가 없음</div></div>';
+    const color = GC[d.grade]||'#64748b';
+    return `<div class="overall-eval-panel">
+      <div class="overall-eval-header">
+        <div class="overall-eval-header-title">${catIcon} ${cat}활동 평가</div>
+        <span class="overall-eval-scope">AI 분석</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;padding:12px 14px;background:#f8fafc;border-radius:10px;margin-bottom:10px;">
+        <div style="font-size:48px;font-weight:900;color:${color};line-height:1;">${d.grade||'?'}</div>
+        <div style="font-size:13px;color:#475569;line-height:1.8;">${escapeHtml(d.근거||d.comment||'')}</div>
+      </div>
+      ${d.종합의견?`<div style="font-size:13px;color:#475569;line-height:1.7;padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color};">💬 ${escapeHtml(d.종합의견)}</div>`:''}
+    </div>`;
+  }
+}
+
 function renderChangche(el){
   const hak = String(currentStu.hak);
   const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
@@ -2206,6 +2236,7 @@ function renderChangche(el){
     el.innerHTML = `<div class="no-data">📋 창체 데이터가 없습니다<br><small style="color:#94a3b8;">(추후 업데이트 예정)</small></div>`;
     return;
   }
+
   const gradeBtns = CHANGCHE_GRADES.map(g=>`<button class="toggle-btn ${g===changcheGrade?'active':''}" data-cgfil="${g}">${g}</button>`).join('');
   const catBtns   = CHANGCHE_CATS.map(c=>`<button class="toggle-btn ${c===changcheCat?'active':''}" data-ccfil="${c}">${c}</button>`).join('');
 
@@ -2215,33 +2246,18 @@ function renderChangche(el){
     return true;
   });
 
-  const ccOverall = sewtuk[hak]?.창체종합평가;
-  const colorMap = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
-  let html = '';
+  // 종합평가 데이터 (전체: 창체종합평가, 분류별: 창체종합평가 내 분류 데이터 활용)
+  const ccOverall = sewtuk[hak]?.창체종합평가 || null;
 
-  // 종합평가 카드 표시
-  if(ccOverall && typeof ccOverall === 'object'){
-    const roleCards = ['학업역량','진로역량','공동체역량'].map(k=>{
-      const d=ccOverall[k]; if(!d) return '';
-      return '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">'+k+'</div><div style="font-size:22px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.근거||'')+'</div></div>';
-    }).join('');
-    const actCards = ['자율활동','동아리활동','진로활동'].map(k=>{
-      const d=ccOverall[k]; if(!d) return '';
-      return '<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:10px;color:#64748b;margin-bottom:2px;">'+k+'</div><div style="font-size:18px;font-weight:800;color:'+(colorMap[d.grade]||'#64748b')+'">'+d.grade+'</div><div style="font-size:10px;color:#94a3b8;">'+(d.comment||'')+'</div></div>';
-    }).join('');
-    const opinionHtml = ccOverall.종합의견 ? '<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">'+ccOverall.종합의견+'</div>' : '';
-    html += '<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;margin-bottom:14px;">'
-          + '<div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 창체 종합 역량 평가</div>'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">' + roleCards + '</div>'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">' + actCards + '</div>'
-          + opinionHtml
-          + '</div>';
-  }
-
-  html += `
-    <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
-    <div class="filter-row"><span class="filter-label">🎯 분류</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
-    <div style="color:#64748b;font-size:12px;margin-bottom:12px;">총 ${filtered.length}개 활동 · 클릭하면 전문이 펼쳐집니다</div>
+  let html = `
+    <div class="sewtuk-top-wrap">
+      <div class="sewtuk-filters">
+        <div class="filter-row"><span class="filter-label">📚 학년</span><div class="toggle-group" style="margin:0;">${gradeBtns}</div></div>
+        <div class="filter-row"><span class="filter-label">🎭 분류</span><div class="toggle-group" style="margin:0;">${catBtns}</div></div>
+        <div style="color:#64748b;font-size:12px;margin-top:6px;">총 ${filtered.length}개 활동 · 클릭하면 전문이 펼쳐집니다</div>
+      </div>
+      ${renderCcOverallPanel(ccOverall, changcheCat)}
+    </div>
   `;
 
   if(filtered.length===0){
@@ -2250,21 +2266,22 @@ function renderChangche(el){
     filtered.forEach(a=>{
       const key = `cc-${a.학년}-${a.분류}-${a.활동명}`;
       const isOpen = openAccordions.has(key);
+      const allActs = data.activities || [];
+      const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
+      const saved = (sewtuk[hak]||{}).창체요약?.[actIdx] || a.요약 || '';
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
-            <div class="accordion-title">
+            <div class="acc-left accordion-title">
               <div class="acc-top-row">
                 <span class="sub-cat">${a.분류}</span>
                 <span class="sub-name">${a.활동명}</span>
                 <span class="sub-meta">${a.학년}학년</span>
+                <div class="status-badges">
+                  <span class="status-badge ${saved?'sb-done':'sb-none'}">${saved?'✓ 요약':'요약 미완료'}</span>
+                </div>
               </div>
-              ${(()=>{
-                const allActs2 = data.activities || [];
-                const actIdx2 = allActs2.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
-                const saved = (sewtuk[hak]||{}).창체요약?.[actIdx2] || a.요약 || '';
-                return renderSummary(saved);
-              })()}
+              ${renderSummary(saved)}
             </div>
             <span class="arrow">▶</span>
           </div>
