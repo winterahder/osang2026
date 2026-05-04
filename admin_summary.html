@@ -773,6 +773,7 @@ function renderMain(){
         <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <!-- 창체 전용 버튼 -->
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
+        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#06b6d4,#0891b2);display:none;" onclick="generateAllCcEval()">📊 전체 역량 평가 생성</button>
         <!-- 공통 버튼 -->
         <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특+창체+행발)</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
@@ -1418,6 +1419,7 @@ async function renderChangchePanel(){
             ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
           </div>` : ''}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
+          <button class="btn-subj-overall" onclick="generateCcItemEval(${i})" id="btnCcEval${i}" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:4px;">📊 역량 평가 생성</button>
         </div>
       </div>`;
   }).join('');
@@ -1452,6 +1454,65 @@ function toggleHbOverall(){
   const isOpen = body.classList.toggle('open');
   if(head) head.classList.toggle('collapsed', !isOpen);
   if(arrow) arrow.textContent = isOpen ? '▲' : '▼';
+}
+
+
+async function generateCcItemEval(idx){
+  const hak = String(currentStu.hak);
+  const btnId = 'btnCcEval'+idx;
+  const btn = document.getElementById(btnId);
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 평가 중...'; }
+  try{
+    const acts = changche[hak]?.activities || [];
+    const a = acts[idx];
+    if(!a) throw new Error('활동 데이터 없음');
+
+    const text = await callAPI(
+      `당신은 대입 전형 전문 입학사정관입니다. 창체 활동 1개를 분석하여 역량 평가를 생성하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{"학업역량":{"grade":"A","세부":{"학업성취도":"B","학업태도":"A","탐구력":"A"}},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"A"}},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"B","성실성":"A","리더십":"C"}},"근거":"이 활동에서 드러난 핵심 역량 근거 40자이내"}
+
+등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)
+- 창체 활동 특성상 학업성취도보다 탐구력·진로탐색·공동체 지표에 집중
+- 활동 내용에 근거가 없는 지표는 E 처리`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})
+활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
+내용: ${a.내용}`}],
+      800
+    );
+
+    let obj;
+    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch{ throw new Error('JSON 파싱 실패'); }
+
+    if(!sewtuk[hak]) sewtuk[hak]={};
+    if(!sewtuk[hak].창체활동평가) sewtuk[hak].창체활동평가={};
+    sewtuk[hak].창체활동평가[idx] = obj;
+    await saveToSheet(hak);
+    addMsgToChat('chatBodyCc','assistant',
+      `✅ **${a.활동명}** 역량 평가 완료!
+
+` +
+      `📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`
+    );
+    renderChangchePanel();
+  }catch(e){
+    addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='📊 역량 평가 생성'; }
+  }
+}
+
+async function generateAllCcEval(){
+  const hak = String(currentStu.hak);
+  const ccData = changche[hak];
+  if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
+  addMsgToChat('chatBodyCc','assistant',`📊 창체 전체 역량 평가를 시작합니다. 총 ${ccData.activities.length}개 활동을 순서대로 생성합니다.`);
+  for(let i=0;i<ccData.activities.length;i++){
+    await generateCcItemEval(i);
+  }
+  addMsgToChat('chatBodyCc','assistant','✅ 창체 전체 역량 평가 완료!');
 }
 
 async function generateAllCcSummary(){
@@ -1554,15 +1615,19 @@ function renderCcOverallSection(data, isPend){
   if(!el) return;
   if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
   const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
+  const subLine = (sebu, keys, labels) => keys.map((k,i)=>{
+    const g=sebu?.[k]; if(!g||g==='E') return '';
+    return `<span style="color:${colorMap[g]||'#64748b'};font-weight:700;">${g}</span><span style="color:var(--muted);"> ${labels[i]}</span>`;
+  }).filter(Boolean).join(' · ');
   el.innerHTML=`
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      ${['학업역량','진로역량','공동체역량'].map(k=>{
+      ${[['학업역량',['학업성취도','학업태도','탐구력'],['성취도','태도','탐구']],['진로역량',['전공적합성','진로탐색'],['전공','진로탐색']],['공동체역량',['협업소통','나눔배려','성실성','리더십'],['협업','나눔','성실','리더']]].map(([k,keys,labels])=>{
         const d=data[k]; if(!d) return '';
         return `<div class="overall-card">
           <div class="overall-card-label">${k}</div>
           <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-          <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
+          <div class="overall-card-subs" style="font-size:10px;line-height:1.8;">${subLine(d.세부,keys,labels)||d.근거||''}</div>
         </div>`;
       }).join('')}
     </div>
