@@ -833,7 +833,6 @@ function renderMain(){
   `;
   renderPanel(); renderChatBody(); renderOverallSection();
   // 탭 상태 초기화 + 탭별 버튼 초기화
-  // currentMainTab 유지 (학생 전환 시 탭 유지)
   const _savedMainTab = currentMainTab || 'sewtuk';
   setTimeout(()=>{
     document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=(_savedMainTab==='changche'?'':'none'));
@@ -1403,7 +1402,8 @@ async function renderChangchePanel(){
   const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
-    const saved = sw.창체요약?.[String(i)] || sw.창체요약?.[i] || a.요약 || null;
+    const _rawSaved = sw.창체요약?.[String(i)] || sw.창체요약?.[i] || a.요약 || null;
+    const saved = (Array.isArray(_rawSaved) && _rawSaved.length === 0) ? null : _rawSaved;
     const ccEval = sw.창체활동평가?.[String(i)] || sw.창체활동평가?.[i] || a.평가 || null;
     return `
       <div class="cc-item">
@@ -1421,7 +1421,7 @@ async function renderChangchePanel(){
         <div class="cc-item-body" id="ccItem${i}">
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
           ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
-            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : (typeof saved==='string'?saved:JSON.stringify(saved))}
+            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
           </div>` : ''}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
         </div>
