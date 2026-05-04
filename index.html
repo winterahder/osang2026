@@ -595,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('lockSpinner').classList.add('show');
       const autoTimer = setTimeout(() => {
         document.getElementById('lockSpinner').classList.remove('show');
-      }, 5000);
+      }, 30000);
       init(saved.token).then(() => {
         clearTimeout(autoTimer);
         document.getElementById('lockScreen').classList.add('hidden');
@@ -613,19 +613,23 @@ document.addEventListener('DOMContentLoaded', () => {
 async function init(password){
   currentPassword = password;
   try{
-    // 학생/모의고사/내신/세특/창체 병렬 로드
-    const [s, m] = await Promise.all([
-      apiGet({ action: 'getStudents', password }),
-      apiGet({ action: 'getMockExam', password })
+    // 전체 병렬 로드 (속도 최적화)
+    const [s, m, g, sw, cc, refs, ci] = await Promise.all([
+      apiGet({ action: 'getStudents',    password }).catch(()=>null),
+      apiGet({ action: 'getMockExam',    password }).catch(()=>null),
+      apiGet({ action: 'getGrades',      password }).catch(()=>null),
+      apiGet({ action: 'getSewtuk',      password }).catch(()=>null),
+      apiGet({ action: 'getChangche',    password }).catch(()=>null),
+      apiGet({ action: 'getReferences',  password }).catch(()=>null),
+      apiGet({ action: 'getCutoffIndex', password }).catch(()=>null),
     ]);
     students = s || [];
-    mock = m || {};
-
-    try{ const g = await apiGet({ action: 'getGrades', password }); if(g) grades = g; }catch(e){}
-    try{ const sw = await apiGet({ action: 'getSewtuk', password }); if(sw) sewtuk = sw; }catch(e){}
-    try{ const cc = await apiGet({ action: 'getChangche', password }); if(cc) changche = cc; }catch(e){}
-    try{ const refs = await apiGet({ action: 'getReferences', password }); if(refs) referencesList = refs; }catch(e){}
-    try{ const ci = await apiGet({ action: 'getCutoffIndex', password }); if(ci) cutoffIndex = ci; }catch(e){}
+    mock     = m  || {};
+    if(g)   grades         = g;
+    if(sw)  sewtuk         = sw;
+    if(cc)  changche       = cc;
+    if(refs) referencesList = refs;
+    if(ci)  cutoffIndex    = ci;
 
     const gradeLabel = currentRole === 'admin' ? '전체' : currentRole.replace('grade','') + '학년';
     document.getElementById('status').textContent =
