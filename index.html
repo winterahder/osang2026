@@ -328,13 +328,21 @@ const SUBJECT_FILTER_MAP = {
   '기타': null  // 국영수사과 외 등급 있는 과목 (체육, 예술, 기술가정, 제2외국어, 한문, 교양 등)
 };
 
-// 교과군 판별 함수 — 교과명이 위 목록에 포함되는지 정확히 매칭
+// 교과군 판별 함수 — 정확한 교과명 매칭 (부분 포함 금지)
 function getSubjectGroup(교과명) {
   if(!교과명) return '기타';
   const norm = 교과명.trim();
+  // 기타로 명확히 분류되어야 할 교과 (제2외국어/한문/교양 등) 먼저 체크
+  const 기타교과 = [
+    '기술・가정/제2외국어/한문/교양',
+    '기술가정', '제2외국어', '한문', '교양',
+    '예술', '체육', '생활교양', '생활·교양'
+  ];
+  if(기타교과.some(k => norm === k || norm.includes(k) || k.includes(norm))) return '기타';
+  // 나머지는 정확한 매칭만 허용
   for(const [group, keywords] of Object.entries(SUBJECT_FILTER_MAP)){
     if(group === '기타') continue;
-    if(keywords.some(k => norm === k || norm.includes(k) || k.includes(norm))) return group;
+    if(keywords.some(k => norm === k)) return group;
   }
   return '기타';
 }
