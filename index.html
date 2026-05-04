@@ -1006,7 +1006,12 @@ function drawGradeChart(data, semesters){
   const allAvgs  = semesters.map(sem => semAvgForFilter(data.grades[sem], null));
   const filtAvgs = filter ? semesters.map(sem => semAvgForFilter(data.grades[sem], filter)) : null;
 
-  const is9      = gradeScale === 9;
+  // 실제 데이터 최대 등급값으로 자동 판단 (6등급 이상이면 9등급제 그래프)
+  const allGrades = semesters.flatMap(sem =>
+    (data.grades[sem]?.subjects || []).map(s => s.등급).filter(g => g != null)
+  );
+  const maxActual = allGrades.length > 0 ? Math.max(...allGrades) : 5;
+  const is9      = gradeScale === 9 || maxActual > 5;
   const mainColor = is9 ? '#9333ea' : '#2563eb';
   const subColor  = is9 ? '#c084fc' : '#60a5fa';
   const maxG      = is9 ? 9 : 5;
