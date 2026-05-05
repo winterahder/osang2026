@@ -2687,16 +2687,45 @@ function renderSewtuk(el){
   const gradeBtns = SEWTUK_GRADES.map(g=>`<button class="toggle-btn ${g===sewtukGrade?'active':''}" data-gfil="${g}">${g}</button>`).join('');
   const semBtns = SEWTUK_SEMESTERS.map(s=>`<button class="toggle-btn ${s===sewtukSem?'active':''}" data-sfil="${s}">${s}</button>`).join('');
   const catBtns = SEWTUK_CATEGORIES.map(c=>`<button class="toggle-btn ${c===sewtukCat?'active':''}" data-cfil="${c}">${c}</button>`).join('');
+  // ★ 교과명 → 필터 카테고리 매핑 (데이터의 교과명과 UI 버튼명이 다른 경우 처리)
+  const getSewtukFilterCat = s => {
+    const g = s.교과 || '';
+    const sub = s.과목 || '';
+    if(['국어'].includes(g)) return '국어';
+    if(['영어'].includes(g)) return '영어';
+    if(['수학'].includes(g)) return '수학';
+    if(['과학'].includes(g)) return '과학';
+    if(['사회','역사','도덕','사회(역사/도덕포함)'].includes(g)) return '사회(역사/도덕포함)';
+    if(g === '예체능'){
+      if(['음악','미술','연극','영화','무용'].some(k=>sub.includes(k))) return '예술';
+      if(['체육','운동','스포츠'].some(k=>sub.includes(k))) return '체육';
+      return '예술'; // 기본값
+    }
+    if(['예술','음악','미술'].includes(g)) return '예술';
+    if(['체육','스포츠'].includes(g)) return '체육';
+    if(['교양','교양 및 기타','기술가정','정보','생활교양','생활·교양'].includes(g)) return '교양';
+    if(['제2외국어','한문','제2외국어/한문'].includes(g)) return '제2외국어/한문';
+    return g; // 그대로
+  };
+
   const filtered = data.subjects.filter(s=>{
     if(sewtukGrade!=='전체 학년'){ const g = parseInt(sewtukGrade[0]); if(s.학년 !== g) return false; }
     if(sewtukSem!=='전체 학기'){ const sem = sewtukSem[0]; if(s.학기 !== 'both' && String(s.학기) !== sem) return false; }
-    if(sewtukCat!=='전체 과목'){ if(s.교과 !== sewtukCat) return false; }
+    if(sewtukCat!=='전체 과목'){ if(getSewtukFilterCat(s) !== sewtukCat) return false; }
     return true;
   });
   const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
   // 전체 과목: AI 종합평가 우선 / 특정 교과: 교과별평가 우선
+  // ★ 교과별평가 키도 실제 데이터 키로 역매핑 (사회(역사/도덕포함)→사회, 예술/체육→예체능 등)
+  const sewtukCatToDataKey = {
+    '사회(역사/도덕포함)': '사회', '예술': '예체능', '체육': '예체능',
+    '교양': '교양 및 기타', '제2외국어/한문': '제2외국어'
+  };
+  const evalKey = sewtukCatToDataKey[sewtukCat] || sewtukCat;
   const aiOverall = (sewtukCat==='전체 과목' && data.종합평가) ? data.종합평가 : null;
-  const subjOverall = (sewtukCat!=='전체 과목' && data.교과별평가?.[sewtukCat]) ? data.교과별평가[sewtukCat] : null;
+  const subjOverall = (sewtukCat!=='전체 과목' && data.교과별평가)
+    ? (data.교과별평가[sewtukCat] || data.교과별평가[evalKey] || null)
+    : null;
 
   let html = `
     <div class="sewtuk-top-wrap">
