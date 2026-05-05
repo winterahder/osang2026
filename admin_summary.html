@@ -1382,8 +1382,8 @@ async function renderChangchePanel(){
   const sw = sewtuk[hak] || {};
   if(!sw.창체요약) sw.창체요약 = {};
 
-  // 종합평가 섹션
-  const overallSaved = sw.창체종합평가;
+  // ★ FIX 1: changche 우선, sewtuk 폴백 (changche가 자율/동아리/진로 포함 최신 형식)
+  const overallSaved = ccData?.창체종합평가 || sw.창체종합평가 || null;
   let overallHtml = `
     <div class="cc-overall-section">
       <div class="cc-overall-head" id="ccOverallHead" onclick="toggleCcOverall()">
@@ -1395,11 +1395,40 @@ async function renderChangchePanel(){
       </div>
     </div>`;
 
-  // 활동별 카드
+  // ★ FIX 2: 개별 활동 평가 렌더링 추가
+  const EVAL_COLOR = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
   const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
-    const saved = sw.창체요약[i];
+    // 요약: sewtuk 캐시 → activities[i].요약 순으로 폴백
+    const saved = sw.창체요약[i] || (Array.isArray(a.요약) && a.요약.length ? a.요약 : null);
+    // 평가: activities[i].평가 → changche 창체활동평가[i] 순으로 폴백
+    const evalData = a.평가 || ccData?.창체활동평가?.[String(i)] || null;
+
+    const evalBlock = evalData ? `
+      <div style="padding:8px 14px 12px;border-top:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:8px;">📊 역량 평가</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+          ${['학업역량','진로역량','공동체역량'].map(k=>{
+            const d=evalData[k]; if(!d) return '';
+            const subHtml=Object.entries(d.세부||{}).map(([sk,sv])=>
+              `<span style="color:${EVAL_COLOR[sv]||'#94a3b8'};font-weight:700;">${sv}</span>&nbsp;${sk}`
+            ).join('<br>');
+            return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 9px;text-align:center;">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
+              <div style="font-size:20px;font-weight:900;color:${EVAL_COLOR[d.grade]||'#64748b'};line-height:1.2;">${d.grade||'?'}</div>
+              <div style="font-size:10px;color:var(--muted2);margin-top:3px;line-height:1.7;">${subHtml}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${evalData.근거?`<div style="font-size:11px;color:var(--muted2);line-height:1.6;padding:6px 10px;background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent);">${evalData.근거}</div>`:''}
+      </div>` : '';
+
+    const summaryBlock = saved ? `
+      <div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
+        ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
+      </div>` : '';
+
     return `
       <div class="cc-item">
         <div class="cc-item-head" onclick="toggleCcItem(${i})">
@@ -1408,15 +1437,15 @@ async function renderChangchePanel(){
             ${icon} ${a.활동명||'활동'}
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
-            ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약완료</span>':'<span style="font-size:10px;color:var(--muted);">미완료</span>'}
+            ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약</span>':'<span style="font-size:10px;color:var(--muted);">미완료</span>'}
+            ${evalData?'<span style="font-size:10px;color:#06b6d4;font-weight:600;">✓ 평가</span>':''}
             <span style="font-size:11px;color:var(--muted);">▼</span>
           </div>
         </div>
         <div class="cc-item-body" id="ccItem${i}">
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
-          ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
-            ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
-          </div>` : ''}
+          ${summaryBlock}
+          ${evalBlock}
           <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
         </div>
       </div>`;
@@ -1538,6 +1567,9 @@ async function generateCcOverall(){
 
     if(!sewtuk[hak]) sewtuk[hak]={};
     sewtuk[hak].창체종합평가 = obj;
+    // ★ FIX: changche 인메모리도 동기화 (renderChangchePanel이 changche 우선으로 읽음)
+    if(!changche[hak]) changche[hak]={};
+    changche[hak].창체종합평가 = obj;
     await saveToSheet(hak);
     renderCcOverallSection(obj, false);
     addMsgToChat('chatBodyCc','assistant',
