@@ -2687,7 +2687,7 @@ function renderSewtuk(el){
   const gradeBtns = SEWTUK_GRADES.map(g=>`<button class="toggle-btn ${g===sewtukGrade?'active':''}" data-gfil="${g}">${g}</button>`).join('');
   const semBtns = SEWTUK_SEMESTERS.map(s=>`<button class="toggle-btn ${s===sewtukSem?'active':''}" data-sfil="${s}">${s}</button>`).join('');
   const catBtns = SEWTUK_CATEGORIES.map(c=>`<button class="toggle-btn ${c===sewtukCat?'active':''}" data-cfil="${c}">${c}</button>`).join('');
-  // ★ 교과명 → 필터 카테고리 매핑 (데이터의 교과명과 UI 버튼명이 다른 경우 처리)
+  // 교과명 → 필터 카테고리 매핑
   const getSewtukFilterCat = s => {
     const g = s.교과 || '';
     const sub = s.과목 || '';
@@ -2699,7 +2699,7 @@ function renderSewtuk(el){
     if(g === '예체능'){
       if(['음악','미술','연극','영화','무용'].some(k=>sub.includes(k))) return '예술';
       if(['체육','운동','스포츠'].some(k=>sub.includes(k))) return '체육';
-      return '예술'; // 기본값
+      return '예술';
     }
     if(['예술','음악','미술'].includes(g)) return '예술';
     if(['체육','스포츠'].includes(g)) return '체육';
@@ -2707,7 +2707,7 @@ function renderSewtuk(el){
     if(['제2외국어','한문','제2외국어/한문','중국어','일본어','독일어','프랑스어','스페인어','러시아어','아랍어','베트남어'].includes(g)
        || ['중국어','일본어','한문','독일어','프랑스어','스페인어','러시아어','아랍어','베트남어'].some(k=>sub.includes(k)||g.includes(k)))
       return '제2외국어/한문';
-    return g; // 그대로
+    return g;
   };
 
   const filtered = data.subjects.filter(s=>{
@@ -2717,8 +2717,6 @@ function renderSewtuk(el){
     return true;
   });
   const filterTitle = sewtukCat==='전체 과목' ? '전체 세특 종합' : sewtukCat+' 종합';
-  // 전체 과목: AI 종합평가 우선 / 특정 교과: 교과별평가 우선
-  // ★ 교과별평가 키도 실제 데이터 키로 역매핑 (사회(역사/도덕포함)→사회, 예술/체육→예체능 등)
   const sewtukCatToDataKey = {
     '사회(역사/도덕포함)': '사회', '예술': '예체능', '체육': '예체능',
     '교양': '교양 및 기타', '제2외국어/한문': '제2외국어'
@@ -2800,11 +2798,11 @@ function renderCcOverallPanel(ccOverall, cat){
   // 분류별: 창체분류평가[cat] 사용
   if(cat === '전체'){
     if(!ccOverall || typeof ccOverall !== 'object') return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 창체 종합 평가 없음<br><small>admin에서 AI 종합 평가를 먼저 생성해주세요</small></div></div>';
-    const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+    const GC2={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
     const actIcons={'자율활동':'🏫','동아리활동':'🎸','진로활동':'🎯'};
     const actGridItems=['자율활동','동아리활동','진로활동'].map(k=>{
       const d=ccOverall[k]; if(!d) return '';
-      const color=GC[d.grade]||'#64748b';
+      const color=GC2[d.grade]||'#64748b';
       return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid ${color};border-radius:10px;padding:12px 14px;text-align:center;">
         <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">${actIcons[k]||'📌'} ${k}</div>
         <div style="font-size:36px;font-weight:900;color:${color};line-height:1.1;">${d.grade||'?'}</div>
@@ -2877,11 +2875,10 @@ function renderChangche(el){
       const isOpen = openAccordions.has(key);
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
-      const saved = (sewtuk[hak]||{}).창체요약?.[actIdx] || a.요약 || '';
+      const saved = data?.창체요약?.[actIdx] || a.요약 || '';
       const evalData = a.평가 || data?.창체활동평가?.[String(actIdx)] || null;
 
-      // 창체 평가 구조({학업역량:{grade,세부:{...}}})를 세특과 동일한 평탄 구조로 변환
-      // → renderEvalPanel / renderEvalDetail 그대로 재사용 가능
+      // 창체 평가 구조를 세특과 동일한 평탄 구조로 변환 → renderEvalPanel 재사용
       const flatEval = evalData ? (() => {
         const f = {};
         ['학업역량','진로역량','공동체역량'].forEach(k=>{
@@ -2893,7 +2890,6 @@ function renderChangche(el){
         return f;
       })() : null;
 
-      // 바디: 세특과 동일한 renderEvalDetail + 근거 한 줄
       const evalDetailBlock = flatEval
         ? renderEvalDetail(flatEval) +
           (evalData.근거
