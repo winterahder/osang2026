@@ -220,7 +220,13 @@
   .btn-subj-overall:hover{opacity:.85;}
   .btn-subj-overall:disabled{opacity:.4;cursor:not-allowed;}
 
-  ::-webkit-scrollbar{width:4px;}
+  /* 모델 셀렉터 */
+  .model-selector{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px;gap:2px;user-select:none;}
+  .model-pill{padding:4px 11px;border-radius:16px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted2);transition:all .15s;white-space:nowrap;}
+  .model-pill.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(99,102,241,.4);}
+  .model-pill:not(.active):hover{color:var(--text);}
+  .model-pill.haiku-active{background:#06b6d4;color:#fff;box-shadow:0 1px 4px rgba(6,182,212,.4);}
+
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
@@ -360,6 +366,14 @@
 <header>
   <h1>✏️ 세특 요약 생성기 <span class="header-badge">ADMIN</span></h1>
   <div style="display:flex;align-items:center;gap:10px;">
+    <!-- 모델 셀렉터 (Anthropic 전용) -->
+    <div id="modelSelectorWrap" style="display:none;align-items:center;gap:7px;">
+      <span style="font-size:11px;color:var(--muted);font-weight:600;">모델</span>
+      <div class="model-selector" id="modelSelector">
+        <div class="model-pill active" id="mpSonnet" onclick="selectModel('sonnet')" title="claude-sonnet-4-6 — 복잡한 분석·요약">🧠 Sonnet 4.6</div>
+        <div class="model-pill" id="mpHaiku" onclick="selectModel('haiku')" title="claude-haiku-4-5 — 빠른 단순 작업">⚡ Haiku 4.5</div>
+      </div>
+    </div>
     <button class="btn-ref-open" onclick="openRefModal()">📚 참고자료 관리 <span id="refCountBadge" style="background:#06b6d4;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;display:none;"></span></button>
     <div id="headerStatus">로딩 전</div>
   </div>
@@ -507,8 +521,26 @@ let pending={};
 let pendingOverall={};
 let pendingSubjOverall={};
 let pendingEval={};
-let referencesList=[]; // ★ 참고자료 목록
-let refSelectedFile=null; // ★ 현재 선택된 파일
+let referencesList=[];
+let refSelectedFile=null;
+let currentAnthropicModel='claude-sonnet-4-6'; // 기본값 Sonnet
+
+/* ========== 모델 선택 ========== */
+function selectModel(type){
+  const isSonnet = type==='sonnet';
+  currentAnthropicModel = isSonnet ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+  document.getElementById('mpSonnet').className='model-pill'+(isSonnet?' active':'');
+  document.getElementById('mpHaiku').className='model-pill'+(isSonnet?'':' haiku-active');
+  // 헤더 상태 업데이트
+  const statusEl=document.getElementById('headerStatus');
+  if(statusEl && students.length){
+    const info=PROVIDERS[apiProvider];
+    const modelLabel=isSonnet?'Sonnet 4.6':'Haiku 4.5';
+    const modelColor=isSonnet?'var(--accent)':'#06b6d4';
+    const providerBadge=`<span class="api-badge">${info.name}</span>`;
+    statusEl.innerHTML=`${students.length}명 로드됨 ${providerBadge} <span style="background:${modelColor};color:#fff;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;">${modelLabel}</span>`;
+  }
+}
 
 /* ========== 제공자 선택 ========== */
 const PROVIDERS = {
@@ -526,6 +558,9 @@ function selectProvider(p){
   document.getElementById('apiKeyInput').placeholder=info.placeholder;
   document.getElementById('providerNote').textContent='💡 '+info.note;
   document.getElementById('apiKeyInput').value='';
+  // Anthropic일 때만 모델 셀렉터 표시
+  const wrap=document.getElementById('modelSelectorWrap');
+  if(wrap) wrap.style.display=(p==='anthropic'?'flex':'none');
   // 저장된 키 불러오기
   const saved=sessionStorage.getItem('apiKey_'+p);
   if(saved) document.getElementById('apiKeyInput').value=saved;
@@ -1043,10 +1078,7 @@ async function callAPI(system,messages,maxTokens=400){
         'anthropic-dangerous-direct-browser-access':'true'
       },
       body:JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:maxTokens,
-        system,
-        messages
+        model:currentAnthropicModel,
       })
     });
     if(!r.ok){const t=await r.text();console.error('Anthropic API Error:',r.status,t);throw new Error(`Anthropic API ${r.status}: ${t.substring(0,200)}`);}
@@ -2559,7 +2591,7 @@ async function callAPIWithDoc(base64, mediaType, title){
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: currentAnthropicModel,
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -2603,7 +2635,7 @@ async function callAPIWithImages(files, title){
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: currentAnthropicModel,
       max_tokens: 2000,
       messages: [{
         role: 'user',
