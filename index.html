@@ -1812,6 +1812,35 @@ async function runApplyAnalysis(){
   btn.innerHTML = '<span class="apply-spinner"></span> 분석 중...';
   resultEl.innerHTML = '';
 
+  // ★ 기본 변수 선언 (모든 Layer에서 공통 사용)
+  const grade    = parseInt(currentStu.grade) || parseInt(hak[0]);
+  let   stuData  = sewtuk[hak] || (grade===2 && currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null);
+  const mockData = mock[hak] || [];
+  const gradesData = grades[hak] || (grade===2 && currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null);
+
+  // 내신 전체 평균 (9등급 환산) — 여러 곳에서 사용하므로 먼저 계산
+  let stuGradeAvg = null, stuGradeAvgNote = '';
+  if(gradesData?.grades){
+    let totalCredit=0, weighted=0, estCount=0;
+    const is9 = grade >= 3;
+    Object.values(gradesData.grades).forEach(sd=>{
+      (sd.subjects||[]).forEach(s=>{
+        if(s.등급==null || !s.학점) return;
+        let g;
+        if(is9){ g = s.등급; }
+        else { const est = estGrade9(s); if(est){ g=est.grade; if(est.source==='추정') estCount++; } }
+        if(g!=null){ totalCredit+=s.학점; weighted+=g*s.학점; }
+      });
+    });
+    if(totalCredit>0){
+      stuGradeAvg    = (weighted/totalCredit).toFixed(2);
+      stuGradeAvgNote = is9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
+    }
+  }
+
+  // ★ try 블록을 데이터 준비 전으로 이동 — 어디서든 오류 발생 시 버튼 복구
+  try{
+
   // ══════════════════════════════════════════════════
   // Layer 1: 학생 압축 프로필 생성
   // ══════════════════════════════════════════════════
@@ -1819,7 +1848,6 @@ async function runApplyAnalysis(){
   // 1-A. 내신 — 교과군별 평균으로 압축 (과목 나열 X)
   let gradeProfile = '내신 데이터 없음';
   let gradeDetail  = '';
-  const gradesData = grades[hak] || (grade===2&&currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null);
   if(gradesData?.grades){
     const byGroup = { 국어:[], 수학:[], 영어:[], 사회:[], 과학:[], 기타:[] };
     const semLines = [];
@@ -2024,10 +2052,6 @@ ${refBlock}
   "추천전략": "합격 가능성 높이는 전략 2~3가지 (음슴체)",
   "주의사항": "지원 시 주의할 점 (음슴체)"
 }`;
-
-
-
-  try{
     const res = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'callClaude', password: currentPassword, prompt })
