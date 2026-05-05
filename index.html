@@ -1986,8 +1986,22 @@ async function runApplyAnalysis(){
     .filter(([k])=>deptNormForFilter.includes(k))
     .flatMap(([,v])=>v);
 
-  // 1-D. 세특 — 원본 내용만 사용, 원본 없는 과목은 제외
+  // 1-D. 세특 — 원본 있으면 원본, 없으면 성적만 표시 (지원학과 관련 과목 우선)
   const allSubjects = stuData?.subjects || [];
+
+  // grades에서 과목명 → 등급 맵 생성 (세특 원본 없는 과목에 성적 표시용)
+  const gradeMap = {};
+  if(gradesData?.grades){
+    Object.values(gradesData.grades).forEach(sd=>{
+      (sd.subjects||[]).forEach(s=>{
+        if(s.과목 && s.등급!=null){
+          // 같은 과목이 여러 학기면 가장 좋은 등급 유지
+          if(!gradeMap[s.과목] || s.등급 < gradeMap[s.과목]) gradeMap[s.과목] = s.등급;
+        }
+      });
+    });
+  }
+
   const relevantSubjects = relatedKeywords.length > 0
     ? allSubjects.filter(s=>{
         const text = ((s.요약||[]).join(' ') + (s.내용||'')).toLowerCase();
@@ -1995,15 +2009,23 @@ async function runApplyAnalysis(){
       })
     : allSubjects;
   const baseSubjects = relevantSubjects.length > 0 ? relevantSubjects : allSubjects;
-  // 원본 있는 과목만 추출
-  const sewtukWithRaw = baseSubjects.filter(s => {
-    const raw = (s.내용||'').trim();
-    return raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
-  });
-  const sewtukToShow = sewtukWithRaw.slice(0, 8);
+
+  const sewtukToShow = baseSubjects.slice(0, 10);
   const sewtukSummary = sewtukToShow.length > 0
-    ? sewtukToShow.map(s => `[${s.교과}-${s.과목}]\n${s.내용.trim()}`).join('\n\n')
-    : null; // null이면 프롬프트에서 제외
+    ? sewtukToShow.map(s => {
+        const raw = (s.내용||'').trim();
+        const hasRaw = raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
+        // 과목명으로 grades에서 등급 조회 (세특 과목명이 "공통국어1·공통국어2" 형태일 수 있어 분리 시도)
+        const subjectNames = s.과목 ? s.과목.split(/[·,]/).map(n=>n.trim()) : [];
+        const gradeVal = subjectNames.map(n=>gradeMap[n]).find(g=>g!=null) ?? null;
+        const gradeTag = gradeVal!=null ? ` (${gradeVal}등급)` : '';
+        if(hasRaw){
+          return `[${s.교과}-${s.과목}${gradeTag}]\n${raw}`;
+        } else {
+          return `[${s.교과}-${s.과목}${gradeTag}] ※세특 미입력`;
+        }
+      }).join('\n\n')
+    : null;
 
   // 1-E. 창체 — 원본 내용만 사용, 없는 활동은 완전 제외
   const changcheData = changche[hak]
