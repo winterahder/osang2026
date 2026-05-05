@@ -1814,9 +1814,13 @@ async function runApplyAnalysis(){
 
   // ★ 기본 변수 선언 (모든 Layer에서 공통 사용)
   const grade    = parseInt(currentStu.grade) || parseInt(hak[0]);
-  let   stuData  = sewtuk[hak] || (grade===2 && currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null);
+  let   stuData  = sewtuk[hak]
+    || (currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null)
+    || (currentStu.g1_hak ? sewtuk[String(currentStu.g1_hak)] : null);
   const mockData = mock[hak] || [];
-  const gradesData = grades[hak] || (grade===2 && currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null);
+  const gradesData = grades[hak]
+    || (currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null)
+    || (currentStu.g1_hak ? grades[String(currentStu.g1_hak)] : null);
 
   // 내신 전체 평균 (9등급 환산) — 여러 곳에서 사용하므로 먼저 계산
   let stuGradeAvg = null, stuGradeAvgNote = '';
