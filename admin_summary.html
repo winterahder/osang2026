@@ -1570,6 +1570,7 @@ async function generateAllCcEval(){
 
 async function generateCcItemSummary(idx){
   const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnCcItem'+idx);
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const acts = changche[hak]?.activities || [];
