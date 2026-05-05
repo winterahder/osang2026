@@ -1443,7 +1443,7 @@ async function renderChangchePanel(){
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
     // 요약: sewtuk 캐시 → activities[i].요약 순으로 폴백
-    const saved = sw.창체요약[i] || (Array.isArray(a.요약) && a.요약.length ? a.요약 : null);
+    const saved = ccData?.창체요약?.[i] || (Array.isArray(a.요약) && a.요약.length ? a.요약 : null);
     // 평가: activities[i].평가 → changche 창체활동평가[i] 순으로 폴백
     const evalData = a.평가 || ccData?.창체활동평가?.[String(i)] || null;
 
@@ -1598,10 +1598,12 @@ async function generateCcItemSummary(idx){
     try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
     catch{ arr=[text.trim()]; }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    if(!sewtuk[hak].창체요약) sewtuk[hak].창체요약={};
-    sewtuk[hak].창체요약[idx] = arr;
-    await saveToSheet(hak);
+    // changche 인메모리에 저장 (activities[idx].요약 + 별도 캐시)
+    if(!changche[hak]) changche[hak]={};
+    if(!changche[hak].창체요약) changche[hak].창체요약={};
+    changche[hak].창체요약[idx] = arr;
+    if(changche[hak].activities?.[idx]) changche[hak].activities[idx].요약 = arr;
+    await saveChangcheToSheet(hak);
     addMsgToChat('chatBodyCc', 'assistant',
       `✅ **${a.활동명}** 요약 완료!
 
