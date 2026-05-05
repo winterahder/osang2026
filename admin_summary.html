@@ -2620,6 +2620,28 @@ function updateRefBadge(){
   }
 }
 
+function getTierBadge(r){
+  const norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
+  const title = norm(r['제목']||'');
+  const preview = norm((r['내용']||'').substring(0,600));
+
+  const UNIV_NAMES = ['서울대','연세대','고려대','경북대','계명대','영남대','건양대','경희대','한양대','성균관대','중앙대','이화여대'];
+  const DEPT_KW    = ['의대','의학','약대','약학','치의대','치의학','한의대','한의학','수의대','수의학'];
+  const STRAT_KW   = ['전략','특징','흐름','변화사항','의약학','가이드','분석'];
+
+  const hasUniv  = UNIV_NAMES.some(u=>title.includes(norm(u))||preview.includes(norm(u)));
+  const hasDept  = DEPT_KW.some(k=>title.includes(k));
+  const hasStrat = STRAT_KW.some(k=>title.includes(k));
+
+  if(hasUniv && !hasDept && !hasStrat)
+    return `<span style="background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:5px;">Tier1 대학특화</span>`;
+  if(hasDept)
+    return `<span style="background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:5px;">Tier2 계열전국</span>`;
+  if(hasStrat || hasUniv)
+    return `<span style="background:#fef9c3;color:#854d0e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:5px;">Tier3 전략흐름</span>`;
+  return `<span style="background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:5px;">⚠️ 미분류</span>`;
+}
+
 function renderRefList(){
   const el = document.getElementById('refList');
   const cntEl = document.getElementById('refListCount');
@@ -2629,14 +2651,22 @@ function renderRefList(){
     el.innerHTML = '<div class="ref-list-empty">등록된 자료가 없습니다</div>';
     return;
   }
-  el.innerHTML = referencesList.map(r => {
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:9px 12px;margin-bottom:10px;line-height:1.7;border:1px solid var(--border);">
+      💡 <b>Tier 기준</b> — <span style="color:#1e40af;">Tier1 대학특화</span>: 제목에 대학명 포함 (해당 대학 검색 시만 사용) &nbsp;|&nbsp;
+      <span style="color:#15803d;">Tier2 계열전국</span>: 제목에 의대·약대 등 포함 (해당 계열 검색 시) &nbsp;|&nbsp;
+      <span style="color:#854d0e;">Tier3 전략흐름</span>: 제목에 전략·특징·흐름 등 포함 (항상 포함) &nbsp;|&nbsp;
+      <span style="color:#991b1b;">⚠️ 미분류</span>: 어떤 검색에도 안 잡힘 → 제목 수정 필요
+    </div>
+  ` + referencesList.map(r => {
     const target = r['적용학년'] || '공통';
     const badgeClass = `ref-badge-${target}`;
+    const tierBadge = getTierBadge(r);
     return `
     <div class="ref-item">
       <div class="ref-item-head">
         <div class="ref-item-info">
-          <div class="ref-item-title">📄 ${escHtml(r['제목']||'(제목 없음)')} <span class="${badgeClass}">${target}</span></div>
+          <div class="ref-item-title">📄 ${escHtml(r['제목']||'(제목 없음)')} <span class="${badgeClass}">${target}</span>${tierBadge}</div>
           <div class="ref-item-meta">
             <span>📎 ${escHtml(r['출처']||'-')}</span>
             <span>📅 ${r['등록일']||'-'}</span>
