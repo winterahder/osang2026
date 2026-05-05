@@ -1843,11 +1843,17 @@ function sendChatHb(){
     .catch(e=>addMsgToChat('chatBodyHb','assistant','❌ '+e.message));
 }
 
-/* ========== 종합 역량 평가 (내신 + 세특) ========== */
+/* ========== 종합 역량 평가 (내신 + 세특 + 창체 + 행발) ========== */
 async function generateComprehensiveEval(){
   const hak=String(currentStu.hak);
   const subs=sewtuk[hak]?.subjects||[];
   if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
+
+  // ① Haiku 사용 시 경고
+  if(apiProvider==='anthropic' && currentAnthropicModel.includes('haiku')){
+    const ok=confirm('⚠️ 현재 Haiku 4.5 모델이 선택되어 있습니다.\n\n종합 역량 평가는 출력량이 많아 응답이 잘릴 수 있어요.\nSonnet 4.6으로 실행하는 것을 권장합니다.\n\n그래도 Haiku로 계속하시겠습니까?');
+    if(!ok) return;
+  }
 
   const btn=document.getElementById('btnCompEval');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
@@ -1875,18 +1881,41 @@ async function generateComprehensiveEval(){
     gradesSummary=lines.join('\n')||'내신 데이터 없음';
   }
 
-  // 세특 요약 텍스트
-  const sewtukSummary=subs.map(s=>
-    `[${s.교과} - ${s.과목}]\n${(s.내용||'').substring(0,400)}`
-  ).join('\n\n');
+  // ② 세특: 원문 + 과목별 AI 평가 등급 함께 전송
+  const sewtukSummary=subs.map(s=>{
+    const contentPart=`원문: ${(s.내용||'').substring(0,350)}`;
+    let evalPart='';
+    if(s.평가&&typeof s.평가==='object'){
+      const ev=s.평가;
+      const 학업=ev.학업역량?.grade||'';
+      const 진로=ev.진로역량?.grade||'';
+      const 공동=ev.공동체역량?.grade||'';
+      evalPart=`\nAI평가: 학업역량${학업} 진로역량${진로} 공동체역량${공동}`;
+      if(ev.학업성취도?.grade) evalPart+=` (성취도${ev.학업성취도.grade}·태도${ev.학업태도?.grade||'-'}·탐구${ev.탐구력?.grade||'-'})`;
+    }
+    const summPart=Array.isArray(s.요약)&&s.요약.length?`\n요약: ${s.요약.join(' / ')}`:'';
+    return `[${s.교과} - ${s.과목} ${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}]\n${contentPart}${evalPart}${summPart}`;
+  }).join('\n\n');
 
-  // 창체 데이터 (★ 캐시 사용)
-  let changcheSummary='창체 데이터 없음';
+  // ③ 창체: 활동별 원문+AI평가 + 창체종합평가 AI 결과 함께 전송
   const ccData = changche[hak] || changche[String(currentStu.g2_hak)] || null;
+  let changcheSummary='창체 데이터 없음';
   if(ccData?.activities?.length){
-    changcheSummary = ccData.activities.map(a=>
-      `[${a.학년||''}학년 ${a.분류||''}] ${a.활동명||''}: ${(a.내용||'').substring(0,200)}`
-    ).join('\n');
+    const actLines=ccData.activities.map(a=>{
+      let line=`[${a.학년||''}학년 ${a.분류||''}] ${a.활동명||''}: ${(a.내용||'').substring(0,250)}`;
+      if(a.평가&&typeof a.평가==='object'){
+        const ev=a.평가;
+        line+=`\n  AI평가: 학업${ev.학업역량?.grade||'-'} 진로${ev.진로역량?.grade||'-'} 공동체${ev.공동체역량?.grade||'-'}`;
+      }
+      return line;
+    }).join('\n');
+    let ccOverallPart='';
+    const ccOverall=ccData.창체종합평가;
+    if(ccOverall&&typeof ccOverall==='object'){
+      ccOverallPart=`\n\n[창체 AI 종합평가]\n학업역량${ccOverall.학업역량?.grade||'-'} 진로역량${ccOverall.진로역량?.grade||'-'} 공동체역량${ccOverall.공동체역량?.grade||'-'}`;
+      if(ccOverall.종합의견) ccOverallPart+=`\n종합의견: ${ccOverall.종합의견.substring(0,200)}`;
+    }
+    changcheSummary=actLines+ccOverallPart;
   }
 
   // 행발 데이터
@@ -1898,7 +1927,23 @@ async function generateComprehensiveEval(){
     ).join('\n');
   }
 
-  const systemPrompt=`당신은 대입 전형 전문 입학사정관입니다. 학생의 내신 성적, 세부능력특기사항, 창의적 체험활동, 행동특성 및 종합의견을 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
+  // ④ 진로 방향 자동 추출 (창체 진로활동 + 진로역량 A/S 과목 기반)
+  const careerHints=[];
+  if(ccData?.activities){
+    ccData.activities.filter(a=>a.분류==='진로').forEach(a=>{ if(a.활동명) careerHints.push(a.활동명); });
+  }
+  subs.forEach(s=>{ const jl=s.평가?.진로역량; if(jl&&(jl.grade==='A'||jl.grade==='S')&&s.과목) careerHints.push(s.과목); });
+  const careerDirection=careerHints.length
+    ? `추정 진로 방향: ${[...new Set(careerHints)].slice(0,5).join(', ')}`
+    : '진로 방향 미확인';
+
+  // ⑤ 시스템 프롬프트: Claude 기본 지식 활용 지시 + 데이터 출처 안내
+  const systemPrompt=`당신은 한국 대입 학생부종합전형 전문 입학사정관입니다.
+학생의 내신·세특·창체·행발 데이터를 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
+
+※ 아래 데이터 외에도 한국 대입 학생부종합전형의 일반적인 평가 기준(학업역량·진로역량·공동체역량)과
+귀하가 보유한 각 대학·계열별 인재상 지식을 활용하여 평가하세요.
+※ 세특 AI평가 등급과 창체 AI종합평가는 사전 분석된 보조 참고값입니다. 원문 근거와 함께 종합 판단하세요.
 
 반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
 {
@@ -1912,31 +1957,30 @@ async function generateComprehensiveEval(){
     "grade": "B",
     "전공관련교과이수": {"grade":"B","comment":"150바이트 — 과목 선택 근거"},
     "전공관련교과성취도": {"grade":"B","comment":"150바이트 — 내신 수치 인용"},
-    "진로탐색활동": {"grade":"A","comment":"150바이트 — 세특 근거"}
+    "진로탐색활동": {"grade":"A","comment":"150바이트 — 세특·창체 근거"}
   },
   "공동체역량": {
     "grade": "A",
-    "협업소통": {"grade":"A","comment":"150바이트 — 세특 근거"},
-    "나눔배려": {"grade":"A","comment":"150바이트 — 세특 근거"},
-    "성실성규칙준수": {"grade":"A","comment":"150바이트 — 세특 근거"},
-    "리더십": {"grade":"B","comment":"150바이트 — 세특 근거"}
+    "협업소통": {"grade":"A","comment":"150바이트 — 세특·창체 근거"},
+    "나눔배려": {"grade":"A","comment":"150바이트 — 창체·행발 근거"},
+    "성실성규칙준수": {"grade":"A","comment":"150바이트 — 행발·세특 근거"},
+    "리더십": {"grade":"B","comment":"150바이트 — 창체·행발 근거"}
   },
-  "종합의견": "음슴체 6~8문장"
+  "종합의견": "음슴체 6~8문장 — 진로 방향과 연계한 강점 서술 포함"
 }
 
 【평가 기준】
-- 학업역량 > 학업성취도: 내신 석차등급·원점수·과목평균·성취도 등 수치를 반드시 근거로 사용
-- 내신 평균 1~2등급 → 학업성취도 A~S 가능 / 3~4등급 → 최대 B / 5등급 이하 → 최대 C
-- 세특이 아무리 좋아도 내신이 낮으면 학업성취도는 높게 줄 수 없음
-- 진로역량: 전공 방향이 불명확하면 B 이하
-- 공동체역량: 세특에 구체적 협력·리더십 사례가 없으면 B 이하
-- 종합의견: 반드시 음슴체("~함","~됨","~보임") 사용, "~다","~습니다" 절대 금지
-- 등급: S=최상위권(반복적 탁월) A=우수 B=양호 C=제한적 D=거의없음`;
+- 학업성취도: 내신 석차등급·원점수·과목평균·성취도 수치를 반드시 근거로 사용
+  (1~2등급→A~S 가능 / 3~4등급→최대B / 5등급 이하→최대C)
+- 진로역량: 추정 진로 방향과 세특·창체의 연계성을 중심으로 판단
+- 공동체역량: 창체 활동·행발의 구체적 협력·리더십 사례 반드시 참조
+- 종합의견: 음슴체("~함","~됨","~보임") 사용, "~다","~습니다" 절대 금지
+- 등급: S=반복탁월(명시적 근거 필수) A=우수 B=양호 C=제한적 D=거의없음`;
 
   try{
     const text=await callAPI(systemPrompt,[{
       role:'user',
-      content:`학생: ${currentStu.name} (${hak})\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항】\n${sewtukSummary}\n\n【창의적 체험활동】\n${changcheSummary}\n\n【행동특성 및 종합의견】\n${haengbalSummary}`
+      content:`학생: ${currentStu.name} (${hak})\n${careerDirection}\n\n【내신 성적】\n${gradesSummary}\n\n【세부능력특기사항 (원문+AI평가)】\n${sewtukSummary}\n\n【창의적 체험활동 (원문+AI평가+종합)】\n${changcheSummary}\n\n【행동특성 및 종합의견】\n${haengbalSummary}`
     }],4000);
 
     // JSON 추출 및 파싱 (잘린 경우 복구 시도)
