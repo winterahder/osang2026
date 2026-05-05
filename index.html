@@ -1818,10 +1818,16 @@ async function runApplyAnalysis(){
     || (currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null)
     || (currentStu.g1_hak ? sewtuk[String(currentStu.g1_hak)] : null);
   const mockData = mock[hak] || [];
-  const gradesData = grades[hak]
-    || (currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null)
-    || (currentStu.g1_hak ? grades[String(currentStu.g1_hak)] : null);
-
+let gradesData = grades[hak];
+  if(!gradesData?.grades || Object.keys(gradesData.grades).length === 0) {
+    if(currentStu.g2_hak) gradesData = grades[String(currentStu.g2_hak)] || gradesData;
+  }
+  if(!gradesData?.grades || Object.keys(gradesData.grades).length === 0) {
+    if(currentStu.g1_hak) gradesData = grades[String(currentStu.g1_hak)] || gradesData;
+  }
+  if(gradesData && !gradesData.grades && (gradesData['1-1'] || gradesData['1-2'])) {
+    gradesData = { grades: gradesData };
+  }
   // 내신 전체 평균 (9등급 환산) — 여러 곳에서 사용하므로 먼저 계산
   let stuGradeAvg = null, stuGradeAvgNote = '';
   if(gradesData?.grades){
