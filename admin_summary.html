@@ -1671,6 +1671,7 @@ async function generateCcItemEval(idx){
 
 async function generateCcOverall(){
   const hak = String(currentStu.hak);
+  const btn = document.getElementById('btnCcOverall');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const acts = changche[hak]?.activities || [];
