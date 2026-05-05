@@ -449,6 +449,31 @@ const SUBJECT_FILTER_MAP = {
   '기타': null  // 국영수사과 외 등급 있는 과목 (체육, 예술, 기술가정, 제2외국어, 한문, 교양 등)
 };
 
+// ============================================================
+// 학생 내신 데이터 통합 조회 헬퍼
+// - 현재 학번 → g3_hak → g2_hak → g1_hak 순으로 fallback
+// - { '1-1':{...} } 구조와 { grades:{ '1-1':{...} } } 구조 모두 정규화
+// - 항상 { grades: { '학기': { subjects:[], summary:{} } } } 형태로 반환
+// ============================================================
+function getStudentGrades(stu) {
+  const keys = [String(stu.hak), String(stu.g3_hak||''), String(stu.g2_hak||''), String(stu.g1_hak||'')];
+  for(const k of keys){
+    if(!k) continue;
+    const d = grades[k];
+    if(!d) continue;
+    // grades 키 안에 학기 데이터가 있는 구조: { grades: { '1-1':{...} } }
+    if(d.grades && Object.keys(d.grades).length > 0) return d;
+    // 최상위에 바로 학기 키가 있는 구조: { '1-1':{...}, '2-1':{...} }
+    const semKeys = ['1-1','1-2','2-1','2-2','3-1','3-2'].filter(s => d[s]);
+    if(semKeys.length > 0){
+      const normalized = { ...d, grades: {} };
+      semKeys.forEach(s => { normalized.grades[s] = d[s]; });
+      return normalized;
+    }
+  }
+  return null;
+}
+
 // 교과군 판별 함수 — 교과명(교과 컬럼값) 기준 정확 매칭
 function getSubjectGroup(교과명) {
   if(!교과명) return '기타';
@@ -489,8 +514,25 @@ let currentPassword = '';
 let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
 let openAccordions = new Set();
-let gradeScale = 5; // 5 or 9 (1·2학년 전용 변환 토글)
-let currentGradeIs9 = false; // 현재 학생이 3학년(9등급제)인지 — 레이블·축 표시 전용
+let gradeScale = 5; // 5 or 9 (1·2학년 전용 9등급 환산 토글)
+let currentGradeIs9 = false; // 현재 학생이 9등급제인지 — 렌더링 전용 플래그
+
+// 학생이 9등급제인지 판별 — 입학년도 기준
+// 현재 3학년(2024 입학): 전 학기 9등급제
+// 현재 1·2학년(2025·2026 입학): 전 학기 5등급제
+// 추후 입학년도 컬럼 생기면 여기만 수정하면 됨
+function isStudent9Grade(stu) {
+  if(!stu) return false;
+  const grade = parseInt(stu.grade) || parseInt(String(stu.hak||'')[0]) || 0;
+  return grade >= 3;
+}
+
+// 특정 학기 데이터가 9등급제인지 판별
+// 데이터에 등급제 명시된 경우 우선, 없으면 학생 기준 따름
+function isSem9Grade(stu, semData) {
+  if(semData?.등급제) return semData.등급제 === 9;
+  return isStudent9Grade(stu);
+}
 let changcheGrade = '전체 학년', changcheCat = '전체';
 
 // ========== 9등급 환산 로직 (성취도 분포 + 원점수 기반 추정) ==========
@@ -563,11 +605,15 @@ function getG9Info(subj){
   return est;
 }
 
-// 통합: 현재 scale에 맞는 등급 반환
-function getG(subj){
+// 통합: 현재 학생/학기에 맞는 등급 반환
+// - 9등급제 학생(3학년): 데이터의 등급 그대로 사용
+// - 5등급제 학생(1·2학년): gradeScale===9이면 9등급 환산, 아니면 5등급 그대로
+function getG(subj, stu, semData){
   if(!subj || subj.등급 == null) return null;
-  if(gradeScale === 5) return subj.등급;
-  const est = estGrade9(subj);
+  const use9 = stu ? isSem9Grade(stu, semData) : (currentGradeIs9 || gradeScale === 9);
+  if(!use9) return subj.등급; // 5등급 그대로
+  if(currentGradeIs9) return subj.등급; // 3학년: 이미 9등급 데이터
+  const est = estGrade9(subj); // 1·2학년: 9등급 환산
   return est ? est.grade : null;
 }
 
@@ -961,28 +1007,37 @@ function renderInfo(el){
 // ========== 내신 탭 ==========
 let gradeChartInst = null;
 
-// 학생 한 명의 필터 기준 가중평균 계산
-function calcStudentAvg(studentData, filter){
+// 학생 한 명의 필터 기준 가중평균 계산 (stu 전달 시 등급제 자동 판별)
+function calcStudentAvg(studentData, filter, stu){
   if(!studentData || !studentData.grades) return null;
-  const allSubjects = [];
-  Object.values(studentData.grades).forEach(semData=>{
-    (semData.subjects||[]).forEach(sub=>allSubjects.push(sub));
-  });
-  const filtered = filter
-    ? allSubjects.filter(s=>filter.includes(s.교과))
-    : allSubjects.filter(s=>s.등급!=null);
   let totalCredit=0, weighted=0;
-  filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; } });
+  Object.entries(studentData.grades).forEach(([sem, semData])=>{
+    const semIs9 = stu ? isSem9Grade(stu, semData) : (currentGradeIs9 || gradeScale===9);
+    (semData.subjects||[]).forEach(sub=>{
+      if(sub.등급==null || !sub.학점) return;
+      const inFilter = filter ? filter.includes(sub.교과) : true;
+      if(!inFilter) return;
+      let g;
+      if(semIs9){ g = sub.등급; }
+      else {
+        if(gradeScale===9){ const est=estGrade9(sub); g = est?est.grade:null; }
+        else { g = sub.등급; }
+      }
+      if(g!=null){ totalCredit+=sub.학점; weighted+=g*sub.학점; }
+    });
+  });
   return totalCredit>0 ? weighted/totalCredit : null;
 }
 
 // 전체 학생 중 현재 학생의 등수 계산
 function calcRank(currentData, filter){
-  const myAvg = calcStudentAvg(currentData, filter);
+  const myAvg = calcStudentAvg(currentData, filter, currentStu);
   if(myAvg===null) return null;
   let rank=1, total=0;
-  Object.values(grades).forEach(data=>{
-    const avg = calcStudentAvg(data, filter);
+  students.forEach(stu=>{
+    const data = getStudentGrades(stu);
+    if(!data) return;
+    const avg = calcStudentAvg(data, filter, stu);
     if(avg!==null){ total++; if(avg < myAvg) rank++; }
   });
   return { rank, total };
@@ -992,19 +1047,12 @@ function renderGrades(el){
   const s = currentStu;
   const hak = String(s.hak);
   const grade = parseInt(s.grade) || parseInt(String(s.hak)[0]);
-  // 3학년은 원래 9등급제 데이터 — gradeScale 변환 로직은 건드리지 않고 표시 전용 플래그만 세팅
-  currentGradeIs9 = (grade >= 3);
-  let data = grades[hak];
-  // 현재학번으로 못 찾으면 이전 학번으로 fallback (2학년/3학년 공통)
-  if(!data && s.g2_hak) data = grades[String(s.g2_hak)];
-  if(!data && s.g1_hak) data = grades[String(s.g1_hak)];
+  // 입학년도 기준 등급제 판별 (isStudent9Grade 헬퍼 사용)
+  currentGradeIs9 = isStudent9Grade(s);
+  let data = getStudentGrades(s);
   if(!data){
     el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다</div>`;
     return;
-  }
-  // {"grades":{...}} 구조와 {"1-1":{...}} 구조 모두 대응
-  if(!data.grades && (data['1-1'] || data['1-2'] || data['2-1'] || data['2-2'])) {
-    data = { grades: data };
   }
   if(!data.grades){
     el.innerHTML = `<div class="no-data">📋 내신 데이터가 없습니다</div>`;
@@ -1014,8 +1062,8 @@ function renderGrades(el){
     const isActive = k==='전체' ? selectedSubjectFilters.size===0 : selectedSubjectFilters.has(k);
     return `<button class="toggle-btn ${isActive?'active':''}" data-subjfilter="${k}">${k}</button>`;
   }).join('');
-  // 3학년은 이미 9등급제이므로 환산 버튼 숨김
-  const scaleBtn = grade >= 3 ? '' : `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
+  // 9등급제 학생은 이미 9등급 데이터 — 환산 버튼 불필요
+  const scaleBtn = currentGradeIs9 ? '' : `<button class="toggle-btn scale-btn ${gradeScale===9?'active':''}" data-scale="toggle">9등급 환산</button>`;
   const rankBtn  = `<button class="toggle-btn rank-btn ${showRank?'active':''}" data-rank="toggle">🏅 학교 등수</button>`;
   const semesters = Object.keys(data.grades).sort();
 
@@ -1096,7 +1144,7 @@ function renderGradeFilterSummary(data, semesters){
   filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; cntWithGrade++; } });
   const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
   const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
-  const is9 = currentGradeIs9 || gradeScale===9;
+  const is9 = isStudent9Grade(currentStu);
   const scaleLabel = is9 ? ' (9등급)' : '';
 
   // 등수 카드
@@ -1185,7 +1233,7 @@ function drawGradeChart(data, semesters){
   const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
   const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
 
-  const is9       = currentGradeIs9 || gradeScale === 9;
+  const is9       = isStudent9Grade(currentStu);
   const mainColor = is9 ? '#9333ea' : '#2563eb';
   const maxG      = is9 ? 9 : 5;
 
@@ -1278,26 +1326,40 @@ function renderSemesterBlock(sem, semData){
   const subjects = semData.subjects || [];
   const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
   const filter = getActiveSubjectFilter();
+  const semIs9 = isSem9Grade(currentStu, semData); // 이 학기의 등급제
   let semCredit=0, semWeighted=0;
-  subjects.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; } });
+  subjects.forEach(s=>{
+    let g;
+    if(semIs9){ g = (s.등급!=null) ? s.등급 : null; }
+    else { g = (gradeScale===9) ? (estGrade9(s)?.grade??null) : s.등급; }
+    if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; }
+  });
   const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
   const rows = subjects.map(s=>{
-    // 필터 적용: 선택된 교과만 표시 (전체면 등급 있는 과목만)
     if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return '';
-    if(selectedSubjectFilters.size === 0 && s.등급 == null) return ''; // 전체모드: 등급없는 과목 제외
-    const rowStyle = '';
-    const g = getG(s);
-    const gradeClass = g!=null ? 'grade-'+g : '';
-    let estTag = '';
-    if(gradeScale===9 && s.등급!=null){
-      const info = estGrade9(s);
-      if(info && info.source==='실제') estTag = '<span class="est-tag" style="background:#dcfce7;color:#15803d;">실제</span>';
-      else if(info && info.source==='추정') estTag = '<span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>';
+    if(selectedSubjectFilters.size === 0 && s.등급 == null) return '';
+    let g, estTag = '';
+    if(semIs9){
+      g = s.등급;
+    } else {
+      if(gradeScale===9){
+        const info = estGrade9(s);
+        g = info ? info.grade : null;
+        if(info?.source==='실제') estTag = '<span class="est-tag" style="background:#dcfce7;color:#15803d;">실제</span>';
+        else if(info?.source==='추정') estTag = '<span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>';
+      } else {
+        g = s.등급;
+      }
     }
-    const rankCell = (gradeScale===9 && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
-    return `<tr style="${rowStyle}"><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${fmtG(s)}${estTag}</td><td>${rankCell}</td></tr>`;
+    const gradeClass = g!=null ? 'grade-'+g : '';
+    const showRankCol = semIs9 || gradeScale===9;
+    const rankCell = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
+    const gDisplay = g!=null ? g : '-';
+    return `<tr><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${gDisplay}${estTag}</td><td>${rankCell}</td></tr>`;
   }).join('');
-  const scaleTag = gradeScale===9 ? ' <span style="color:#9333ea;font-weight:600;">[9등급]</span>' : '';
+  const scaleTag = semIs9
+    ? ' <span style="color:#9333ea;font-weight:600;">[9등급]</span>'
+    : (gradeScale===9 ? ' <span style="color:#9333ea;font-weight:600;">[9등급환산]</span>' : '');
   return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
@@ -1818,33 +1880,30 @@ async function runApplyAnalysis(){
     || (currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null)
     || (currentStu.g1_hak ? sewtuk[String(currentStu.g1_hak)] : null);
   const mockData = mock[hak] || [];
-let gradesData = grades[hak];
-  if(!gradesData?.grades || Object.keys(gradesData.grades).length === 0) {
-    if(currentStu.g2_hak) gradesData = grades[String(currentStu.g2_hak)] || gradesData;
-  }
-  if(!gradesData?.grades || Object.keys(gradesData.grades).length === 0) {
-    if(currentStu.g1_hak) gradesData = grades[String(currentStu.g1_hak)] || gradesData;
-  }
-  if(gradesData && !gradesData.grades && (gradesData['1-1'] || gradesData['1-2'])) {
-    gradesData = { grades: gradesData };
-  }
-  // 내신 전체 평균 (9등급 환산) — 여러 곳에서 사용하므로 먼저 계산
+  const gradesData = getStudentGrades(currentStu);
+
+  // 내신 전체 평균 (9등급 기준으로 통일) — 여러 곳에서 사용하므로 먼저 계산
   let stuGradeAvg = null, stuGradeAvgNote = '';
   if(gradesData?.grades){
     let totalCredit=0, weighted=0, estCount=0;
-    const is9 = grade >= 3;
-    Object.values(gradesData.grades).forEach(sd=>{
+    const studentIs9 = isStudent9Grade(currentStu);
+    Object.entries(gradesData.grades).forEach(([sem, sd])=>{
+      const semIs9 = isSem9Grade(currentStu, sd);
       (sd.subjects||[]).forEach(s=>{
         if(s.등급==null || !s.학점) return;
         let g;
-        if(is9){ g = s.등급; }
-        else { const est = estGrade9(s); if(est){ g=est.grade; if(est.source==='추정') estCount++; } }
+        if(semIs9){
+          g = s.등급; // 9등급제: 그대로 사용
+        } else {
+          const est = estGrade9(s); // 5등급제: 9등급으로 환산
+          if(est){ g=est.grade; if(est.source==='추정') estCount++; }
+        }
         if(g!=null){ totalCredit+=s.학점; weighted+=g*s.학점; }
       });
     });
     if(totalCredit>0){
-      stuGradeAvg    = (weighted/totalCredit).toFixed(2);
-      stuGradeAvgNote = is9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
+      stuGradeAvg = (weighted/totalCredit).toFixed(2);
+      stuGradeAvgNote = studentIs9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
     }
   }
 
@@ -1890,7 +1949,8 @@ let gradesData = grades[hak];
   }
 
   // 1-B. 등급제 안내
-  const gradeSystemGuide = grade >= 3
+  const studentIs9 = isStudent9Grade(currentStu);
+  const gradeSystemGuide = studentIs9
     ? `9등급제 (3학년, 2015개정) — 1~2:최상위 / 3~4:상위 / 5:중위 / 6~:하위`
     : `5등급제 (${grade}학년, 2022개정) — 1:최상위A / 2:상위B / 3:중위C / 4:하위D / 5:최하위E\n※ 교과전형 비교 시 9등급 환산 적용 (전체평균 ${stuGradeAvg??'-'}등급 기준)`;
 
@@ -1963,7 +2023,7 @@ let gradesData = grades[hak];
   // ══════════════════════════════════════════════════
   // Layer 3: 참고자료 Tier 계층화
   // ══════════════════════════════════════════════════
-  const admYear = grade>=3 ? '2027' : '2028';
+  const admYear = studentIs9 ? '2027' : '2028';
   const normRef = s => String(s||'').replace(/\s/g,'').toLowerCase();
   const univBase = normRef(univ).replace(/학교$|대학교$|대학$/, '');
 
@@ -2043,7 +2103,7 @@ ${refBlock}
 
 ━━━ 【분석 지시】 ━━━
 아래 기준으로 엄격하게 분석하세요:
-1. 내신 해석: ${grade>=3?'9등급제 직접 적용':'5등급제이므로 9등급 환산(전체평균 '+stuGradeAvg+'등급) 후 입결과 비교'}
+1. 내신 해석: ${studentIs9?'9등급제 직접 적용':'5등급제이므로 9등급 환산(전체평균 '+stuGradeAvg+'등급) 후 입결과 비교'}
 2. 입결 비교: 50컷·70컷이 있으면 반드시 학생 내신과 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
 3. 수능최저: Tier1·2 자료의 수능최저 기준과 학생 모의고사 성적을 대조하여 충족 가능성 명시
 4. 전형 특성: 교과/종합/논술 전형 특성에 맞게 강점·약점을 다르게 분석
@@ -2095,7 +2155,7 @@ ${refBlock}
     const typeMatched = cutoffRaw.filter(r=>!type||type==='종합+교과'||String(r['전형']||'').includes(type));
     const cutoffRows  = (typeMatched.length ? typeMatched : cutoffRaw).slice(0,3);
     const years = ['2025','2024','2023'];
-    const scaleNote = grade>=3 ? '(9등급 기준)' : '(5→9등급 환산)';
+    const scaleNote = studentIs9 ? '(9등급 기준)' : '(5→9등급 환산)';
 
     function gradeCompare(stuG, cutG){
       if(!stuG||!cutG) return {icon:'—',cls:'#94a3b8',diff:''};
