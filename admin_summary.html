@@ -1649,12 +1649,7 @@ async function generateCcItemEval(idx){
     // activities[idx].평가에도 반영
     if(changche[hak].activities[idx]) changche[hak].activities[idx].평가 = obj;
 
-    // sewtuk에도 저장 (saveToSheet 용)
-    if(!sewtuk[hak]) sewtuk[hak] = {};
-    if(!sewtuk[hak].창체활동평가) sewtuk[hak].창체활동평가 = {};
-    sewtuk[hak].창체활동평가[String(idx)] = obj;
-
-    await saveToSheet(hak);
+    await saveChangcheToSheet(hak);
     renderChangchePanel();
     document.getElementById('ccItem'+idx)?.classList.add('open');
 
@@ -1695,10 +1690,10 @@ async function generateCcOverall(){
 
     if(!sewtuk[hak]) sewtuk[hak]={};
     sewtuk[hak].창체종합평가 = obj;
-    // ★ FIX: changche 인메모리도 동기화 (renderChangchePanel이 changche 우선으로 읽음)
+    // changche 인메모리 업데이트 후 changche 시트에 저장
     if(!changche[hak]) changche[hak]={};
     changche[hak].창체종합평가 = obj;
-    await saveToSheet(hak);
+    await saveChangcheToSheet(hak);
     renderCcOverallSection(obj, false);
     addMsgToChat('chatBodyCc','assistant',
       `✅ 창체 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
@@ -2429,7 +2424,14 @@ async function applyAndSave(){
   }
 }
 
-/* ========== 구글 시트에 저장 ========== */
+/* ========== 창체 시트에 저장 ========== */
+async function saveChangcheToSheet(hak){
+  const data = changche[String(hak)];
+  if(!data) return;
+  await apiPost({action:'saveChangche', password:currentPw, hak:String(hak), changcheData:data});
+}
+
+
 async function saveToSheet(hak){
   const data=sewtuk[String(hak)];
   if(!data) return;
