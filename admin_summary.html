@@ -1079,6 +1079,9 @@ async function callAPI(system,messages,maxTokens=400){
       },
       body:JSON.stringify({
         model:currentAnthropicModel,
+        max_tokens:maxTokens,
+        system,
+        messages
       })
     });
     if(!r.ok){const t=await r.text();console.error('Anthropic API Error:',r.status,t);throw new Error(`Anthropic API ${r.status}: ${t.substring(0,200)}`);}
