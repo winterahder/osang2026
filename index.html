@@ -863,7 +863,7 @@ function renderMain(){
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
   const isStudent = currentRole && currentRole.startsWith('student_');
-  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가', ...(isStudent ? [] : ['모의지원'])];
+  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가','모의지원'];
 
   if(isMobile()){
     // ===== 모바일 레이아웃 =====
@@ -1803,16 +1803,67 @@ function admissionsToPromptText(cases, univInput, deptInput) {
   return text.trim();
 }
 
+// ========== 모의지원 횟수 관리 (학생 전용) ==========
+// 저장 키: applyCount_{token}_{hak} → 사용 횟수
+// 교사/관리자는 횟수 제한 없음
+
+function getApplyLimit(stu){
+  // 3학년 30회, 1·2학년 10회
+  const grade = parseInt(stu?.grade) || parseInt(String(stu?.hak||'')[0]) || 0;
+  return grade >= 3 ? 30 : 10;
+}
+
+function getApplyCountKey(hak){
+  // 학생 토큰 + 학번 조합으로 키 생성 (토큰은 개인 식별자)
+  return `applyCount_${currentPassword}_${hak}`;
+}
+
+function getApplyUsed(hak){
+  const key = getApplyCountKey(hak);
+  return parseInt(localStorage.getItem(key) || '0');
+}
+
+function incrementApplyCount(hak){
+  const key = getApplyCountKey(hak);
+  const cur = getApplyUsed(hak);
+  localStorage.setItem(key, String(cur + 1));
+}
+
 // ========== 모의지원 탭 ==========
 let applyHistory = {}; // hak → [{univ, dept, type, result}]
 
 function renderMockApplyTab(el){
   const hak = String(currentStu.hak);
   const hist = applyHistory[hak] || [];
+  const isStudent = currentRole && currentRole.startsWith('student_');
+
+  // 학생인 경우 횟수 표시
+  let limitBannerHtml = '';
+  if(isStudent){
+    const limit = getApplyLimit(currentStu);
+    const used  = getApplyUsed(hak);
+    const left  = Math.max(0, limit - used);
+    const pct   = Math.min(100, (used / limit) * 100);
+    const barColor = left <= 3 ? '#ef4444' : left <= 10 ? '#f59e0b' : '#6366f1';
+    limitBannerHtml = `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;">
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <span style="font-size:12px;font-weight:600;color:#475569;">모의지원 사용 횟수</span>
+            <span style="font-size:13px;font-weight:800;color:${barColor};">${used} / ${limit}회</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;">잔여 ${left}회${left === 0 ? ' — 횟수를 모두 사용했습니다' : ''}</div>
+        </div>
+      </div>`;
+  }
   el.innerHTML = `
     <div class="apply-wrap">
       <div class="apply-form-card">
         <div class="apply-form-title">🎯 학과 적합성 분석</div>
+        ${limitBannerHtml}
         <div class="apply-input-row">
           <div class="apply-input-group" style="position:relative;">
             <label>대학교</label>
@@ -1867,6 +1918,36 @@ async function runApplyAnalysis(){
   const note = document.getElementById('applyNote').value.trim();
 
   if(!univ || !dept){ alert('대학교와 학과를 입력해주세요.'); return; }
+
+  // ── 학생 접속 시 횟수 제한 체크 ──
+  const isStudent = currentRole && currentRole.startsWith('student_');
+  if(isStudent){
+    const limit = getApplyLimit(currentStu);
+    const used  = getApplyUsed(hak);
+    const left  = limit - used;
+
+    if(left <= 0){
+      alert(`모의지원 횟수를 모두 사용했습니다.\n(${limit}회 한도 초과)\n\n담임 선생님께 문의해 주세요.`);
+      return;
+    }
+
+    // 확인 다이얼로그
+    const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
+    const confirmed = confirm(
+      `📊 모의지원 분석을 실행합니다.\n\n` +
+      `대학: ${univ}\n학과: ${dept}\n전형: ${type}\n\n` +
+      `잔여 횟수: ${left}회 / ${limit}회\n` +
+      `(${grade}학년 한도: ${limit}회)\n\n` +
+      `분석을 시작하면 횟수 1회가 차감됩니다.\n계속하시겠습니까?`
+    );
+    if(!confirmed) return;
+
+    // 횟수 차감
+    incrementApplyCount(hak);
+    // UI 갱신 (배너 업데이트)
+    const el = document.querySelector('.apply-wrap')?.closest('.tab-content');
+    if(el) renderMockApplyTab(el);
+  }
 
   const btn = document.getElementById('applyBtn');
   const resultEl = document.getElementById('applyResult');
