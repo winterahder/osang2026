@@ -808,6 +808,7 @@ function renderMain(){
         <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <!-- 창체 전용 버튼 -->
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
+        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#06b6d4,#0891b2);display:none;" onclick="generateAllCcEval()">📊 전체 평가 생성</button>
         <!-- 공통 버튼 -->
         <button class="btn-overall" id="btnCompEval" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="generateComprehensiveEval()">🏆 종합 역량 평가 (내신+세특+창체+행발)</button>
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
@@ -1538,9 +1539,37 @@ async function generateAllCcSummary(){
   addMsgToChat('chatBodyCc','assistant','✅ 창체 전체 요약 완료!');
 }
 
+async function generateAllCcEval(){
+  const hak = String(currentStu.hak);
+  const ccData = changche[hak];
+  if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
+
+  const btn = document.querySelector('.tab-btn-changche[onclick="generateAllCcEval()"]');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> 평가 중...'; }
+
+  const targets = ccData.activities.map((a,i)=>i).filter(i=>{
+    const a = ccData.activities[i];
+    return !(a.평가 || ccData?.창체활동평가?.[String(i)]);
+  });
+
+  if(!targets.length){
+    addMsgToChat('chatBodyCc','assistant','✅ 모든 활동 평가가 이미 완료되어 있습니다.');
+    if(btn){ btn.disabled=false; btn.innerHTML='📊 전체 평가 생성'; }
+    return;
+  }
+
+  addMsgToChat('chatBodyCc','assistant',`📊 미평가 **${targets.length}개** 활동을 순서대로 평가합니다...`);
+  for(const i of targets){
+    await generateCcItemEval(i);
+    await new Promise(r=>setTimeout(r,300));
+  }
+  addMsgToChat('chatBodyCc','assistant',`🎉 창체 전체 평가 완료! **${targets.length}개** 활동 평가가 저장되었습니다.`);
+  if(btn){ btn.disabled=false; btn.innerHTML='📊 전체 평가 생성'; }
+}
+
+
 async function generateCcItemSummary(idx){
   const hak = String(currentStu.hak);
-  const btn = document.getElementById('btnCcItem'+idx);
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const acts = changche[hak]?.activities || [];
