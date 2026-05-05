@@ -1986,7 +1986,8 @@ async function runApplyAnalysis(){
     .filter(([k])=>deptNormForFilter.includes(k))
     .flatMap(([,v])=>v);
 
-  // 1-D. 세특 — 원본 있으면 원본, 없으면 성적만 표시 (지원학과 관련 과목 우선)
+  // 1-D. 세특 — 모의지원에는 원본(내용 필드)만 사용
+  // ※ 요약·평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
   const allSubjects = stuData?.subjects || [];
 
   // grades에서 과목명 → 등급 맵 생성 (세특 원본 없는 과목에 성적 표시용)
@@ -2004,7 +2005,8 @@ async function runApplyAnalysis(){
 
   const relevantSubjects = relatedKeywords.length > 0
     ? allSubjects.filter(s=>{
-        const text = ((s.요약||[]).join(' ') + (s.내용||'')).toLowerCase();
+        // 키워드 매칭도 원본 내용(내용 필드)만 사용 — 요약/평가 필드는 참조하지 않음
+        const text = (s.내용||'').toLowerCase();
         return relatedKeywords.some(k=>text.includes(k));
       })
     : allSubjects;
@@ -2027,7 +2029,8 @@ async function runApplyAnalysis(){
       }).join('\n\n')
     : null;
 
-  // 1-E. 창체 — 원본 내용만 사용, 없는 활동은 완전 제외
+  // 1-E. 창체 — 모의지원에는 원본(내용 필드)만 사용, 원본 없는 활동은 완전 제외
+  // ※ 요약·평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
   const changcheData = changche[hak]
     || (currentStu.g3_hak ? changche[String(currentStu.g3_hak)] : null)
     || (currentStu.g2_hak ? changche[String(currentStu.g2_hak)] : null)
@@ -2043,7 +2046,8 @@ async function runApplyAnalysis(){
     ).join('\n\n');
   })();
 
-  // 1-F. 행발 — 원문만 사용, 없으면 제외
+  // 1-F. 행발 — 모의지원에는 원문(행발 필드)만 사용, 없으면 제외
+  // ※ 행발요약·행발종합평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
   const haengbalRaw = stuData?.행발 || {};
   const haengbalSummary = (() => {
     const entries = Object.entries(haengbalRaw).filter(([, v]) => v && String(v).trim().length > 10);
@@ -2054,15 +2058,12 @@ async function runApplyAnalysis(){
       .join('\n\n');
   })();
 
-  // 1-G. 종합역량평가
+  // 1-G. 종합역량평가 — 데이터 있을 때만 포함, 없으면 프롬프트에서 완전 제외
   const compEval = stuData?.종합역량평가 || null;
-  let compSummary = '종합역량평가 없음';
-  if(compEval){
-    compSummary = [
-      `학업역량 ${compEval.학업역량?.grade??'-'} / 진로역량 ${compEval.진로역량?.grade??'-'} / 공동체역량 ${compEval.공동체역량?.grade??'-'}`,
-      compEval.종합의견 ? compEval.종합의견.substring(0,300) : ''
-    ].filter(Boolean).join('\n');
-  }
+  const compSummary = compEval ? [
+    `학업역량 ${compEval.학업역량?.grade??'-'} / 진로역량 ${compEval.진로역량?.grade??'-'} / 공동체역량 ${compEval.공동체역량?.grade??'-'}`,
+    compEval.종합의견 ? compEval.종합의견.substring(0,300) : ''
+  ].filter(Boolean).join('\n') : null;
 
   // ══════════════════════════════════════════════════
   // Layer 2: 입결 + 합불이력
@@ -2135,8 +2136,7 @@ ${gradeDetail}
 【모의고사 (최근 2회차)】
 ${mockSummary}
 
-【종합역량평가】
-${compSummary}
+${compSummary ? `【종합역량평가】\n${compSummary}` : ''}
 
 ${sewtukSummary ? `【세특 원본 — ${dept} 관련 핵심 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
 
@@ -2168,6 +2168,7 @@ ${refBlock}
 5. 세특 활용: 원본 세특에서 ${dept} 관련 탐구 활동·역량을 직접 파악하여 종합전형 강점으로 연결
 6. 창체·행발 활용: 창체 활동과 행발에서 드러나는 인성·리더십·공동체 역량을 종합전형 평가 요소로 반영
 7. 지역인재: ${univ} 지역인재전형 해당 여부 확인 후 언급
+⚠️ 주의: 수상경력·독서활동은 2024학년도부터 대입 미반영 항목이므로 분석에서 절대 언급하지 마세요. 종합역량평가 데이터가 없어도 이를 보완점으로 지적하지 마세요.
 
 반드시 아래 JSON만 출력 (마크다운 코드블록 금지):
 {
