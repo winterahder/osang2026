@@ -1986,6 +1986,7 @@ async function runApplyAnalysis(){
     .filter(([k])=>deptNormForFilter.includes(k))
     .flatMap(([,v])=>v);
 
+  // 1-D. 세특 — 원본 내용만 사용, 원본 없는 과목은 제외
   const allSubjects = stuData?.subjects || [];
   const relevantSubjects = relatedKeywords.length > 0
     ? allSubjects.filter(s=>{
@@ -1993,19 +1994,51 @@ async function runApplyAnalysis(){
         return relatedKeywords.some(k=>text.includes(k));
       })
     : allSubjects;
-  const sewtukToShow = (relevantSubjects.length > 0 ? relevantSubjects : allSubjects).slice(0,6);
+  const baseSubjects = relevantSubjects.length > 0 ? relevantSubjects : allSubjects;
+  // 원본 있는 과목만 추출
+  const sewtukWithRaw = baseSubjects.filter(s => {
+    const raw = (s.내용||'').trim();
+    return raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
+  });
+  const sewtukToShow = sewtukWithRaw.slice(0, 8);
   const sewtukSummary = sewtukToShow.length > 0
-    ? sewtukToShow.map(s=>`[${s.교과}-${s.과목}] ${(s.요약||[]).join(' / ')||s.내용?.substring(0,120)||''}`)
-        .join('\n')
-    : '세특 데이터 없음';
+    ? sewtukToShow.map(s => `[${s.교과}-${s.과목}]\n${s.내용.trim()}`).join('\n\n')
+    : null; // null이면 프롬프트에서 제외
 
-  // 1-E. 종합역량평가
+  // 1-E. 창체 — 원본 내용만 사용, 없는 활동은 완전 제외
+  const changcheData = changche[hak]
+    || (currentStu.g3_hak ? changche[String(currentStu.g3_hak)] : null)
+    || (currentStu.g2_hak ? changche[String(currentStu.g2_hak)] : null)
+    || (currentStu.g1_hak ? changche[String(currentStu.g1_hak)] : null);
+  const changcheSummary = (() => {
+    const acts = (changcheData?.activities || []).filter(a => {
+      const raw = (a.내용 || '').trim();
+      return raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
+    });
+    if(!acts.length) return null; // null이면 프롬프트에서 제외
+    return acts.map(a =>
+      `[${a.학년}학년 ${a.분류} - ${a.활동명}]\n${a.내용.trim()}`
+    ).join('\n\n');
+  })();
+
+  // 1-F. 행발 — 원문만 사용, 없으면 제외
+  const haengbalRaw = stuData?.행발 || {};
+  const haengbalSummary = (() => {
+    const entries = Object.entries(haengbalRaw).filter(([, v]) => v && String(v).trim().length > 10);
+    if(!entries.length) return null;
+    return entries
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([g, text]) => `[${g}학년]\n${String(text).trim()}`)
+      .join('\n\n');
+  })();
+
+  // 1-G. 종합역량평가
   const compEval = stuData?.종합역량평가 || null;
   let compSummary = '종합역량평가 없음';
   if(compEval){
     compSummary = [
       `학업역량 ${compEval.학업역량?.grade??'-'} / 진로역량 ${compEval.진로역량?.grade??'-'} / 공동체역량 ${compEval.공동체역량?.grade??'-'}`,
-      compEval.종합의견 ? compEval.종합의견.substring(0,200) : ''
+      compEval.종합의견 ? compEval.종합의견.substring(0,300) : ''
     ].filter(Boolean).join('\n');
   }
 
@@ -2083,8 +2116,11 @@ ${mockSummary}
 【종합역량평가】
 ${compSummary}
 
-【세특 요약 — ${dept} 관련 핵심】
-${sewtukSummary}
+${sewtukSummary ? `【세특 원본 — ${dept} 관련 핵심 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
+
+${changcheSummary ? `【창체 활동 원본】\n${changcheSummary}` : ''}
+
+${haengbalSummary ? `【행동발달사항 원본】\n${haengbalSummary}` : ''}
 
 ━━━ 【지원 대학 데이터】 ━━━
 목표: ${univ} / ${dept} / ${type}전형
@@ -2107,7 +2143,9 @@ ${refBlock}
 2. 입결 비교: 50컷·70컷이 있으면 반드시 학생 내신과 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
 3. 수능최저: Tier1·2 자료의 수능최저 기준과 학생 모의고사 성적을 대조하여 충족 가능성 명시
 4. 전형 특성: 교과/종합/논술 전형 특성에 맞게 강점·약점을 다르게 분석
-5. 지역인재: ${univ} 지역인재전형 해당 여부 확인 후 언급
+5. 세특 활용: 원본 세특에서 ${dept} 관련 탐구 활동·역량을 직접 파악하여 종합전형 강점으로 연결
+6. 창체·행발 활용: 창체 활동과 행발에서 드러나는 인성·리더십·공동체 역량을 종합전형 평가 요소로 반영
+7. 지역인재: ${univ} 지역인재전형 해당 여부 확인 후 언급
 
 반드시 아래 JSON만 출력 (마크다운 코드블록 금지):
 {
