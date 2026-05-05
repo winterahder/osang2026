@@ -2769,7 +2769,19 @@ function renderCcOverallPanel(ccOverall, cat){
   // 분류별: 창체분류평가[cat] 사용
   if(cat === '전체'){
     if(!ccOverall || typeof ccOverall !== 'object') return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 창체 종합 평가 없음<br><small>admin에서 AI 종합 평가를 먼저 생성해주세요</small></div></div>';
-    return renderAIOverallPanel(ccOverall, '🎭 창체 종합 역량 평가', '창체 AI 분석');
+    const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+    const actIcons={'자율활동':'🏫','동아리활동':'🎸','진로활동':'🎯'};
+    const actGridItems=['자율활동','동아리활동','진로활동'].map(k=>{
+      const d=ccOverall[k]; if(!d) return '';
+      const color=GC[d.grade]||'#64748b';
+      return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid ${color};border-radius:10px;padding:12px 14px;text-align:center;">
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">${actIcons[k]||'📌'} ${k}</div>
+        <div style="font-size:36px;font-weight:900;color:${color};line-height:1.1;">${d.grade||'?'}</div>
+        ${d.comment?`<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.5;">${escapeHtml(d.comment)}</div>`:''}
+      </div>`;
+    }).join('');
+    const actBlock = actGridItems.trim() ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;">${actGridItems}</div>` : '';
+    return renderAIOverallPanel(ccOverall, '🎭 창체 종합 역량 평가', '창체 AI 분석') + actBlock;
   } else {
     const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
     if(!ccOverall || typeof ccOverall !== 'object') return '<div class="overall-eval-panel"><div class="overall-eval-empty">📊 '+cat+' 평가 없음<br><small>admin에서 AI 종합 평가를 먼저 생성해주세요</small></div></div>';
@@ -2835,6 +2847,31 @@ function renderChangche(el){
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
       const saved = (sewtuk[hak]||{}).창체요약?.[actIdx] || a.요약 || '';
+      // ★ FIX: 개별 활동 평가 데이터 (a.평가 → 창체활동평가 폴백)
+      const evalData = a.평가 || data?.창체활동평가?.[String(actIdx)] || null;
+      const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
+      const evalBlock = evalData ? `
+        <div style="margin-top:14px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;">📊 역량 평가</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+            ${['학업역량','진로역량','공동체역량'].map(k=>{
+              const d=evalData[k]; if(!d) return '';
+              const color=GC[d.grade]||'#64748b';
+              const subHtml=Object.entries(d.세부||{}).map(([sk,sv])=>
+                `<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;">
+                  <span style="color:#64748b;">${sk}</span>
+                  <span style="font-weight:700;color:${GC[sv]||'#94a3b8'};">${sv}</span>
+                </div>`
+              ).join('');
+              return `<div style="background:#fff;border:1px solid #e2e8f0;border-top:3px solid ${color};border-radius:8px;padding:10px 12px;">
+                <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">${k}</div>
+                <div style="font-size:28px;font-weight:900;color:${color};line-height:1;">${d.grade||'?'}</div>
+                ${subHtml}
+              </div>`;
+            }).join('')}
+          </div>
+          ${evalData.근거?`<div style="font-size:12px;color:#475569;line-height:1.7;padding:8px 12px;background:#fff;border-radius:8px;border-left:3px solid #6366f1;">${escapeHtml(evalData.근거)}</div>`:''}
+        </div>` : '';
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
@@ -2845,13 +2882,14 @@ function renderChangche(el){
                 <span class="sub-meta">${a.학년}학년</span>
                 <div class="status-badges">
                   <span class="status-badge ${saved?'sb-done':'sb-none'}">${saved?'✓ 요약':'요약 미완료'}</span>
+                  ${evalData?'<span class="status-badge sb-done">✓ 평가</span>':''}
                 </div>
               </div>
               ${renderSummary(saved)}
             </div>
             <span class="arrow">▶</span>
           </div>
-          <div class="accordion-body">${escapeHtml(a.내용)}</div>
+          <div class="accordion-body">${escapeHtml(a.내용)}${evalBlock}</div>
         </div>
       `;
     });
