@@ -1812,60 +1812,108 @@ async function runApplyAnalysis(){
   btn.innerHTML = '<span class="apply-spinner"></span> 분석 중...';
   resultEl.innerHTML = '';
 
-  // 학생 데이터 수집
-  const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
-  let stuData = sewtuk[hak] || (grade===2 && currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null);
-  const compEval = stuData?.종합역량평가 || null;
-  const mockData = mock[hak] || [];
+  // ══════════════════════════════════════════════════
+  // Layer 1: 학생 압축 프로필 생성
+  // ══════════════════════════════════════════════════
 
-  // 내신 요약 — 학년별 등급 체계 구분
-  let gradesSummary = '내신 데이터 없음';
+  // 1-A. 내신 — 교과군별 평균으로 압축 (과목 나열 X)
+  let gradeProfile = '내신 데이터 없음';
+  let gradeDetail  = '';
   const gradesData = grades[hak] || (grade===2&&currentStu.g2_hak ? grades[String(currentStu.g2_hak)] : null);
   if(gradesData?.grades){
-    const lines = [];
-    Object.entries(gradesData.grades).forEach(([sem, sd])=>{
-      // 학기 키(예: "1-1", "2-1", "3-1")에서 학년 추출해서 등급체계 표시
+    const byGroup = { 국어:[], 수학:[], 영어:[], 사회:[], 과학:[], 기타:[] };
+    const semLines = [];
+    Object.entries(gradesData.grades).sort().forEach(([sem, sd])=>{
       const semGrade = parseInt(sem.split('-')[0]) || grade;
-      const scaleNote = semGrade >= 3 ? '[9등급제]' : '[5등급제]';
+      const scale    = semGrade >= 3 ? '9등급' : '5등급';
+      let cr=0, wt=0;
       (sd.subjects||[]).forEach(s=>{
-        if(s.등급||s.원점수) lines.push(`${scaleNote}[${sem}] ${s.과목}: 원점수${s.원점수??'-'} 등급${s.등급??'-'}${s.성취도?' 성취도'+s.성취도:''}`);
+        const g = getG(s);
+        if(g==null || !s.학점) return;
+        cr+=s.학점; wt+=g*s.학점;
+        const grp = getSubjectGroup(s.교과||'');
+        if(byGroup[grp]) byGroup[grp].push({g, cr:s.학점, name:s.과목});
       });
+      if(cr>0) semLines.push(`  ${sem.replace('-','학년 '+'학기')} (${scale}): 평균 ${(wt/cr).toFixed(2)}`);
     });
-    gradesSummary = lines.join('\n') || '내신 데이터 없음';
+    // 교과군 요약
+    const groupSummary = Object.entries(byGroup)
+      .filter(([,arr])=>arr.length>0)
+      .map(([grp,arr])=>{
+        let tc=0,tw=0;
+        arr.forEach(({g,cr})=>{tc+=cr;tw+=g*cr;});
+        return `${grp} ${(tw/tc).toFixed(2)}`;
+      }).join(' | ');
+    gradeProfile = `전체평균: ${stuGradeAvg??'-'}${stuGradeAvgNote}\n교과군별: ${groupSummary}\n학기별:\n${semLines.join('\n')}`;
+    // 핵심 과목 상세 (국·수·영만)
+    const keySubjs = ['국어','수학','영어'].flatMap(g=>byGroup[g])
+      .map(({name,g})=>`${name}:${g}`).join(' ');
+    gradeDetail = keySubjs ? `핵심과목(국·수·영): ${keySubjs}` : '';
   }
 
-  // 등급 체계 안내 (Claude 해석 기준)
+  // 1-B. 등급제 안내
   const gradeSystemGuide = grade >= 3
-    ? `※ 이 학생은 3학년으로 내신이 9등급제입니다.
-  - 9등급 기준: 1~2등급 최상위권 / 3~4등급 상위권 / 5등급 중위권 / 6등급 이하 하위권
-  - 교과전형: 상위권 대학 3등급 이내, 중위권 대학 4~5등급 가능
-  - 종합전형: 등급 자체보다 세특·활동의 질이 중요하나, 5등급 이하는 불리`
-    : `※ 이 학생은 ${grade}학년으로 내신이 5등급제입니다.
-  - 5등급 기준: 1등급 최상위(A) / 2등급 상위(B) / 3등급 중위(C) / 4등급 하위(D) / 5등급 최하위(E)
-  - 5등급제는 9등급제보다 등급 폭이 넓어 같은 숫자라도 다르게 해석해야 함
-  - 교과전형 지원 시 동일 대학의 9등급 환산 기준으로 비교 필요`;
+    ? `9등급제 (3학년, 2015개정) — 1~2:최상위 / 3~4:상위 / 5:중위 / 6~:하위`
+    : `5등급제 (${grade}학년, 2022개정) — 1:최상위A / 2:상위B / 3:중위C / 4:하위D / 5:최하위E\n※ 교과전형 비교 시 9등급 환산 적용 (전체평균 ${stuGradeAvg??'-'}등급 기준)`;
 
-  // 모의고사 최근 요약
+  // 1-C. 모의고사 — 최근 2회차 핵심만
   let mockSummary = '모의고사 데이터 없음';
   if(mockData.length){
-    const latest = mockData[mockData.length-1];
-    const scores = Object.entries(latest).filter(([k])=>!['round','year','grade_at','month'].includes(k));
-    mockSummary = `${latest.round} — ` + scores.map(([k,v])=>`${k} ${v?.등급??'-'}등급`).join(', ');
+    const recent = mockData.slice(-2).reverse();
+    mockSummary = recent.map(r=>{
+      const scores = SUBJECTS.map(sub=>{
+        const d = r[sub]; if(!d) return null;
+        const sel = d.선택?.trim();
+        return `${sub}${sel?`(${sel})`:''} ${d.등급??'-'}등급`;
+      }).filter(Boolean).join(' / ');
+      return `${ROUND_LABEL[r.round]||r.round}: ${scores}`;
+    }).join('\n');
   }
 
-  // 세특 요약
-  const sewtukSummary = (stuData?.subjects||[]).map(s=>
-    `[${s.교과}-${s.과목}] ${(s.요약||[]).join(' / ')||s.내용?.substring(0,150)||''}`
-  ).join('\n');
+  // 1-D. 세특 — 지원 학과 관련 키워드로 필터링
+  const deptNormForFilter = dept.replace(/학과$|학부$|전공$/, '').toLowerCase();
+  const DEPT_RELATED = { // 계열별 관련 키워드
+    '의':['의학','생명','화학','생물','의료','해부','약리'],
+    '약':['약학','화학','생명','제약','약리','유기화학'],
+    '수의':['수의','동물','생명','미생물','해부','생물'],
+    '치':['치의','구강','생명','화학','해부'],
+    '한의':['한의','한방','동의','생명','약초'],
+    '경':['경제','경영','금융','회계','마케팅','재무','무역'],
+    '법':['법','헌법','민법','형법','법학','사회'],
+    '교육':['교육','교사','수업','학습','학생'],
+    '공':['공학','물리','전자','기계','화공','토목','컴퓨터','AI','프로그램'],
+    '컴':['컴퓨터','소프트웨어','알고리즘','프로그래밍','AI','데이터','코딩'],
+  };
+  const relatedKeywords = Object.entries(DEPT_RELATED)
+    .filter(([k])=>deptNormForFilter.includes(k))
+    .flatMap(([,v])=>v);
 
-  // 종합역량평가 요약
+  const allSubjects = stuData?.subjects || [];
+  const relevantSubjects = relatedKeywords.length > 0
+    ? allSubjects.filter(s=>{
+        const text = ((s.요약||[]).join(' ') + (s.내용||'')).toLowerCase();
+        return relatedKeywords.some(k=>text.includes(k));
+      })
+    : allSubjects;
+  const sewtukToShow = (relevantSubjects.length > 0 ? relevantSubjects : allSubjects).slice(0,6);
+  const sewtukSummary = sewtukToShow.length > 0
+    ? sewtukToShow.map(s=>`[${s.교과}-${s.과목}] ${(s.요약||[]).join(' / ')||s.내용?.substring(0,120)||''}`)
+        .join('\n')
+    : '세특 데이터 없음';
+
+  // 1-E. 종합역량평가
+  const compEval = stuData?.종합역량평가 || null;
   let compSummary = '종합역량평가 없음';
   if(compEval){
-    compSummary = `학업역량 ${compEval.학업역량?.grade} / 진로역량 ${compEval.진로역량?.grade} / 공동체역량 ${compEval.공동체역량?.grade}\n${compEval.종합의견||''}`;
+    compSummary = [
+      `학업역량 ${compEval.학업역량?.grade??'-'} / 진로역량 ${compEval.진로역량?.grade??'-'} / 공동체역량 ${compEval.공동체역량?.grade??'-'}`,
+      compEval.종합의견 ? compEval.종합의견.substring(0,200) : ''
+    ].filter(Boolean).join('\n');
   }
 
-  // 입결 + 합불사례 동시 조회
-  btn.disabled = true;
+  // ══════════════════════════════════════════════════
+  // Layer 2: 입결 + 합불이력
+  // ══════════════════════════════════════════════════
   btn.innerHTML = '<span class="apply-spinner"></span> 입결 조회 중...';
   const [cutoffRaw, admCases] = await Promise.all([
     fetchCutoffData(univ, dept),
@@ -1874,91 +1922,110 @@ async function runApplyAnalysis(){
   const cutoffText = cutoffToPromptText(cutoffRaw, univ, dept, type);
   btn.innerHTML = '<span class="apply-spinner"></span> Claude 분석 중...';
 
-  // 학생 내신 평균 계산 — 1·2학년은 9등급 환산, 3학년은 직접 사용
-  let stuGradeAvg = null;
-  let stuGradeAvgNote = '';
-  if(gradesData?.grades){
-    let totalCredit=0, weighted=0, estCount=0, totalCount=0;
-    const is9 = grade >= 3;
-    Object.values(gradesData.grades).forEach(sd=>{
-      (sd.subjects||[]).forEach(s=>{
-        if(s.등급==null || !s.학점) return;
-        let g;
-        if(is9){
-          g = s.등급; // 3학년: 이미 9등급제
-        } else {
-          // 1·2학년: estGrade9()로 9등급 환산
-          const est = estGrade9(s);
-          if(est){ g = est.grade; if(est.source==='추정') estCount++; }
-          totalCount++;
-        }
-        if(g!=null){ totalCredit+=s.학점; weighted+=g*s.학점; }
-      });
-    });
-    if(totalCredit>0){
-      stuGradeAvg = (weighted/totalCredit).toFixed(2);
-      stuGradeAvgNote = is9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
-    }
+  // ══════════════════════════════════════════════════
+  // Layer 3: 참고자료 Tier 계층화
+  // ══════════════════════════════════════════════════
+  const admYear = grade>=3 ? '2027' : '2028';
+  const normRef = s => String(s||'').replace(/\s/g,'').toLowerCase();
+  const univBase = normRef(univ).replace(/학교$|대학교$|대학$/, '');
+
+  // Tier 분류 함수
+  function classifyRef(r){
+    const title   = normRef(r['제목']||'');
+    const preview = normRef((r['내용']||'').substring(0,600));
+    const isUnivMatch = title.includes(univBase) || preview.includes(univBase);
+    const isDeptMatch = DEPT_KEYWORD_MAP.some(({match,keywords})=>
+      match.some(m=>normRef(dept).includes(m)) &&
+      keywords.some(k=>title.includes(normRef(k))||preview.includes(normRef(k)))
+    );
+    const isStrategy = ['전략','특징','흐름','변화사항','변화 사항','의약학'].some(k=>title.includes(normRef(k)));
+    if(isUnivMatch) return 1;
+    if(isDeptMatch) return 2;
+    if(isStrategy)  return 3;
+    return 4; // 제외
   }
 
-  const prompt = `당신은 대입 전형 전문 컨설턴트입니다. 다음 학생의 학생부 데이터를 분석하여 목표 대학/학과 적합성을 평가해주세요.
+  const allMatchedRefs = referencesList.filter(r=>{
+    const target = r['적용학년']||'공통';
+    if(admYear && target!=='공통' && target!==admYear) return false;
+    return classifyRef(r) <= 3;
+  });
 
-【학생 정보】
-이름: ${currentStu.name} / ${hak[0]}학년
+  const tier1 = allMatchedRefs.filter(r=>classifyRef(r)===1);
+  const tier2 = allMatchedRefs.filter(r=>classifyRef(r)===2);
+  const tier3 = allMatchedRefs.filter(r=>classifyRef(r)===3);
 
-【내신 성적】
-${gradeSystemGuide}
+  const formatTier = (refs, maxChars) => refs.map(r=>{
+    const content = (r['내용']||'').substring(0, maxChars);
+    return `📌 ${r['제목']||r.id}\n${content}`;
+  }).join('\n\n');
 
-${gradesSummary}
+  const refBlock = [
+    tier1.length ? `▶ Tier1 해당 대학 전형 정보\n${formatTier(tier1, 900)}` : '',
+    tier2.length ? `▶ Tier2 해당 계열 전국 분석\n${formatTier(tier2, 700)}` : '',
+    tier3.length ? `▶ Tier3 대입 전략·흐름 (요약)\n${formatTier(tier3, 400)}` : '',
+  ].filter(Boolean).join('\n\n') || '등록된 참고자료 없음';
 
-【모의고사】
+  // ══════════════════════════════════════════════════
+  // 최종 프롬프트 조합
+  // ══════════════════════════════════════════════════
+  const prompt = `당신은 한국 대입 전형 전문 컨설턴트입니다. 아래 데이터를 기반으로 학생의 ${univ} ${dept} ${type}전형 지원 가능성을 분석하세요.
+
+━━━ 【학생 프로필】 ━━━
+이름: ${currentStu.name} | ${grade}학년 | 학번: ${hak}
+등급제: ${gradeSystemGuide}
+
+【내신 성적 요약】
+${gradeProfile}
+${gradeDetail}
+
+【모의고사 (최근 2회차)】
 ${mockSummary}
-
-【세특 요약】
-${sewtukSummary}
 
 【종합역량평가】
 ${compSummary}
 
-【목표 대학 실제 입결 데이터】
+【세특 요약 — ${dept} 관련 핵심】
+${sewtukSummary}
+
+━━━ 【지원 대학 데이터】 ━━━
+목표: ${univ} / ${dept} / ${type}전형
+${note ? `추가 요청: ${note}` : ''}
+
+【입결 데이터 (50컷·70컷 3개년)】
 ${cutoffText}
 
-【우리 학교 선배 합불 이력】
+【우리 학교·지역 선배 합불 이력】
 ${admissionsToPromptText(admCases, univ, dept)}
 
-【입시 참고자료】
-${(()=>{
-  const matched = filterReferences(univ, dept);
-  const admYear = grade>=3 ? '2027' : '2028';
-  const header = `※ ${admYear}학년도 기준 참고자료 (${grade}학년 · ${grade>=3?'2015':'2022'} 개정 교육과정)`;
-  return matched.length
-    ? header + '\n' + matched.map(r=>`[${r['제목']||r.id}(${r['적용학년']||'공통'})]\n${(r['내용']||'').substring(0,600)}`).join('\n\n')
-    : header + '\n해당 대학 관련 등록 자료 없음';
-})()}
+━━━ 【입시 참고자료 — ${admYear}학년도 기준】 ━━━
+※ Tier1=해당대학, Tier2=해당계열, Tier3=전략흐름 순으로 활용하세요.
 
-【분석 요청】
-대학교: ${univ}
-학과: ${dept}
-전형: ${type} 전형
-${note?`추가 요청: ${note}`:''}
+${refBlock}
 
-반드시 아래 JSON만 출력 (마크다운 절대 금지):
+━━━ 【분석 지시】 ━━━
+아래 기준으로 엄격하게 분석하세요:
+1. 내신 해석: ${grade>=3?'9등급제 직접 적용':'5등급제이므로 9등급 환산(전체평균 '+stuGradeAvg+'등급) 후 입결과 비교'}
+2. 입결 비교: 50컷·70컷이 있으면 반드시 학생 내신과 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
+3. 수능최저: Tier1·2 자료의 수능최저 기준과 학생 모의고사 성적을 대조하여 충족 가능성 명시
+4. 전형 특성: 교과/종합/논술 전형 특성에 맞게 강점·약점을 다르게 분석
+5. 지역인재: ${univ} 지역인재전형 해당 여부 확인 후 언급
+
+반드시 아래 JSON만 출력 (마크다운 코드블록 금지):
 {
   "적합도": "상|중|하",
   "적합도점수": 75,
-  "한줄평": "20자 이내 핵심 한줄 평가",
-  "강점": "이 학과 지원에 유리한 구체적 강점 3~4가지 (음슴체)",
-  "보완점": "부족하거나 보완이 필요한 부분 2~3가지 (음슴체)",
-  "전형분석": "${type} 전형 관점에서 구체적 분석 (음슴체, 3~4문장)",
-  "추천전략": "합격 가능성을 높이기 위한 구체적 전략 2~3가지 (음슴체)",
-  "주의사항": "지원 시 주의할 점 또는 불리한 요소 (음슴체)"
-}
+  "한줄평": "20자 이내",
+  "수능최저충족": "가능|불확실|어려움",
+  "수능최저근거": "모의 성적 기준 판단 근거 1~2문장",
+  "강점": "지원에 유리한 강점 3~4가지 (음슴체)",
+  "보완점": "부족한 부분 2~3가지 (음슴체)",
+  "전형분석": "${type}전형 관점의 구체적 분석 (음슴체, 3~4문장, 입결 수치 반드시 포함)",
+  "추천전략": "합격 가능성 높이는 전략 2~3가지 (음슴체)",
+  "주의사항": "지원 시 주의할 점 (음슴체)"
+}`;
 
-중요: 적합도는 학생 데이터와 목표 대학/학과의 실질적 연관성을 기준으로 엄격하게 평가하세요.
-- 내신 등급 해석 시 반드시 위의 등급 체계(5등급제/9등급제)를 기준으로 판단하세요.
-- 5등급제 학생의 경우 9등급 환산을 고려하여 교과전형 가능성을 분석하세요.
-- 실제 입결 데이터(50컷/70컷)가 있으면 학생 내신과 직접 비교하여 합격 가능성을 구체적으로 판단하세요.
-- 내신이 낮으면 교과전형에서 불리함을 명시하세요.`;
+
 
   try{
     const res = await fetch(API_URL, {
@@ -2051,6 +2118,13 @@ ${note?`추가 요청: ${note}`:''}
             </div>
           </div>
           ${cutoffPanelHtml}
+        </div>
+        <div class="apply-section">
+          <div class="apply-section-title">📊 수능최저 충족 가능성</div>
+          <div class="apply-section-body" style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:15px;font-weight:700;color:${obj.수능최저충족==='가능'?'#10b981':obj.수능최저충족==='불확실'?'#f59e0b':'#ef4444'}">${obj.수능최저충족||'-'}</span>
+            <span style="color:#64748b;font-size:13px;">${escapeHtml(obj.수능최저근거||'')}</span>
+          </div>
         </div>
         <div class="apply-section">
           <div class="apply-section-title">✅ 강점</div>
