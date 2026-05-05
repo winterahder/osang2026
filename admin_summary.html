@@ -450,7 +450,7 @@
         <div class="ref-paste-hint">💡 Claude 채팅에서 받은 분석 내용을 복사해서 바로 붙여넣으면 자동으로 정리해서 저장해줍니다.</div>
       </div>
       <div class="ref-title-row">
-        <input class="ref-title-input" id="refTitleInput" placeholder="자료 제목 (예: 2028 서울대 설명회 핵심)">
+        <input class="ref-title-input" id="refTitleInput" placeholder="⚠️ 제목 필수 입력 (예: 2027_경북대 입결, 2028_서울대 설명회, 공통_의대전형)">
         <button class="ref-extract-btn" id="refExtractBtn" onclick="extractAndSave()">
           ✨ 추출 &amp; 저장
         </button>
@@ -833,20 +833,17 @@ function renderMain(){
   `;
   renderPanel(); renderChatBody(); renderOverallSection();
   // 탭 상태 초기화 + 탭별 버튼 초기화
-  const _savedMainTab = currentMainTab || 'sewtuk';
+  currentMainTab = 'sewtuk';
   setTimeout(()=>{
-    document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=(_savedMainTab==='changche'?'':'none'));
-    document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display=(_savedMainTab==='sewtuk'?'':'none'));
-    document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
-    const activeBtn = document.querySelector(`.main-tab-btn[data-maintab='${_savedMainTab}']`);
-    if(activeBtn) activeBtn.classList.add('active');
-    const activePanel = document.getElementById('tab'+_savedMainTab.charAt(0).toUpperCase()+_savedMainTab.slice(1));
-    if(activePanel) activePanel.classList.add('active');
-    if(_savedMainTab==='changche') renderChangchePanel();
-    if(_savedMainTab==='haengbal') renderHaengbalPanel();
+    document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display='none');
+    document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display='');
   },0);
-  // 탭 active는 위 setTimeout 안에서 처리됨
+  document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
+  const firstBtn = document.querySelector('[data-maintab="sewtuk"]');
+  if(firstBtn) firstBtn.classList.add('active');
+  const firstPanel = document.getElementById('tabSewtuk');
+  if(firstPanel) firstPanel.classList.add('active');
 }
 
 /* ========== 세특 패널 ========== */
@@ -1382,7 +1379,7 @@ async function renderChangchePanel(){
   }
 
   const acts = ccData.activities;
-  const sw = changche[hak] || {};
+  const sw = sewtuk[hak] || {};
   if(!sw.창체요약) sw.창체요약 = {};
 
   // 종합평가 섹션
@@ -1402,9 +1399,7 @@ async function renderChangchePanel(){
   const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
-    const _rawSaved = sw.창체요약?.[String(i)] || sw.창체요약?.[i] || a.요약 || null;
-    const saved = (Array.isArray(_rawSaved) && _rawSaved.length === 0) ? null : _rawSaved;
-    const ccEval = sw.창체활동평가?.[String(i)] || sw.창체활동평가?.[i] || a.평가 || null;
+    const saved = sw.창체요약[i];
     return `
       <div class="cc-item">
         <div class="cc-item-head" onclick="toggleCcItem(${i})">
@@ -1413,8 +1408,7 @@ async function renderChangchePanel(){
             ${icon} ${a.활동명||'활동'}
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
-            ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약완료</span>':'<span style="font-size:10px;color:var(--muted);">요약미완료</span>'}
-            ${ccEval?'<span style="font-size:10px;color:#06b6d4;font-weight:600;">✓ 평가완료</span>':'<span style="font-size:10px;color:var(--muted);">평가미완료</span>'}
+            ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약완료</span>':'<span style="font-size:10px;color:var(--muted);">미완료</span>'}
             <span style="font-size:11px;color:var(--muted);">▼</span>
           </div>
         </div>
@@ -2384,7 +2378,14 @@ async function extractAndSave(){
   if(isPasteMode){
     const pasteText = document.getElementById('refPasteText').value.trim();
     if(!pasteText){ setRefStatus('텍스트를 입력해주세요.','err'); return; }
-    const title = document.getElementById('refTitleInput').value.trim() || '붙여넣기 자료_'+new Date().toLocaleDateString('ko-KR');
+    // ★ 제목 필수 검증
+    const rawTitle = document.getElementById('refTitleInput').value.trim();
+    if(!rawTitle){
+      setRefStatus('⚠️ 제목을 입력해주세요. (예: 2027_경북대 입결, 2028_서울대 설명회)','err');
+      document.getElementById('refTitleInput').focus();
+      return;
+    }
+    const title = rawTitle;
     const target = getRefTarget();
     const btn = document.getElementById('refExtractBtn');
     btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> Claude가 정리 중...';
@@ -2409,7 +2410,14 @@ async function extractAndSave(){
 
   // ── 파일 업로드 모드 (기존 로직) ──
   const files = Array.isArray(refSelectedFile) ? refSelectedFile : [refSelectedFile];
-  const title = document.getElementById('refTitleInput').value.trim() || files[0].name;
+  // ★ 제목 필수 검증
+  const rawTitle2 = document.getElementById('refTitleInput').value.trim();
+  if(!rawTitle2){
+    setRefStatus('⚠️ 제목을 입력해주세요. (예: 2027_경북대 입결, 2028_서울대 설명회)','err');
+    document.getElementById('refTitleInput').focus();
+    return;
+  }
+  const title = rawTitle2;
   const btn = document.getElementById('refExtractBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin-dark"></span> Claude가 분석 중...';
