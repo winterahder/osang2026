@@ -867,18 +867,24 @@ function renderMain(){
     </div>
   `;
   renderPanel(); renderChatBody(); renderOverallSection();
-  // 탭 상태 초기화 + 탭별 버튼 초기화
-  currentMainTab = 'sewtuk';
+  // 탭 상태 유지 (학생 전환 시 이전 탭 그대로)
+  const tabToRestore = currentMainTab || 'sewtuk';
+  currentMainTab = tabToRestore;
   setTimeout(()=>{
-    document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display='none');
-    document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display='');
+    const isChangche = tabToRestore === 'changche';
+    const isHaengbal = tabToRestore === 'haengbal';
+    document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=isChangche?'':'none');
+    document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display=(!isChangche&&!isHaengbal)?'':'none');
   },0);
   document.querySelectorAll('.main-tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.main-tab-panel').forEach(p=>p.classList.remove('active'));
-  const firstBtn = document.querySelector('[data-maintab="sewtuk"]');
-  if(firstBtn) firstBtn.classList.add('active');
-  const firstPanel = document.getElementById('tabSewtuk');
-  if(firstPanel) firstPanel.classList.add('active');
+  const activeBtn = document.querySelector(`[data-maintab="${tabToRestore}"]`);
+  const activePanel = document.getElementById('tab'+tabToRestore.charAt(0).toUpperCase()+tabToRestore.slice(1));
+  if(activeBtn) activeBtn.classList.add('active');
+  if(activePanel) activePanel.classList.add('active');
+  // 창체/행발 탭이면 해당 패널 렌더링
+  if(tabToRestore==='changche') setTimeout(()=>renderChangchePanel(),0);
+  if(tabToRestore==='haengbal') setTimeout(()=>renderHaengbalPanel(),0);
 }
 
 /* ========== 세특 패널 ========== */
@@ -1481,7 +1487,10 @@ async function renderChangchePanel(){
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
           ${summaryBlock}
           ${evalBlock}
-          <button class="btn-subj-overall" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn-subj-overall" style="flex:1;" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
+            <button class="eval-gen-btn ${evalData?'gb-done':''}" style="margin:0;flex:1;" onclick="generateCcItemEval(${i})" id="btnCcEval${i}">📊 ${evalData?'평가 재생성':'AI 평가 생성'}</button>
+          </div>
         </div>
       </div>`;
   }).join('');
@@ -1576,9 +1585,62 @@ ${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
   }
 }
 
+async function generateCcItemEval(idx){
+  const hak = String(currentStu.hak);
+  const ccData = changche[hak];
+  const acts = ccData?.activities || [];
+  const a = acts[idx];
+  if(!a) return;
+
+  const btn = document.getElementById('btnCcEval'+idx);
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 평가 중...'; }
+
+  try{
+    const text = await callAPI(
+      `당신은 대입 전형 전문가입니다. 학생의 창의적 체험활동을 읽고 3개 대분류 역량과 세부 지표를 평가하세요.
+
+반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
+{"학업역량":{"grade":"A","세부":{"학업성취도":"A","학업태도":"A","탐구력":"A"}},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"}},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"B","성실성":"A","리더십":"B"}},"근거":"이 활동에서 드러난 역량 핵심 근거 40자 이내"}
+
+등급: S=매우탁월(명시근거필수) A=우수 B=양호 C=보통(언급부족) D=미흡(내용없음)
+세부는 활동 원문에 근거 없는 항목은 반드시 C 이하로 평가.`,
+      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n활동: ${a.학년}학년 ${a.분류} - ${a.활동명}\n내용:\n${a.내용}`}],
+      800
+    );
+    let obj;
+    try{
+      const cleaned = text.replace(/```json|```/g,'').trim();
+      obj = JSON.parse(cleaned);
+    }catch{ throw new Error('평가 JSON 파싱 실패'); }
+
+    // changche 인메모리에 저장
+    if(!changche[hak].창체활동평가) changche[hak].창체활동평가 = {};
+    changche[hak].창체활동평가[String(idx)] = obj;
+    // activities[idx].평가에도 반영
+    if(changche[hak].activities[idx]) changche[hak].activities[idx].평가 = obj;
+
+    // sewtuk에도 저장 (saveToSheet 용)
+    if(!sewtuk[hak]) sewtuk[hak] = {};
+    if(!sewtuk[hak].창체활동평가) sewtuk[hak].창체활동평가 = {};
+    sewtuk[hak].창체활동평가[String(idx)] = obj;
+
+    await saveToSheet(hak);
+    renderChangchePanel();
+    document.getElementById('ccItem'+idx)?.classList.add('open');
+
+    addMsgToChat('chatBodyCc','assistant',
+      `📊 **${a.활동명}** 평가 완료!\n학업역량 **${obj.학업역량?.grade}** · 진로역량 **${obj.진로역량?.grade}** · 공동체역량 **${obj.공동체역량?.grade}**`
+    );
+  }catch(e){
+    addMsgToChat('chatBodyCc','assistant','❌ 평가 오류: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML='📊 평가 재생성'; }
+  }
+}
+
+
 async function generateCcOverall(){
   const hak = String(currentStu.hak);
-  const btn = document.getElementById('btnCcOverall');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
     const acts = changche[hak]?.activities || [];
