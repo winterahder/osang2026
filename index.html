@@ -24,12 +24,12 @@
   .google-btn:hover { background: #f8faff; border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,0.15); }
   .google-btn svg { flex-shrink: 0; }
   .pending-box { background: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #92400e; line-height: 1.6; }
-  .logout-btn { position: fixed; top: 14px; right: 60px; background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #64748b; cursor: pointer; z-index: 100; }
+  .logout-btn { background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #64748b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .logout-btn:hover { background: #f1f5f9; }
   header { background: #fff; padding: 14px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
   header h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
   header h1 span.year { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 4px; }
-  #status { color: #64748b; font-size: 13px; }
+  #status { color: #64748b; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); overflow: hidden; }
   aside { background: #fff; border-radius: 8px; padding: 12px; overflow: hidden; display: flex; flex-direction: column; }
   aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
@@ -267,7 +267,7 @@
     header { flex-shrink: 0; padding: 10px 16px; }
     header h1 { font-size: 15px; }
     #status { font-size: 12px; }
-    .logout-btn { top: 8px; right: 8px; font-size: 11px; padding: 4px 8px; }
+    .logout-btn { font-size: 11px; padding: 4px 8px; }
 
     /* 모바일 학생 선택 바 */
     .mobile-bar {
@@ -765,7 +765,9 @@ function showLogoutBtn(email) {
     localStorage.removeItem(SESSION_KEY);
     location.reload();
   };
-  document.body.appendChild(btn);
+  const status = document.getElementById('status');
+  if (status) status.appendChild(btn);
+  else document.body.appendChild(btn);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
