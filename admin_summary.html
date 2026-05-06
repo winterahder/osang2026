@@ -1844,7 +1844,12 @@ async function generateHbOverall(){
       `당신은 대입 전형 전문 입학사정관입니다. 학생의 학년별 행동특성 및 종합의견을 분석하여 3개 역량과 세부 지표를 평가하세요.
 
 반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","근거":"행발에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","근거":"공동체역량 근거 30자이내"},"인성":{"grade":"A","comment":"인성 평가 20자이내"},"리더십":{"grade":"B","comment":"리더십 평가 20자이내"},"성실성":{"grade":"A","comment":"성실성 평가 20자이내"},"종합의견":"학년별 성장 과정을 포함한 5~7문장 종합 평가. 음슴체 사용."}
+{"학업역량":{"grade":"A","세부":{"학업성취도":"A","학업태도":"A","탐구력":"B"},"근거":"행발에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"A"},"근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"공동체역량 근거 30자이내"},"종합의견":"학년별 성장 과정을 포함한 5~7문장 종합 평가. 음슴체 사용."}
+
+세부지표 매핑:
+[학업역량] 학업성취도:자기주도학습·성취수준 / 학업태도:수업참여·노력 / 탐구력:지적호기심·문제해결
+[진로역량] 전공적합성:진로관련지식·관심 / 진로탐색:구체적진로계획·경험
+[공동체역량] 협업소통:협력·의사소통 / 나눔배려:배려·봉사 / 성실성:꾸준함·책임감 / 리더십:주도적역할·영향력
 
 등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
       [{role:'user', content:`학생: ${currentStu.name}(${hak})\n\n${summary}`}],
@@ -1873,25 +1878,26 @@ function renderHbOverallSection(data, isPend){
   if(!el) return;
   if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
   const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
+  const subLabels={
+    '학업역량':['학업성취도','학업태도','탐구력'],
+    '진로역량':['전공적합성','진로탐색'],
+    '공동체역량':['협업소통','나눔배려','성실성','리더십']
+  };
   el.innerHTML=`
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
       ${['학업역량','진로역량','공동체역량'].map(k=>{
         const d=data[k]; if(!d) return '';
+        const subs = subLabels[k]||[];
+        const subHtml = subs.map(s=>{
+          const g = d.세부?.[s]||'';
+          return `<span style="font-size:10px;color:var(--muted2);">${s} <strong style="color:${colorMap[g]||'#64748b'}">${g||'-'}</strong></span>`;
+        }).join(' · ');
         return `<div class="overall-card">
           <div class="overall-card-label">${k}</div>
           <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
+          <div style="margin:4px 0;line-height:1.8;">${subHtml}</div>
           <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-      ${['인성','리더십','성실성'].map(k=>{
-        const d=data[k]; if(!d) return '';
-        return `<div style="background:var(--surface2);border-radius:6px;padding:7px 9px;text-align:center;">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
-          <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-          <div style="font-size:10px;color:var(--muted2)">${d.comment||''}</div>
         </div>`;
       }).join('')}
     </div>
