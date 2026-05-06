@@ -2880,11 +2880,12 @@ function renderSwotSection(hak, eval_, container){
   if(saved){
     container.innerHTML = buildSwotHTML(saved);
   } else {
+    // 데이터 없으면 안내만 표시 (생성은 admin_summary에서)
     container.innerHTML = `
       <div class="eval-swot-section">
-        <button class="eval-swot-gen-btn" onclick="generateSwot('${hak}')">
-          ✨ AI로 강점·보완점 분석 생성하기 <span style="font-size:11px;color:#94a3b8;">(생성 후 자동 저장)</span>
-        </button>
+        <div class="eval-swot-gen-btn" style="cursor:default;border-style:solid;color:#94a3b8;background:#f8fafc;">
+          💡 강점·보완점 데이터가 없습니다 — 요약생성기에서 🏆 종합 역량 평가 생성 시 자동 저장됩니다
+        </div>
       </div>`;
   }
 }
@@ -2905,9 +2906,7 @@ function buildSwotHTML(swot){
       <span>${escapeHtml(String(w).replace(/^[-·•\d.]\s*/,''))}</span>
     </div>`).join('');
 
-  const regenRow = isAdmin()
-    ? `<button class="eval-swot-gen-btn" onclick="generateSwot('${currentStu?.hak}')" style="margin-top:0;">🔄 강점·보완점 재생성</button>`
-    : '';
+  const regenRow = ''; // 재생성은 요약생성기(admin_summary)에서만 가능
   const summaryRow = summary
     ? `<div class="eval-swot-summary">💡 <strong>한줄요약:</strong> ${escapeHtml(summary)}</div>`
     : '';
@@ -2926,68 +2925,6 @@ function buildSwotHTML(swot){
   </div>`;
 }
 
-async function generateSwot(hak){
-  const container = document.getElementById('evalSwotArea');
-  if(!container) return;
-  container.innerHTML = `<div class="eval-swot-section"><div class="eval-swot-gen-btn" style="cursor:default;border-style:solid;color:#6366f1;background:#ede9fe;">⏳ AI 분석 중...</div></div>`;
-
-  try {
-    const stu = students.find(s=>String(s.hak)===String(hak));
-    const eval_ = evalData[hak]?.종합역량평가 || sewtuk[hak]?.종합역량평가 || {};
-    const gradeData = grades[hak];
-    const avg = gradeData ? calcStudentAvg(gradeData, null, stu) : null;
-    const is9 = stu ? isStudent9Grade(stu) : false;
-
-    const grpSummary = ['학업역량','진로역량','공동체역량'].map(grp=>{
-      const d = eval_[grp]; if(!d) return '';
-      return `${grp}: ${d.grade}등급`;
-    }).join(', ');
-
-    const prompt = `다음은 고등학생의 종합역량 평가 데이터입니다.
-
-학생 정보: ${stu?.name||'학생'} / ${is9?'3':'1·2'}학년 (${is9?'9':'5'}등급제)
-${avg!=null?`내신 평균등급: ${avg.toFixed(2)}등급`:''}
-역량 평가: ${grpSummary}
-${eval_.종합의견?`종합의견: ${eval_.종합의견.substring(0,400)}`:''}
-
-위 데이터를 바탕으로 대학입시 관점에서 이 학생의 강점과 보완 포인트를 분석해주세요.
-
-반드시 아래 JSON 형식으로만 응답하세요 (마크다운 없이):
-{
-  "강점": ["강점1 (15자 이내)", "강점2", "강점3"],
-  "보완점": ["보완점1 (15자 이내)", "보완점2"]
-}`;
-
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'callClaude', password: currentPassword, prompt })
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
-
-    let obj;
-    try {
-      let clean = data.text.replace(/```json|```/g,'').trim();
-      obj = JSON.parse(clean);
-    } catch { throw new Error('파싱 실패'); }
-
-    // eval 시트에 저장 (admin만)
-    if(isAdmin()){
-      const current = evalData[hak] || {};
-      current.강점보완점 = obj;
-      evalData[hak] = current;
-      await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'saveEval', password: currentPassword, hak, evalData: current })
-      });
-    }
-
-    container.innerHTML = buildSwotHTML(obj);
-  } catch(e) {
-    container.innerHTML = `<div class="eval-swot-section"><div class="eval-swot-gen-btn" style="cursor:default;color:#ef4444;border-color:#fca5a5;">❌ ${escapeHtml(e.message)} — 다시 시도</div></div>`;
-    container.querySelector('.eval-swot-gen-btn')?.addEventListener('click', ()=>generateSwot(hak));
-  }
-}
 
 // ========== ④ 학년별 역량 변화 추이 ==========
 function drawEvalTrend(container){
