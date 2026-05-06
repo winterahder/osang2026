@@ -798,7 +798,7 @@ async function init(password){
   currentPassword = password;
   try{
     // 전체 병렬 로드 (속도 최적화)
-    const [s, m, g, sw, cc, refs, ci, hb] = await Promise.all([
+    const [s, m, g, sw, cc, refs, ci, hb, ev] = await Promise.all([
       apiGet({ action: 'getStudents',    password }).catch(()=>null),
       apiGet({ action: 'getMockExam',    password }).catch(()=>null),
       apiGet({ action: 'getGrades',      password }).catch(()=>null),
