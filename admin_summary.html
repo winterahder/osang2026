@@ -1770,12 +1770,12 @@ function renderHaengbalPanel(){
 
   // 학년별 카드
   ['1','2','3'].forEach(g=>{
-    if(!hbData[g]) return;
+    if(!hbData.원문?.[g]) return;
     const saved = hbSummaries[g];
     html += `
       <div class="hb-item">
         <div class="hb-grade-title">${gradeLabels[g]} 행동특성 및 종합의견</div>
-        <div class="hb-content">${(hbData[g]||'').substring(0,400)}${(hbData[g]||'').length>400?'...':''}</div>
+        <div class="hb-content">${(hbData.원문?.[g]||'').substring(0,400)}${(hbData.원문?.[g]||'').length>400?'...':''}</div>
         ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
           ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : `<strong style="color:var(--green);">✓ 요약:</strong> ${saved}`}
         </div>` : ''}
@@ -1795,7 +1795,7 @@ async function generateHbSummary(grade){
   const btn = document.getElementById('btnHb'+grade);
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
-    const hw = haengbal[hak]?.[grade];
+    const hw = haengbal[hak]?.원문?.[grade];
     if(!hw) throw new Error('행발 데이터 없음');
 
     const text = await callAPI(
@@ -1817,10 +1817,10 @@ async function generateHbSummary(grade){
     try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
     catch{ arr=[text.trim()]; }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    if(!sewtuk[hak].행발요약) sewtuk[hak].행발요약={};
-    sewtuk[hak].행발요약[grade] = arr;
-    await saveToSheet(hak);
+    if(!haengbal[hak]) haengbal[hak]={};
+    if(!haengbal[hak].요약) haengbal[hak].요약={};
+    haengbal[hak].요약[grade] = arr;
+    await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
     addMsgToChat('chatBodyHb','assistant',
       `✅ **${grade}학년** 행발 요약 완료!\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
     renderHaengbalPanel();
@@ -1836,7 +1836,7 @@ async function generateHbOverall(){
   const btn = document.getElementById('btnHbOverall');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
   try{
-    const hw = haengbal[hak] || {};
+    const hw = haengbal[hak]?.원문 || {};
     if(!Object.keys(hw).length) throw new Error('행발 데이터 없음');
     const summary = ['1','2','3'].filter(g=>hw[g]).map(g=>`[${g}학년] ${hw[g]}`).join('\n\n');
 
@@ -1855,9 +1855,9 @@ async function generateHbOverall(){
     try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
     catch{ throw new Error('JSON 파싱 실패'); }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].행발종합평가 = obj;
-    await saveToSheet(hak);
+    if(!haengbal[hak]) haengbal[hak]={};
+    haengbal[hak].종합평가 = obj;
+    await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
     renderHbOverallSection(obj, false);
     addMsgToChat('chatBodyHb','assistant',
       `✅ 행발 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
@@ -2011,7 +2011,7 @@ async function generateComprehensiveEval(){
   }
 
   // 행발 데이터
-  const hbForEval=haengbal[hak]||{};
+  const hbForEval=haengbal[hak]?.원문||{};
   let haengbalSummary='행발 데이터 없음';
   if(Object.keys(hbForEval).length){
     haengbalSummary=['1','2','3'].filter(g=>hbForEval[g]).map(g=>
