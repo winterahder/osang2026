@@ -884,7 +884,11 @@ async function analyzeWithClaudePdf(file) {
 - 내용이 불충분한 항목은 제외
 - 대학명이 명확하지 않으면 kb_topic으로 분류
 - 항목이 없으면 빈 배열 [] 반환
-- 출처목록은 반드시 "${filename}"으로 설정`;
+- 출처목록은 반드시 "${filename}"으로 설정
+- 내용(내용 필드)은 반드시 200자 이내로 핵심만 간결하게 요약
+- 모집단위는 대표 학과만 기재 (예: "전학과", "자연계열 전체", "의예과·약학과")
+- 응답이 길어지면 항목 수를 줄여서라도 완전한 JSON 배열로 마무리할 것
+- 응답은 반드시 완전한 JSON 배열 [ ... ] 형태로 끝나야 함`;
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -897,7 +901,7 @@ async function analyzeWithClaudePdf(file) {
       },
       body: JSON.stringify({
         model: currentAnthropicModel,
-        max_tokens: 6000,
+        max_tokens: 8000,
         messages: [{
           role: 'user',
           content: [
@@ -925,21 +929,30 @@ async function analyzeWithClaudePdf(file) {
     const clean = raw.replace(/```json|```/g, '').trim();
     // 불완전한 JSON 복구 시도
     let jsonStr = clean;
-    if (!jsonStr.endsWith(']') && !jsonStr.endsWith('}')) {
-      const lastBracket = jsonStr.lastIndexOf(']');
-      const lastBrace = jsonStr.lastIndexOf('}');
-      const cut = Math.max(lastBracket, lastBrace);
-      if (cut > 0) {
-        jsonStr = jsonStr.substring(0, cut + 1);
-        // 배열로 감싸기
-        if (!jsonStr.startsWith('[')) jsonStr = '[' + jsonStr + ']';
+    // 배열 시작이 없으면 추가
+    if (!jsonStr.startsWith('[')) {
+      const firstBrace = jsonStr.indexOf('{');
+      if (firstBrace >= 0) jsonStr = '[' + jsonStr.substring(firstBrace);
+    }
+    // 끝이 잘린 경우: 마지막 완전한 객체까지만 사용
+    if (!jsonStr.endsWith(']')) {
+      // 마지막 완전한 } 위치 찾기
+      let depth = 0, lastComplete = -1;
+      for (let i = 0; i < jsonStr.length; i++) {
+        if (jsonStr[i] === '{') depth++;
+        else if (jsonStr[i] === '}') { depth--; if (depth === 0) lastComplete = i; }
+      }
+      if (lastComplete > 0) {
+        jsonStr = jsonStr.substring(0, lastComplete + 1) + ']';
+      } else {
+        jsonStr = '[]';
       }
     }
     let arr;
     try {
       arr = JSON.parse(jsonStr);
     } catch(parseErr) {
-      console.error('JSON 파싱 실패. 원본:', raw.substring(0, 1000));
+      console.error('JSON 파싱 실패. 원본:', raw.substring(0, 2000));
       throw new Error('JSON 파싱 실패 — Claude 응답을 확인하세요 (콘솔 참조)');
     }
     return Array.isArray(arr) ? arr : [];
@@ -993,7 +1006,7 @@ async function analyzeWithClaude(text, filename) {
 ${text.substring(0, 10000)}`;
 
   try {
-    const raw = await callClaude(prompt, 2000);
+    const raw = await callClaude(prompt, 4000);
     const clean = raw.replace(/```json|```/g, '').trim();
     const arr = JSON.parse(clean);
     return Array.isArray(arr) ? arr : [];
