@@ -515,7 +515,7 @@ async function loadJSON(url,pw){
 }
 
 /* ========== 상태 ========== */
-let students=[],sewtuk={},changche={},haengbal={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
+let students=[],sewtuk={},changche={},haengbal={},evalData={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
 let chatHistory=[],filterMode='all',isGenAll=false;
 let pending={};
 let pendingOverall={};
@@ -661,16 +661,18 @@ async function loadData(){
   const errEl=document.getElementById('lockError');
   errEl.textContent='데이터 불러오는 중...';
   try{
-    const [s, sw, cc, hb]=await Promise.all([
+    const [s, sw, cc, hb, ev]=await Promise.all([
       apiGet({action:'getStudents',password:currentPw}),
       apiGet({action:'getSewtuk',password:currentPw}),
       apiGet({action:'getChangche',password:currentPw}).catch(()=>({})),
-      apiGet({action:'getHaengbal',password:currentPw}).catch(()=>({}))
+      apiGet({action:'getHaengbal',password:currentPw}).catch(()=>({})),
+      apiGet({action:'getEval',password:currentPw}).catch(()=>({}))
     ]);
     students=s||[];
     sewtuk=sw||{};
     changche=cc||{};
     haengbal=hb||{};
+    evalData=ev||{};
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('progressWrap').style.display='block';
     updateProgress(); renderList();
@@ -1427,7 +1429,7 @@ async function renderChangchePanel(){
   if(!sw.창체요약) sw.창체요약 = {};
 
   // ★ FIX 1: changche 우선, sewtuk 폴백 (changche가 자율/동아리/진로 포함 최신 형식)
-  const overallSaved = ccData?.창체종합평가 || sw.창체종합평가 || null;
+  const overallSaved = evalData[hak]?.창체종합평가 || ccData?.창체종합평가 || null;
   let overallHtml = `
     <div class="cc-overall-section">
       <div class="cc-overall-head" id="ccOverallHead" onclick="toggleCcOverall()">
@@ -1692,12 +1694,12 @@ async function generateCcOverall(){
     try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
     catch{ throw new Error('JSON 파싱 실패'); }
 
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].창체종합평가 = obj;
-    // changche 인메모리 업데이트 후 changche 시트에 저장
+    // eval 시트에 저장
+    if(!evalData[hak]) evalData[hak]={};
+    evalData[hak].창체종합평가 = obj;
     if(!changche[hak]) changche[hak]={};
     changche[hak].창체종합평가 = obj;
-    await saveChangcheToSheet(hak);
+    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
     renderCcOverallSection(obj, false);
     addMsgToChat('chatBodyCc','assistant',
       `✅ 창체 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
@@ -1817,11 +1819,11 @@ async function generateHbSummary(grade){
     try{ arr=JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
     catch{ arr=[text.trim()]; }
 
-    if(!haengbal[hak]) haengbal[hak]={};
-    if(!haengbal[hak].요약) haengbal[hak].요약={};
-    haengbal[hak].요약[grade] = arr;
-    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(행발)에 저장 중...');
-    await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
+    if(!evalData[hak]) evalData[hak]={};
+    if(!evalData[hak].행발요약) evalData[hak].행발요약={};
+    evalData[hak].행발요약[grade] = arr;
+    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(eval)에 저장 중...');
+    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
     addMsgToChat('chatBodyHb','assistant',
       `✅ **${grade}학년** 행발 요약 완료! (구글 시트 저장됨)\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
     renderHaengbalPanel();
@@ -1861,10 +1863,10 @@ async function generateHbOverall(){
     try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
     catch{ throw new Error('JSON 파싱 실패'); }
 
-    if(!haengbal[hak]) haengbal[hak]={};
-    haengbal[hak].종합평가 = obj;
-    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(행발)에 저장 중...');
-    await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
+    if(!evalData[hak]) evalData[hak]={};
+    evalData[hak].행발종합평가 = obj;
+    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(eval)에 저장 중...');
+    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
     renderHbOverallSection(obj, false);
     addMsgToChat('chatBodyHb','assistant',
       `✅ 행발 종합 평가 완료! (구글 시트 저장됨)\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
@@ -2099,13 +2101,12 @@ async function generateComprehensiveEval(){
       obj=JSON.parse(clean);
     }catch{throw new Error('JSON 파싱 실패 — 응답이 너무 길어 잘렸습니다. 잠시 후 다시 시도해주세요.');}
 
-    // sewtuk에 저장
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].종합역량평가=obj;
+    // eval 시트에 저장 (sewtuk 용량 초과 방지)
+    if(!evalData[hak]) evalData[hak]={};
+    evalData[hak].종합역량평가=obj;
 
-    // 구글 시트에 즉시 저장
-    addMsg('assistant','💾 구글 시트에 저장 중...');
-    await saveToSheet(hak);
+    addMsg('assistant','💾 구글 시트(eval)에 저장 중...');
+    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
 
     addMsg('assistant',
       `🏆 **${currentStu.name}** 종합 역량 평가 완료 및 저장!\n\n`+
