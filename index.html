@@ -263,126 +263,97 @@
   }
 
   /* ① 종합 점수 게이지 */
-  .eval-score-section {
-    display: flex; align-items: center; gap: 24px;
-    background: #fff; border: 1px solid #e8edf5; border-radius: 16px;
-    padding: 22px 28px; margin-bottom: 14px;
-    box-shadow: 0 2px 8px rgba(15,23,42,.05);
-  }
-  .eval-score-circle {
-    position: relative; width: 110px; height: 110px; flex-shrink: 0;
-  }
-  .eval-score-circle svg { transform: rotate(-90deg); }
-  .eval-score-circle-bg { fill: none; stroke: #f1f5f9; stroke-width: 9; }
-  .eval-score-circle-fill { fill: none; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.34,1.2,.64,1); }
-  .eval-score-inner {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-  }
-  .eval-score-num { font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
-  .eval-score-label { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 2px; }
-  .eval-score-info { flex: 1; min-width: 0; }
-  .eval-score-title {
-    font-size: 14px; font-weight: 800; color: #1e293b;
-    margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  }
-  .eval-score-bars { display: flex; flex-direction: column; gap: 8px; }
-  .eval-score-bar-row { display: flex; align-items: center; gap: 10px; }
-  .eval-score-bar-label {
-    font-size: 11.5px; color: #64748b; font-weight: 600;
-    width: 62px; flex-shrink: 0; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-  }
-  .eval-score-bar-track { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
-  .eval-score-bar-fill { height: 100%; border-radius: 4px; transition: width .7s cubic-bezier(.34,1.2,.64,1); }
-  .eval-score-bar-val { font-size: 13px; font-weight: 900; width: 20px; text-align: right; flex-shrink: 0; }
-  .eval-score-grade-tag {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
-  }
-
-  /* ② 강점/보완점 카드 */
-  .eval-swot-section {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-    margin-bottom: 14px;
-  }
-  .eval-swot-card {
-    border-radius: 14px; padding: 18px 20px; border: 1.5px solid;
+  /* ① 게이지+레이더 통합 카드 */
+  .eval-hero-card {
+    background: #fff; border: 1px solid #e8edf5; border-radius: 20px;
+    padding: 28px 32px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(15,23,42,.06);
     position: relative; overflow: hidden;
   }
-  .eval-swot-card::before {
-    content: ''; position: absolute; top: -24px; right: -24px;
-    width: 90px; height: 90px; border-radius: 50%; opacity: .08;
+  .eval-hero-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(99,102,241,.025) 0%, rgba(16,185,129,.015) 100%);
+    pointer-events: none;
   }
+  .eval-hero-body { display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: center; }
+  .eval-gauge-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .eval-gauge-wrap { position: relative; width: 160px; height: 160px; }
+  .eval-gauge-wrap svg { transform: rotate(-90deg); }
+  .eval-gauge-bg   { fill: none; stroke: #f1f5f9; stroke-width: 12; }
+  .eval-gauge-fill { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset .9s cubic-bezier(.34,1.2,.64,1); }
+  .eval-gauge-inner {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1px;
+  }
+  .eval-gauge-num { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -2px; }
+  .eval-gauge-denom { font-size: 12px; color: #94a3b8; font-weight: 600; }
+  .eval-gauge-grade-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 18px; border-radius: 24px; font-size: 14px; font-weight: 800;
+  }
+  .eval-gauge-bars { width: 100%; }
+  .eval-gauge-bar-row { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+  .eval-gauge-bar-label { font-size: 10.5px; color: #64748b; font-weight: 700; width: 52px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .eval-gauge-bar-track { flex: 1; height: 7px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+  .eval-gauge-bar-fill  { height: 100%; border-radius: 4px; transition: width .7s cubic-bezier(.34,1.2,.64,1); }
+  .eval-gauge-bar-val { font-size: 12px; font-weight: 900; width: 14px; text-align: right; flex-shrink: 0; }
+  .eval-gauge-gisu { font-size: 10px; color: #cbd5e1; margin-top: 4px; text-align: center; }
+  .eval-radar-area { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: center; }
+  .eval-radar-canvas-box { position: relative; width: 300px; height: 300px; }
+  .eval-radar-stat-list { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ② 강점/보완점 카드 */
+  .eval-swot-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .eval-swot-card { border-radius: 14px; padding: 18px 20px; border: 1.5px solid; position: relative; overflow: hidden; }
+  .eval-swot-card::before { content: ''; position: absolute; top: -24px; right: -24px; width: 90px; height: 90px; border-radius: 50%; opacity: .08; }
   .eval-swot-card.strength { background: #f0fdf4; border-color: #86efac; }
   .eval-swot-card.strength::before { background: #16a34a; }
   .eval-swot-card.weakness { background: #fff7ed; border-color: #fdba74; }
   .eval-swot-card.weakness::before { background: #ea580c; }
   .eval-swot-title { font-size: 13px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-  .eval-swot-item {
-    display: flex; align-items: flex-start; gap: 8px;
-    font-size: 13px; color: #1e293b; line-height: 1.65; margin-bottom: 8px;
-  }
+  .eval-swot-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #1e293b; line-height: 1.65; margin-bottom: 8px; }
   .eval-swot-item:last-child { margin-bottom: 0; }
   .eval-swot-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
-  .eval-swot-gen-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 13px; border-radius: 10px; border: 1.5px dashed #cbd5e1;
-    background: #f8fafc; color: #64748b; cursor: pointer;
-    font-size: 13px; font-weight: 600; transition: all .15s;
-    grid-column: 1 / -1;
-  }
+  .eval-swot-gen-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 10px; border: 1.5px dashed #cbd5e1; background: #f8fafc; color: #64748b; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; grid-column: 1 / -1; }
   .eval-swot-gen-btn:hover { border-color: #6366f1; color: #6366f1; background: #ede9fe; }
   .eval-swot-summary {
-    grid-column: 1 / -1; background: #f8fafc; border: 1px solid #e2e8f0;
-    border-radius: 10px; padding: 10px 16px; font-size: 12.5px; color: #475569;
-    display: flex; align-items: center; gap: 8px;
+    grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3);
+    border: 1.5px solid #fde68a; border-radius: 12px;
+    padding: 12px 18px; font-size: 14px; font-weight: 600; color: #92400e;
+    display: flex; align-items: center; gap: 10px;
   }
+  .eval-swot-summary-icon { font-size: 18px; flex-shrink: 0; }
 
   /* ③ 내신 연동 배지 */
-  .grade-link-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
-  }
+  .grade-link-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
 
-  /* ④ 역량 추이 타임라인 */
+  /* ④ 학년별 역량 추이 — 카드 비교형 */
   .eval-trend-section {
-    background: #fff; border: 1px solid #e8edf5; border-radius: 16px;
-    padding: 20px 24px; margin-bottom: 14px;
-    box-shadow: 0 2px 8px rgba(15,23,42,.05);
+    background: #fff; border: 1px solid #e8edf5; border-radius: 20px;
+    padding: 24px 28px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(15,23,42,.05);
   }
-  .eval-trend-title {
-    font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .eval-trend-grid { display: flex; align-items: flex-start; gap: 0; }
-  .eval-trend-col {
-    flex: 1; padding: 0 20px;
-    border-right: 1px solid #f1f5f9;
-  }
-  .eval-trend-col:first-child { padding-left: 0; }
-  .eval-trend-col:last-child { border-right: none; padding-right: 0; }
-  .eval-trend-year {
-    font-size: 12px; font-weight: 700; color: #94a3b8;
-    margin-bottom: 12px; letter-spacing: .04em;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .eval-trend-year.current { color: #6366f1; }
-  .eval-trend-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 7px 10px; border-radius: 9px; margin-bottom: 5px;
-    transition: background .12s;
-  }
-  .eval-trend-item:hover { background: #f8fafc; }
-  .eval-trend-item-label { font-size: 12px; color: #475569; font-weight: 600; display: flex; align-items: center; gap: 5px; }
-  .eval-trend-item-right { display: flex; align-items: center; gap: 7px; }
-  .eval-trend-item-grade { font-size: 16px; font-weight: 900; }
-  .eval-trend-arrow { display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 20px; padding: 0 4px; flex-shrink: 0; align-self: center; padding-bottom: 20px; }
-  .eval-trend-change { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .eval-trend-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .eval-trend-title { font-size: 14px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+  .eval-trend-subtitle { font-size: 12px; color: #94a3b8; font-weight: 500; }
+  .eval-trend-grid { display: flex; align-items: stretch; gap: 0; }
+  .eval-trend-year-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .eval-trend-year-label { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: #94a3b8; padding: 6px 0; border-bottom: 2px solid #f1f5f9; margin-bottom: 4px; }
+  .eval-trend-year-label.current { color: #6366f1; border-bottom-color: #6366f1; background: linear-gradient(135deg,#f5f3ff,#ede9fe); border-radius: 8px 8px 0 0; padding: 6px 12px; }
+  .eval-trend-grp-card { border-radius: 12px; padding: 14px 16px; border: 1.5px solid #e8edf5; background: #fafbff; transition: box-shadow .15s; display: flex; flex-direction: column; gap: 6px; }
+  .eval-trend-grp-card.current-col { border-color: rgba(99,102,241,.2); background: #f8f7ff; box-shadow: 0 2px 8px rgba(99,102,241,.08); }
+  .eval-trend-grp-top { display: flex; align-items: center; justify-content: space-between; }
+  .eval-trend-grp-label { font-size: 12px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 5px; }
+  .eval-trend-grp-grade { font-size: 32px; font-weight: 900; line-height: 1; }
+  .eval-trend-grp-subs { font-size: 10.5px; color: #94a3b8; line-height: 1.6; }
+  .eval-trend-grp-subs b { font-weight: 700; }
+  .eval-trend-change-row { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; }
+  .eval-trend-change { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: flex; align-items: center; gap: 3px; }
   .eval-trend-change.up   { background: #dcfce7; color: #16a34a; }
   .eval-trend-change.down { background: #fee2e2; color: #dc2626; }
   .eval-trend-change.same { background: #f1f5f9; color: #94a3b8; }
-
+  .eval-trend-connector { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; gap: 10px; margin-top: 28px; }
+  .eval-trend-connector-arrow { color: #cbd5e1; font-size: 24px; font-weight: 300; line-height: 1; }
   @media(max-width:900px){
     .radar-body { grid-template-columns: 300px 1fr; gap: 24px; }
     .radar-canvas-box { width: 300px; height: 300px; }
@@ -599,27 +570,22 @@
     /* ── 종합평가 그리드 ── */
     .overall-eval-grid { grid-template-columns: 1fr; }
 
-    /* ── 역량 레이더 — 모바일 세로 스택 ── */
-    .radar-card { padding: 16px 14px; margin-bottom: 0; border-radius: 14px; }
-    .radar-card-header { margin-bottom: 16px; }
-    .radar-body { grid-template-columns: 1fr; gap: 14px; }
-    .radar-canvas-box { width: 220px; height: 220px; margin: 0 auto; }
+    /* ── 역량 히어로 카드 — 모바일 세로 스택 ── */
+    .eval-hero-card { padding: 16px 14px; border-radius: 14px; }
+    .eval-hero-body { grid-template-columns: 1fr; gap: 16px; }
+    .eval-gauge-wrap { width: 130px; height: 130px; }
+    .eval-gauge-wrap svg { width: 130px; height: 130px; }
+    .eval-gauge-num { font-size: 30px; }
+    .eval-radar-area { grid-template-columns: 1fr; gap: 14px; }
+    .eval-radar-canvas-box { width: 220px; height: 220px; margin: 0 auto; }
     .radar-stat-card { padding: 11px 13px; border-radius: 12px; gap: 12px; }
     .radar-stat-icon { width: 36px; height: 36px; font-size: 17px; border-radius: 9px; }
     .radar-stat-grade { font-size: 28px; }
-    .radar-stat-grade-label { font-size: 9px; }
-    .radar-stat-name { font-size: 12px; margin-bottom: 4px; }
-    .radar-stat-bar { margin-bottom: 4px; }
-    .radar-stat-subs { font-size: 10px; gap: 0 8px; }
-
-    /* ── 종합역량평가 추가 섹션 ── */
-    .eval-score-section { flex-direction: column; gap: 14px; padding: 16px; }
-    .eval-score-circle { width: 80px; height: 80px; }
-    .eval-score-circle svg { width: 80px; height: 80px; }
-    .eval-score-num { font-size: 20px; }
-    .eval-swot-section { grid-template-columns: 1fr; }
+    /* ── 추이 모바일 ── */
+    .eval-trend-section { padding: 16px 14px; }
     .eval-trend-grid { flex-wrap: wrap; gap: 8px; }
-    .eval-trend-col { flex: 0 0 calc(50% - 4px); border-right: none; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+    .eval-trend-year-col { flex: 1; min-width: 120px; }
+    .eval-trend-connector { display: none; }
 
     /* ── 모의지원 ── */
     .apply-wrap { padding: 8px; }
@@ -2786,228 +2752,28 @@ function renderCompEvalTab(el){
   }
 
   el.innerHTML = `<div class="card" style="padding:16px;">
-    <div id="evalScoreArea"></div>
-    <div id="radarChartArea"></div>
+    <div id="evalHeroArea"></div>
     <div id="evalTrendArea"></div>
     <div id="evalSwotArea"></div>
     ${renderCompEvalPanel(eval_)}
   </div>`;
 
   requestAnimationFrame(() => {
-    drawEvalScoreGauge(eval_, document.getElementById('evalScoreArea'));
-    drawRadarChart(eval_, document.getElementById('radarChartArea'));
+    drawEvalHero(eval_, document.getElementById('evalHeroArea'));
     drawEvalTrend(document.getElementById('evalTrendArea'));
     renderSwotSection(hak, eval_, document.getElementById('evalSwotArea'));
   });
 }
 
-// ========== ① 종합 점수 게이지 ==========
-function drawEvalScoreGauge(eval_, container){
-  if(!container) return;
-  const GN = {S:100,A:83,B:66,C:50,D:33};
-  const GC = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
-  const BGC= {S:'#ede9fe',A:'#d1fae5',B:'#cffafe',C:'#fef9c3',D:'#fee2e2'};
-
-  const grps = ['학업역량','진로역량','공동체역량'];
-  const grpScores = grps.map(k => GN[eval_[k]?.grade] || 0);
-  const total = Math.round(grpScores.reduce((a,b)=>a+b,0) / grps.length);
-  const totalGrade = eval_['학업역량']?.grade; // 대표 등급은 학업역량 기준
-
-  // 원형 게이지 SVG
-  const r=42, cx=50, cy=50, circ=2*Math.PI*r;
-  const dash = (circ * total / 100).toFixed(1);
-  const grpColor = total>=83?GC.A:total>=66?GC.B:total>=50?GC.C:GC.D;
-  const overallGrade = total>=83?'A':total>=66?'B':total>=50?'C':'D';
-  const color = GC[overallGrade] || '#64748b';
-
-  // 내신 평균등급 연동
-  const gradeData = grades[String(currentStu?.hak)];
-  let avgGradeStr = '';
-  if(gradeData){
-    const avg = calcStudentAvg(gradeData, null, currentStu);
-    if(avg!=null){
-      const is9 = isStudent9Grade(currentStu);
-      avgGradeStr = `<span class="grade-link-badge" style="background:${is9?'#ede9fe':'#dbeafe'};color:${is9?'#6d28d9':'#1d4ed8'};">📊 내신 ${avg.toFixed(2)}등급 (${is9?'9':'5'}등급제)</span>`;
-    }
-  }
-
-  container.innerHTML = `
-    <div class="eval-score-section">
-      <div class="eval-score-circle">
-        <svg viewBox="0 0 100 100" width="100" height="100">
-          <circle class="eval-score-circle-bg" cx="${cx}" cy="${cy}" r="${r}"/>
-          <circle class="eval-score-circle-fill" cx="${cx}" cy="${cy}" r="${r}"
-            stroke="${color}"
-            stroke-dasharray="${circ.toFixed(1)}"
-            stroke-dashoffset="${(circ - dash).toFixed(1)}"/>
-        </svg>
-        <div class="eval-score-inner">
-          <div class="eval-score-num" style="color:${color}">${total}</div>
-          <div class="eval-score-label">/ 100</div>
-        </div>
-      </div>
-      <div class="eval-score-info">
-        <div class="eval-score-title">
-          종합 역량 점수
-          <span class="eval-score-grade-tag" style="background:${BGC[overallGrade]||'#f1f5f9'};color:${color};">
-            ${overallGrade}등급 수준
-          </span>
-          ${avgGradeStr}
-        </div>
-        <div class="eval-score-bars">
-          ${grps.map((grp,i)=>{
-            const g = eval_[grp]?.grade || '-';
-            const sc = grpScores[i];
-            const c = GC[g]||'#94a3b8';
-            const icons = {'학업역량':'📚','진로역량':'🎯','공동체역량':'🤝'};
-            return `<div class="eval-score-bar-row">
-              <div class="eval-score-bar-label">${icons[grp]||''} ${grp}</div>
-              <div class="eval-score-bar-track">
-                <div class="eval-score-bar-fill" style="width:${sc}%;background:${c};"></div>
-              </div>
-              <div class="eval-score-bar-val" style="color:${c}">${g}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    </div>`;
-}
-
-// ========== ② 강점/보완점 카드 (eval 시트 저장/로드) ==========
-function renderSwotSection(hak, eval_, container){
-  if(!container) return;
-  const saved = evalData[hak]?.강점보완점 || null;
-  if(saved){
-    container.innerHTML = buildSwotHTML(saved);
-  } else {
-    // 데이터 없으면 안내만 표시 (생성은 admin_summary에서)
-    container.innerHTML = `
-      <div class="eval-swot-section">
-        <div class="eval-swot-gen-btn" style="cursor:default;border-style:solid;color:#94a3b8;background:#f8fafc;">
-          💡 강점·보완점 데이터가 없습니다 — 요약생성기에서 🏆 종합 역량 평가 생성 시 자동 저장됩니다
-        </div>
-      </div>`;
-  }
-}
-
-function buildSwotHTML(swot){
-  const strengths = Array.isArray(swot.강점) ? swot.강점 : (swot.강점||'').split('\n').filter(Boolean);
-  const weaknesses = Array.isArray(swot.보완점) ? swot.보완점 : (swot.보완점||'').split('\n').filter(Boolean);
-  const summary = swot.한줄요약 || '';
-
-  const strItems = strengths.map(s=>`
-    <div class="eval-swot-item">
-      <div class="eval-swot-dot" style="background:#16a34a"></div>
-      <span>${escapeHtml(String(s).replace(/^[-·•\d.]\s*/,''))}</span>
-    </div>`).join('');
-  const weakItems = weaknesses.map(w=>`
-    <div class="eval-swot-item">
-      <div class="eval-swot-dot" style="background:#ea580c"></div>
-      <span>${escapeHtml(String(w).replace(/^[-·•\d.]\s*/,''))}</span>
-    </div>`).join('');
-
-  const regenRow = ''; // 재생성은 요약생성기(admin_summary)에서만 가능
-  const summaryRow = summary
-    ? `<div class="eval-swot-summary">💡 <strong>한줄요약:</strong> ${escapeHtml(summary)}</div>`
-    : '';
-
-  return `<div class="eval-swot-section">
-    ${summaryRow}
-    <div class="eval-swot-card strength">
-      <div class="eval-swot-title" style="color:#15803d;">✅ 핵심 강점</div>
-      ${strItems||'<div style="color:#94a3b8;font-size:12px;">데이터 없음</div>'}
-    </div>
-    <div class="eval-swot-card weakness">
-      <div class="eval-swot-title" style="color:#c2410c;">⚠️ 보완 포인트</div>
-      ${weakItems||'<div style="color:#94a3b8;font-size:12px;">데이터 없음</div>'}
-    </div>
-    ${regenRow}
-  </div>`;
-}
-
-
-// ========== ④ 학년별 역량 변화 추이 ==========
-function drawEvalTrend(container){
-  if(!container) return;
-  const GN = {S:6,A:5,B:4,C:3,D:2};
-  const GC = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
-  const stu = currentStu;
-  const hak = String(stu.hak);
-
-  const yearHaks = [];
-  if(stu.g1_hak) yearHaks.push({year:'1학년', hak:String(stu.g1_hak)});
-  if(stu.g2_hak) yearHaks.push({year:'2학년', hak:String(stu.g2_hak)});
-  const currentYear = parseInt(hak[0]);
-  if(!yearHaks.find(y=>y.hak===hak)) yearHaks.push({year:`${currentYear}학년`, hak});
-  else yearHaks[yearHaks.length-1].year = `${currentYear}학년`;
-
-  const withData = yearHaks.map(y=>({
-    ...y,
-    eval_: evalData[y.hak]?.종합역량평가 || sewtuk[y.hak]?.종합역량평가 || null
-  })).filter(y=>y.eval_);
-
-  if(withData.length < 2){ container.innerHTML=''; return; }
-
-  const GRPS = [
-    {key:'학업역량',  short:'학업', icon:'📚', color:'#6366f1'},
-    {key:'진로역량',  short:'진로', icon:'🎯', color:'#f59e0b'},
-    {key:'공동체역량', short:'공동체', icon:'🤝', color:'#10b981'},
-  ];
-
-  function changeTag(prev, curr){
-    const pn=GN[prev]||0, cn=GN[curr]||0;
-    if(!prev||!curr) return '';
-    if(cn>pn) return `<span class="eval-trend-change up">▲ 상승</span>`;
-    if(cn<pn) return `<span class="eval-trend-change down">▼ 하락</span>`;
-    return `<span class="eval-trend-change same">— 유지</span>`;
-  }
-
-  const colsHtml = withData.map((yd, yi) => {
-    const isCurrent = yd.hak === hak;
-    const rows = GRPS.map(g=>{
-      const gr = yd.eval_[g.key]?.grade || '-';
-      const prevGr = yi>0 ? withData[yi-1].eval_[g.key]?.grade : null;
-      return `<div class="eval-trend-item">
-        <div class="eval-trend-item-label">
-          <span>${g.icon}</span><span>${g.short}</span>
-        </div>
-        <div class="eval-trend-item-right">
-          ${prevGr ? changeTag(prevGr, gr) : ''}
-          <span class="eval-trend-item-grade" style="color:${GC[gr]||'#94a3b8'}">${gr}</span>
-        </div>
-      </div>`;
-    }).join('');
-
-    const arrow = yi < withData.length-1
-      ? `<div class="eval-trend-arrow">›</div>` : '';
-
-    return `<div class="eval-trend-col">
-      <div class="eval-trend-year${isCurrent?' current':''}">
-        ${yd.year}${isCurrent?' <span style="color:#6366f1;">●</span>':''}
-      </div>
-      ${rows}
-    </div>${arrow}`;
-  }).join('');
-
-  container.innerHTML = `
-    <div class="eval-trend-section">
-      <div class="eval-trend-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-        학년별 역량 변화 추이
-      </div>
-      <div class="eval-trend-grid">${colsHtml}</div>
-    </div>`;
-}
-
-
-
-// ========== 역량 레이더 차트 ==========
-function drawRadarChart(eval_, container){
+// ========== 게이지 + 레이더 통합 히어로 카드 ==========
+function drawEvalHero(eval_, container){
   if(!container) return;
   if(radarChartInst){ radarChartInst.destroy(); radarChartInst=null; }
 
-  const GRADE_NUM = { S:6, A:5, B:4, C:3, D:2 };
-  const GC  = { S:'#6366f1', A:'#10b981', B:'#06b6d4', C:'#f59e0b', D:'#ef4444', '-':'#cbd5e1' };
+  const GN  = {S:100,A:83,B:66,C:50,D:33};
+  const GNR = {S:6,A:5,B:4,C:3,D:2};
+  const GC  = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444','-':'#cbd5e1'};
+  const BGC = {S:'#ede9fe',A:'#d1fae5',B:'#cffafe',C:'#fef9c3',D:'#fee2e2'};
   const GRP = {
     '학업역량':  { icon:'📚', color:'#6366f1', bg:'#ede9fe', barColor:'#818cf8',
       subs:[['성취도','학업성취도'],['태도','학업태도'],['탐구력','탐구력']] },
@@ -3029,30 +2795,41 @@ function drawRadarChart(eval_, container){
   ];
 
   function getG(grp, sub){ const d=eval_[grp]?.[sub]; if(!d) return null; return typeof d==='string'?d:d.grade; }
-  function gNum(g){ return GRADE_NUM[g]||1; }
+  function gNum(g){ return GNR[g]||1; }
   function gColor(g){ return GC[g||'-']||'#cbd5e1'; }
-  // 등급 → 퍼센트 바 (S=100%, A=83%, B=66%, C=50%, D=33%)
-  function gPct(g){ return ({S:100,A:83,B:66,C:50,D:33}[g]||16); }
+  function gPct(g){ return GN[g]||16; }
 
-  const bigGrades = Object.fromEntries(Object.keys(GRP).map(k=>[k, eval_?.[k]?.grade]));
-  const values    = axes.map(a => gNum(getG(a.grp, a.sub)));
-  const ptColors  = axes.map(a => GRP[a.grp]?.color || '#64748b');
+  const grps = Object.keys(GRP);
+  const grpScores = grps.map(k => GN[eval_[k]?.grade]||0);
+  const total = Math.round(grpScores.reduce((a,b)=>a+b,0)/grps.length);
+  const overallGrade = total>=83?'A':total>=66?'B':total>=50?'C':'D';
+  const color = GC[overallGrade]||'#64748b';
 
-  // 등급 힌트 바
-  const gradeHints = ['D','C','B','A','S'].map(g =>
-    `<span class="radar-hint-grade" style="background:${GC[g]}18;color:${gColor(g)}">${g}</span>`
-  ).join('');
+  // 게이지 SVG
+  const r=44, cx=50, cy=50, circ=2*Math.PI*r;
+  const dash = (circ*total/100).toFixed(1);
 
+  // 내신 평균 연동
+  const gradeData = grades[String(currentStu?.hak)];
+  let gisu = '';
+  if(gradeData){
+    const avg = calcStudentAvg(gradeData, null, currentStu);
+    if(avg!=null){
+      const is9 = isStudent9Grade(currentStu);
+      gisu = `내신 ${avg.toFixed(2)}등급 (${is9?'9':'5'}등급제)`;
+    }
+  }
+
+  // 레이더 오른쪽 역량 카드들
   const statCards = Object.entries(GRP).map(([grp, cfg]) => {
-    const g = bigGrades[grp] || '-';
+    const g = eval_[grp]?.grade || '-';
     const pct = gPct(g);
     const subsHtml = cfg.subs.map(([lbl, sub]) => {
       const sg = getG(grp, sub) || '-';
-      return `<span>${lbl}: <b style="color:${gColor(sg)}">${sg}</b></span>`;
+      return `<span style="margin-right:9px;">${lbl}: <b style="color:${gColor(sg)};font-weight:800;">${sg}</b></span>`;
     }).join('');
-    const grpClass = 'grp-' + grp;
     return `
-      <div class="radar-stat-card ${grpClass}">
+      <div class="radar-stat-card grp-${grp}">
         <div class="radar-stat-icon" style="background:${cfg.bg}">${cfg.icon}</div>
         <div class="radar-stat-info">
           <div class="radar-stat-name" style="color:${cfg.color}">${grp}</div>
@@ -3068,20 +2845,52 @@ function drawRadarChart(eval_, container){
       </div>`;
   }).join('');
 
+  const gradeHints = ['D','C','B','A','S'].map(g =>
+    `<span class="radar-hint-grade" style="background:${GC[g]}18;color:${gColor(g)}">${g}</span>`
+  ).join('');
+
   container.innerHTML = `
-    <div class="radar-card">
-      <div class="radar-card-header">
-        <div class="radar-card-title">
-          <div class="radar-card-title-dot"></div>
-          역량 레이더
+    <div class="eval-hero-card">
+      <div class="eval-hero-body">
+        <!-- 왼쪽: 게이지 패널 -->
+        <div class="eval-gauge-panel">
+          <div class="eval-gauge-wrap">
+            <svg viewBox="0 0 100 100" width="160" height="160">
+              <circle class="eval-gauge-bg" cx="${cx}" cy="${cy}" r="${r}"/>
+              <circle class="eval-gauge-fill" cx="${cx}" cy="${cy}" r="${r}"
+                stroke="${color}"
+                stroke-dasharray="${circ.toFixed(1)}"
+                stroke-dashoffset="${(circ-dash).toFixed(1)}"/>
+            </svg>
+            <div class="eval-gauge-inner">
+              <div class="eval-gauge-num" style="color:${color}">${total}</div>
+              <div class="eval-gauge-denom">/ 100</div>
+            </div>
+          </div>
+          <div class="eval-gauge-grade-badge" style="background:${BGC[overallGrade]||'#f1f5f9'};color:${color};">
+            ${overallGrade}등급 수준
+          </div>
+          <div class="eval-gauge-bars">
+            ${grps.map((grp,i)=>{
+              const g = eval_[grp]?.grade||'-';
+              const sc = grpScores[i];
+              const c = GC[g]||'#94a3b8';
+              return `<div class="eval-gauge-bar-row">
+                <div class="eval-gauge-bar-label">${GRP[grp].icon} ${grp.replace('역량','')}</div>
+                <div class="eval-gauge-bar-track"><div class="eval-gauge-bar-fill" style="width:${sc}%;background:${c};"></div></div>
+                <div class="eval-gauge-bar-val" style="color:${c}">${g}</div>
+              </div>`;
+            }).join('')}
+          </div>
+          ${gisu ? `<div class="eval-gauge-gisu">📊 ${gisu}</div>` : ''}
         </div>
-        <span class="radar-card-badge">종합역량 프로필</span>
-      </div>
-      <div class="radar-body">
-        <div class="radar-canvas-box"><canvas id="radarCanvas"></canvas></div>
-        <div class="radar-stats">
-          ${statCards}
-          <div class="radar-hint">등급 기준 &nbsp; ${gradeHints}</div>
+        <!-- 오른쪽: 레이더 + 역량 카드 -->
+        <div class="eval-radar-area">
+          <div class="eval-radar-canvas-box"><canvas id="radarCanvas"></canvas></div>
+          <div class="eval-radar-stat-list">
+            ${statCards}
+            <div class="radar-hint" style="margin-top:4px;">등급 기준 &nbsp; ${gradeHints}</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -3089,102 +2898,202 @@ function drawRadarChart(eval_, container){
   const ctx = document.getElementById('radarCanvas');
   if(!ctx) return;
 
-  // 그룹별 영역 강조 플러그인
   const groupArcPlugin = {
     id:'radarGroupArc',
     beforeDraw(chart){
       const {ctx:c, scales:{r}} = chart;
       if(!r) return;
-      const cx=r.xCenter, cy=r.yCenter;
-      const n = axes.length;
-      // 그룹별 바깥 호 그리기
+      const cx=r.xCenter, cy=r.yCenter, n=axes.length;
       const groups = [
-        { color:'rgba(99,102,241,.06)',  indices:[0,1,2] },
-        { color:'rgba(245,158,11,.06)',  indices:[3,4] },
-        { color:'rgba(16,185,129,.06)',  indices:[5,6,7,8] },
+        { color:'rgba(99,102,241,.05)',  indices:[0,1,2] },
+        { color:'rgba(245,158,11,.05)',  indices:[3,4] },
+        { color:'rgba(16,185,129,.05)',  indices:[5,6,7,8] },
       ];
-      const maxR = r.getDistanceFromCenterForValue(6) * 1.08;
-      groups.forEach(({color, indices}) => {
-        if(indices.length < 2) return;
-        const first = indices[0], last = indices[indices.length-1];
-        const a0 = r.getIndexAngle(first) - Math.PI/2 - (Math.PI/n)*0.3;
-        const a1 = r.getIndexAngle(last)  - Math.PI/2 + (Math.PI/n)*0.3;
-        c.save();
-        c.beginPath();
-        c.moveTo(cx, cy);
-        c.arc(cx, cy, maxR, a0, a1);
-        c.closePath();
-        c.fillStyle = color;
-        c.fill();
-        c.restore();
+      const maxR = r.getDistanceFromCenterForValue(6)*1.08;
+      groups.forEach(({color, indices})=>{
+        if(indices.length<2) return;
+        const a0=r.getIndexAngle(indices[0])-Math.PI/2-(Math.PI/n)*0.3;
+        const a1=r.getIndexAngle(indices[indices.length-1])-Math.PI/2+(Math.PI/n)*0.3;
+        c.save(); c.beginPath(); c.moveTo(cx,cy); c.arc(cx,cy,maxR,a0,a1); c.closePath();
+        c.fillStyle=color; c.fill(); c.restore();
       });
     }
   };
 
+  const values   = axes.map(a => gNum(getG(a.grp, a.sub)));
+  const ptColors = axes.map(a => GRP[a.grp]?.color||'#64748b');
+
   radarChartInst = new Chart(ctx, {
-    type: 'radar',
-    plugins: [groupArcPlugin],
-    data: {
-      labels: axes.map(a => a.label),
-      datasets: [{
-        label: '역량 프로필',
-        data: values,
-        backgroundColor: 'rgba(99,102,241,.08)',
-        borderColor: '#6366f1',
-        borderWidth: 2,
-        pointBackgroundColor: ptColors,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 8,
-        pointHoverBorderWidth: 2,
+    type:'radar', plugins:[groupArcPlugin],
+    data:{
+      labels: axes.map(a=>a.label),
+      datasets:[{
+        label:'역량 프로필', data:values,
+        backgroundColor:'rgba(99,102,241,.08)',
+        borderColor:'#6366f1', borderWidth:2,
+        pointBackgroundColor:ptColors, pointBorderColor:'#fff',
+        pointBorderWidth:2, pointRadius:5, pointHoverRadius:8,
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      animation: { duration: 700, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#64748b',
-          bodyColor: '#f8fafc',
-          padding: 12,
-          cornerRadius: 10,
-          boxPadding: 4,
-          callbacks: {
-            title: () => '',
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      animation:{duration:700, easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#1e293b', titleColor:'#64748b', bodyColor:'#f8fafc',
+          padding:12, cornerRadius:10, boxPadding:4,
+          callbacks:{
+            title:()=>'',
             label: c => {
-              const NTG = {1:'D',2:'D',3:'C',4:'B',5:'A',6:'S'};
-              const g = NTG[Math.round(c.raw)]||'-';
-              const grpName = axes[c.dataIndex]?.grp || '';
-              return `  ${axes[c.dataIndex].label}  ·  ${g}등급  (${grpName})`;
+              const NTG={1:'D',2:'D',3:'C',4:'B',5:'A',6:'S'};
+              return `  ${axes[c.dataIndex].label}  ·  ${NTG[Math.round(c.raw)]||'-'}등급  (${axes[c.dataIndex].grp})`;
             }
           }
         }
       },
-      scales: {
-        r: {
-          min: 0, max: 6,
-          ticks: {
-            stepSize: 1,
-            callback: v => ({2:'D',3:'C',4:'B',5:'A',6:'S'}[v]||''),
-            font: { size: 10, weight: '700' },
-            color: '#94a3b8',
-            backdropColor: 'transparent',
-          },
-          pointLabels: {
-            font: { size: 12, weight: '700' },
-            color: ctx2 => GRP[axes[ctx2.index]?.grp]?.color || '#64748b',
-            padding: 8,
-          },
-          grid: { color: 'rgba(148,163,184,.15)', lineWidth: 1 },
-          angleLines: { color: 'rgba(148,163,184,.2)', lineWidth: 1 },
+      scales:{
+        r:{
+          min:0, max:6,
+          ticks:{ stepSize:1, callback:v=>({2:'D',3:'C',4:'B',5:'A',6:'S'}[v]||''), font:{size:10,weight:'700'}, color:'#94a3b8', backdropColor:'transparent' },
+          pointLabels:{ font:{size:11,weight:'700'}, color:ctx2=>GRP[axes[ctx2.index]?.grp]?.color||'#64748b', padding:8 },
+          grid:{color:'rgba(148,163,184,.15)',lineWidth:1},
+          angleLines:{color:'rgba(148,163,184,.2)',lineWidth:1},
         }
       }
     }
   });
+}
+
+
+// ========== 종합 역량 평가 패널 (내신+세특+창체+행발 종합) ==========
+// ========== ④ 학년별 역량 변화 추이 — 카드 비교형 ==========
+function drawEvalTrend(container){
+  if(!container) return;
+  const GN = {S:6,A:5,B:4,C:3,D:2};
+  const GC = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
+  const stu = currentStu;
+  const hak = String(stu.hak);
+
+  const yearHaks = [];
+  if(stu.g1_hak) yearHaks.push({year:'1학년', hak:String(stu.g1_hak)});
+  if(stu.g2_hak) yearHaks.push({year:'2학년', hak:String(stu.g2_hak)});
+  const currentYear = parseInt(hak[0]);
+  if(!yearHaks.find(y=>y.hak===hak)) yearHaks.push({year:`${currentYear}학년`, hak});
+  else yearHaks[yearHaks.length-1].year = `${currentYear}학년`;
+
+  const withData = yearHaks.map(y=>({
+    ...y, eval_: evalData[y.hak]?.종합역량평가 || sewtuk[y.hak]?.종합역량평가 || null
+  })).filter(y=>y.eval_);
+
+  if(withData.length < 2){ container.innerHTML=''; return; }
+
+  const GRPS = [
+    {key:'학업역량',  short:'학업역량', icon:'📚', color:'#6366f1',
+     subKeys:[['성취도','학업성취도'],['태도','학업태도'],['탐구','탐구력']]},
+    {key:'진로역량',  short:'진로역량', icon:'🎯', color:'#f59e0b',
+     subKeys:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
+    {key:'공동체역량', short:'공동체역량', icon:'🤝', color:'#10b981',
+     subKeys:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]},
+  ];
+
+  function changeTag(prev, curr){
+    const pn=GN[prev]||0, cn=GN[curr]||0;
+    if(!prev||!curr) return '';
+    if(cn>pn) return `<span class="eval-trend-change up">▲ 상승</span>`;
+    if(cn<pn) return `<span class="eval-trend-change down">▼ 하락</span>`;
+    return `<span class="eval-trend-change same">— 유지</span>`;
+  }
+
+  // 연도별 컬럼 + 화살표 커넥터
+  const cols = withData.map((yd, yi) => {
+    const isCurrent = yd.hak === hak;
+    const grpCards = GRPS.map(g => {
+      const gr = yd.eval_[g.key]?.grade || '-';
+      const prevGr = yi>0 ? withData[yi-1].eval_[g.key]?.grade : null;
+      const c = GC[gr]||'#94a3b8';
+      // 세부항목 요약
+      const subHtml = g.subKeys.map(([lbl,sub])=>{
+        const sd = yd.eval_[g.key]?.[sub];
+        const sg = (typeof sd==='string'?sd:sd?.grade)||'-';
+        return `${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b>`;
+      }).join('  ');
+      return `
+        <div class="eval-trend-grp-card${isCurrent?' current-col':''}">
+          <div class="eval-trend-grp-top">
+            <div class="eval-trend-grp-label">${g.icon} ${g.short}</div>
+            <div class="eval-trend-grp-grade" style="color:${c}">${gr}</div>
+          </div>
+          <div class="eval-trend-grp-subs">${subHtml}</div>
+          ${prevGr ? `<div class="eval-trend-change-row">${changeTag(prevGr,gr)}</div>` : ''}
+        </div>`;
+    }).join('');
+    return `
+      <div class="eval-trend-year-col">
+        <div class="eval-trend-year-label${isCurrent?' current':''}">${yd.year}${isCurrent?' ●':''}</div>
+        ${grpCards}
+      </div>`;
+  });
+
+  // 컬럼 사이에 화살표 커넥터 삽입
+  const gridHtml = cols.map((col, i) =>
+    i < cols.length-1
+      ? col + `<div class="eval-trend-connector"><div class="eval-trend-connector-arrow">›</div><div class="eval-trend-connector-arrow">›</div><div class="eval-trend-connector-arrow">›</div></div>`
+      : col
+  ).join('');
+
+  container.innerHTML = `
+    <div class="eval-trend-section">
+      <div class="eval-trend-header">
+        <div class="eval-trend-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          학년별 역량 변화 추이
+        </div>
+        <span class="eval-trend-subtitle">${withData.length}개 학년 데이터</span>
+      </div>
+      <div class="eval-trend-grid">${gridHtml}</div>
+    </div>`;
+}
+
+// ========== ② 강점/보완점 ==========
+function renderSwotSection(hak, eval_, container){
+  if(!container) return;
+  const saved = evalData[hak]?.강점보완점 || null;
+  if(saved){
+    container.innerHTML = buildSwotHTML(saved);
+  } else {
+    container.innerHTML = `
+      <div class="eval-swot-section">
+        <div class="eval-swot-gen-btn" style="cursor:default;border-style:solid;color:#94a3b8;background:#f8fafc;">
+          💡 강점·보완점 데이터 없음 — 요약생성기 🏆 종합 역량 평가 생성 시 자동 저장됩니다
+        </div>
+      </div>`;
+  }
+}
+
+function buildSwotHTML(swot){
+  const strengths  = Array.isArray(swot.강점)   ? swot.강점   : (swot.강점||'').split('\n').filter(Boolean);
+  const weaknesses = Array.isArray(swot.보완점) ? swot.보완점 : (swot.보완점||'').split('\n').filter(Boolean);
+  const summary = swot.한줄요약 || '';
+
+  const strItems  = strengths.map(s=>`<div class="eval-swot-item"><div class="eval-swot-dot" style="background:#16a34a"></div><span>${escapeHtml(String(s).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('');
+  const weakItems = weaknesses.map(w=>`<div class="eval-swot-item"><div class="eval-swot-dot" style="background:#ea580c"></div><span>${escapeHtml(String(w).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('');
+
+  const summaryRow = summary
+    ? `<div class="eval-swot-summary"><span class="eval-swot-summary-icon">💡</span><span><strong>한줄요약</strong>  ${escapeHtml(summary)}</span></div>`
+    : '';
+
+  return `<div class="eval-swot-section">
+    ${summaryRow}
+    <div class="eval-swot-card strength">
+      <div class="eval-swot-title" style="color:#15803d;">✅ 핵심 강점</div>
+      ${strItems||'<div style="color:#94a3b8;font-size:12px;">데이터 없음</div>'}
+    </div>
+    <div class="eval-swot-card weakness">
+      <div class="eval-swot-title" style="color:#c2410c;">⚠️ 보완 포인트</div>
+      ${weakItems||'<div style="color:#94a3b8;font-size:12px;">데이터 없음</div>'}
+    </div>
+  </div>`;
 }
 
 // ========== 종합 역량 평가 패널 (내신+세특+창체+행발 종합) ==========
