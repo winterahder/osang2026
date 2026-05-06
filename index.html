@@ -949,26 +949,12 @@ function renderHaengbal(el){
   const gradeLabels = {'1':'1학년','2':'2학년','3':'3학년'};
   let html = `<div style="display:flex;flex-direction:column;gap:14px;padding:16px;">`;
 
-  // 종합평가 카드 (저장된 경우)
+  // 종합평가 카드 — 세특/창체와 동일한 renderAIOverallPanel 사용
   if(hbOverall && typeof hbOverall === 'object'){
-    html += `<div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:10px;padding:16px;">
-      <div style="font-weight:700;font-size:14px;color:#4f46e5;margin-bottom:12px;">🏆 행발 종합 역량 평가</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-        ${['학업역량','진로역량','공동체역량'].map(k=>{
-          const d=hbOverall[k]; if(!d) return '';
-          return `<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">
-            <div style="font-size:11px;color:#64748b;margin-bottom:4px;">${k}</div>
-            <div style="font-size:22px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-            <div style="font-size:10px;color:#94a3b8;">${d.근거||''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      ${hbOverall.종합의견?`<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">${hbOverall.종합의견}</div>`:''}
-    </div>`;
+    html += renderAIOverallPanel(hbOverall, '🏆 행발 종합 역량 평가', '행발 AI 분석');
   }
 
-  // 학년별 카드
+    // 학년별 카드
   ['1','2','3'].forEach(g => {
     if(!원문[g]) return;
     const summary = hbSummaries[g];
