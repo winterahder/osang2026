@@ -272,23 +272,23 @@
   .eval-radar-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .eval-radar-card-title { font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px; }
 
-  /* 3열: 게이지 | 레이더 | 역량카드 */
-  .eval-radar-grid { display: grid; grid-template-columns: 160px 360px 1fr; gap: 28px; align-items: center; }
+  /* 3열: 게이지 | 레이더 | 역량카드 — 게이지와 레이더 동일 크기 */
+  .eval-radar-grid { display: grid; grid-template-columns: 320px 320px 1fr; gap: 28px; align-items: center; }
 
   /* 게이지 패널 */
-  .eval-gauge-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .eval-gauge-wrap { position: relative; width: 140px; height: 140px; }
+  .eval-gauge-col { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; height: 320px; }
+  .eval-gauge-wrap { position: relative; width: 220px; height: 220px; }
   .eval-gauge-wrap svg { transform: rotate(-90deg); }
-  .eval-gauge-bg   { fill: none; stroke: #f1f5f9; stroke-width: 11; }
-  .eval-gauge-fill { fill: none; stroke-width: 11; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.34,1.2,.64,1); }
-  .eval-gauge-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-  .eval-gauge-num   { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -2px; }
-  .eval-gauge-denom { font-size: 11px; color: #94a3b8; font-weight: 600; }
-  .eval-gauge-badge { font-size: 13px; font-weight: 800; padding: 5px 16px; border-radius: 20px; text-align: center; }
-  .eval-gauge-gisu  { font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.4; }
+  .eval-gauge-bg   { fill: none; stroke: #f1f5f9; stroke-width: 10; }
+  .eval-gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .9s cubic-bezier(.34,1.2,.64,1); }
+  .eval-gauge-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .eval-gauge-num   { font-size: 56px; font-weight: 900; line-height: 1; letter-spacing: -3px; }
+  .eval-gauge-denom { font-size: 13px; color: #94a3b8; font-weight: 600; }
+  .eval-gauge-badge { font-size: 14px; font-weight: 800; padding: 6px 20px; border-radius: 24px; text-align: center; }
+  .eval-gauge-gisu  { font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.5; }
 
   /* 레이더 */
-  .eval-radar-canvas-box { position: relative; width: 360px; height: 360px; }
+  .eval-radar-canvas-box { position: relative; width: 320px; height: 320px; }
 
   /* 역량 카드 목록 */
   .eval-radar-stat-list { display: flex; flex-direction: column; gap: 10px; }
@@ -2870,7 +2870,7 @@ function drawEvalRadar(eval_, container){
         <!-- 1열: 게이지 -->
         <div class="eval-gauge-col">
           <div class="eval-gauge-wrap">
-            <svg viewBox="0 0 100 100" width="140" height="140">
+            <svg viewBox="0 0 100 100" width="220" height="220">
               <circle class="eval-gauge-bg" cx="${cx}" cy="${cy}" r="${r}"/>
               <circle class="eval-gauge-fill" cx="${cx}" cy="${cy}" r="${r}"
                 stroke="${color}" stroke-dasharray="${circ.toFixed(1)}"
@@ -2987,6 +2987,47 @@ function drawGradeTrend(container){
     return `<span class="eval-grade-trend-change up">▼${Math.abs(diff).toFixed(2)}</span>`;
   }
 
+  // ── 자동 코멘트 생성 ──
+  function buildTrendComment(){
+    if(sems.length < 2) return null;
+    const avgs = sems.map(s=>semMap[s].avg);
+    const first = avgs[0], last = avgs[avgs.length-1];
+    const totalDiff = last - first; // 양수=악화, 음수=향상
+    const diffs = avgs.slice(1).map((v,i)=>v-avgs[i]);
+    const upCount   = diffs.filter(d=>d>0.05).length;  // 악화
+    const downCount = diffs.filter(d=>d<-0.05).length; // 향상
+    const sameCount = diffs.filter(d=>Math.abs(d)<=0.05).length;
+
+    let trend='', detail='', icon='', color='';
+
+    if(totalDiff < -0.3){
+      trend='전체적으로 성적이 꾸준히 향상되고 있음';
+      icon='📈'; color='#10b981';
+    } else if(totalDiff > 0.3){
+      trend='전체적으로 성적이 하락하는 추세임';
+      icon='📉'; color='#ef4444';
+    } else {
+      trend='전체적으로 성적이 비슷한 수준을 유지하고 있음';
+      icon='📊'; color='#06b6d4';
+    }
+
+    if(downCount > upCount){
+      detail = `${sems.length}개 학기 중 ${downCount}회 향상, ${upCount}회 하락`;
+    } else if(upCount > downCount){
+      detail = `${sems.length}개 학기 중 ${upCount}회 하락, ${downCount}회 향상`;
+    } else {
+      detail = `${sems.length}개 학기 중 향상·하락이 균등하게 나타남`;
+    }
+
+    const bestSem = sems[avgs.indexOf(Math.min(...avgs))];
+    const [by,bs] = bestSem.split('-');
+    detail += ` · 최고 ${by}학년 ${bs}학기 (${Math.min(...avgs).toFixed(2)}등급)`;
+
+    return {trend, detail, icon, color};
+  }
+
+  const comment = buildTrendComment();
+
   const cols=sems.map((sem,i)=>{
     const {avg,is9}=semMap[sem];
     const h=barH(avg);
@@ -3019,6 +3060,14 @@ function drawGradeTrend(container){
         </div>
         <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:3px 10px;border-radius:20px;font-weight:600;">${sems.length}개 학기</span>
       </div>
+      ${comment ? `
+      <div style="display:flex;align-items:flex-start;gap:10px;background:${comment.color}0f;border:1.5px solid ${comment.color}30;border-radius:12px;padding:12px 16px;margin-bottom:16px;">
+        <span style="font-size:18px;flex-shrink:0;">${comment.icon}</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:${comment.color};margin-bottom:3px;">${comment.trend}</div>
+          <div style="font-size:12px;color:#64748b;">${comment.detail}</div>
+        </div>
+      </div>` : ''}
       <div style="display:flex;align-items:flex-end;gap:0;overflow-x:auto;">
         <div style="display:flex;flex-direction:column;justify-content:space-between;height:${MAX_H+44}px;padding:0 8px 44px 0;flex-shrink:0;">${yLabels}</div>
         <div style="flex:1;display:flex;align-items:flex-end;gap:0;">${cols}</div>
