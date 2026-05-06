@@ -2449,7 +2449,7 @@ async function runApplyAnalysis(){
 
   // 1-F. 행발 — 모의지원에는 원문(행발 필드)만 사용, 없으면 제외
   // ※ 행발요약·행발종합평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
-  const haengbalRaw = haengbal[String(stu.hak)]?.원문 || {};
+  const haengbalRaw = haengbal[String(currentStu.hak)]?.원문 || {};
   const haengbalSummary = (() => {
     const entries = Object.entries(haengbalRaw).filter(([, v]) => v && String(v).trim().length > 10);
     if(!entries.length) return null;
