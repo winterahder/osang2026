@@ -1125,6 +1125,12 @@ function toggleContent(i){
 /* ========== API 호출 (제공자별 분기) ========== */
 async function callAPI(system,messages,maxTokens=400){
   if(apiProvider==='anthropic'){
+    const body = {
+      model:currentAnthropicModel,
+      max_tokens:maxTokens,
+      messages
+    };
+    if(system) body.system = system;  // null/undefined/'' 이면 포함하지 않음
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
@@ -1133,12 +1139,7 @@ async function callAPI(system,messages,maxTokens=400){
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
-      body:JSON.stringify({
-        model:currentAnthropicModel,
-        max_tokens:maxTokens,
-        system,
-        messages
-      })
+      body:JSON.stringify(body)
     });
     if(!r.ok){const t=await r.text();console.error('Anthropic API Error:',r.status,t);throw new Error(`Anthropic API ${r.status}: ${t.substring(0,200)}`);}
     const d=await r.json();
