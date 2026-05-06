@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB 관리 — 오상고 지식베이스</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e334d;
+  --accent:#6366f1; --accent2:#818cf8; --green:#10b981; --yellow:#f59e0b;
+  --red:#ef4444; --text:#e2e8f0; --muted:#64748b; --muted2:#94a3b8;
+  --orange:#f97316; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
+
+/* ── 잠금 화면 ── */
+#lockScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;}
+#lockScreen.hidden{display:none;}
+.lock-wrap{text-align:center;max-width:400px;width:100%;padding:0 24px;}
+.lock-wrap .icon{font-size:48px;margin-bottom:20px;}
+.lock-wrap h1{font-size:20px;font-weight:700;margin-bottom:6px;}
+.lock-wrap p{color:var(--muted2);font-size:13px;margin-bottom:8px;}
+.lock-field-label{font-size:12px;color:var(--muted2);text-align:left;margin-bottom:4px;margin-top:10px;}
+.lock-wrap input[type=text],.lock-wrap input[type=password]{width:100%;padding:12px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s;font-family:'Noto Sans KR',sans-serif;}
+.lock-wrap input:focus{border-color:var(--accent);}
+.remember-row{display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;}
+.remember-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.remember-row span{font-size:12px;color:var(--muted2);}
+.lock-btn{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:opacity .2s;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;}
+.lock-btn:hover{opacity:.85;}
+.lock-btn:disabled{opacity:.5;cursor:default;}
+.lock-error{color:var(--red);font-size:13px;margin-top:8px;min-height:20px;}
+.model-selector{display:flex;gap:4px;}
+.model-pill{padding:4px 11px;border-radius:16px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted2);transition:all .15s;white-space:nowrap;}
+.model-pill.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(99,102,241,.4);}
+.model-pill.haiku-active{background:var(--cyan);color:#fff;}
+.model-pill:not(.active):not(.haiku-active):hover{color:var(--accent2);}
+
+/* ── 헤더 ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.header-badge{background:var(--accent);color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+#headerStatus{color:var(--muted2);font-size:12px;}
+
+/* ── 탭 ── */
+.main-tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;}
+.main-tab{padding:12px 18px;font-size:13px;font-weight:600;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.main-tab:hover{color:var(--text);}
+.main-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── 레이아웃 ── */
+.page-body{padding:20px;max-width:1200px;margin:0 auto;}
+
+/* ── 카드 ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+/* ── 버튼 ── */
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;font-family:'Noto Sans KR',sans-serif;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{opacity:.85;}
+.btn:disabled{opacity:.4;cursor:default;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-yellow{background:var(--yellow);color:#fff;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+
+/* ── 업로드 영역 ── */
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(99,102,241,.07);}
+.drop-zone .dz-icon{font-size:36px;margin-bottom:10px;}
+.drop-zone .dz-text{font-size:13px;color:var(--muted2);}
+.drop-zone .dz-hint{font-size:11px;color:var(--muted);margin-top:4px;}
+#fileInput{display:none;}
+
+/* ── 진행 표시 ── */
+.progress-wrap{display:none;margin-top:12px;}
+.progress-bar-bg{background:var(--border);border-radius:4px;height:4px;overflow:hidden;}
+.progress-bar-fill{background:var(--accent);height:4px;border-radius:4px;transition:width .3s;width:0%;}
+.progress-label{font-size:11px;color:var(--muted2);margin-top:6px;}
+
+/* ── 분석 결과 미리보기 ── */
+.preview-section{margin-top:16px;display:none;}
+.preview-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent2);}
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:700px){.preview-grid{grid-template-columns:1fr;}}
+.preview-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.preview-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.preview-card-label{font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;}
+.label-univ{background:rgba(99,102,241,.2);color:var(--accent2);}
+.label-topic{background:rgba(16,185,129,.2);color:var(--green);}
+.label-alumni{background:rgba(249,115,22,.2);color:var(--orange);}
+.entry-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:12px;line-height:1.6;}
+.entry-item strong{color:var(--accent2);}
+.entry-check{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.entry-check input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
+
+/* ── KB 목록 ── */
+.kb-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.kb-search{padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;width:220px;font-family:'Noto Sans KR',sans-serif;}
+.kb-search:focus{border-color:var(--accent);}
+.kb-count{font-size:12px;color:var(--muted);margin-left:auto;}
+.kb-list{display:flex;flex-direction:column;gap:8px;}
+.kb-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;}
+.kb-item:hover{border-color:var(--accent);}
+.kb-item-body{flex:1;min-width:0;}
+.kb-item-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.kb-item-title{font-size:13px;font-weight:700;}
+.kb-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.badge-blue{background:rgba(99,102,241,.2);color:var(--accent2);}
+.badge-green{background:rgba(16,185,129,.2);color:var(--green);}
+.badge-yellow{background:rgba(245,158,11,.2);color:var(--yellow);}
+.badge-red{background:rgba(239,68,68,.2);color:var(--red);}
+.badge-gray{background:var(--border);color:var(--muted2);}
+.kb-item-content{font-size:12px;color:var(--muted2);line-height:1.6;white-space:pre-wrap;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.kb-item-meta{font-size:11px;color:var(--muted);margin-top:6px;}
+.kb-item-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+
+/* ── 서브탭 ── */
+.sub-tabs{display:flex;gap:6px;margin-bottom:16px;}
+.sub-tab{padding:7px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--muted2);transition:all .15s;}
+.sub-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ── 모달 ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;}
+.modal-close{background:none;border:none;color:var(--muted2);font-size:20px;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.form-row{margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--muted2);margin-bottom:5px;font-weight:600;}
+.form-input,.form-select,.form-textarea{width:100%;padding:9px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;transition:border-color .2s;font-family:'Noto Sans KR',sans-serif;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:100px;line-height:1.6;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
+
+/* ── 알림 토스트 ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;transition:opacity .3s;opacity:0;pointer-events:none;}
+#toast.show{opacity:1;}
+#toast.error{background:var(--red);}
+
+/* ── 빈 상태 ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-state .empty-icon{font-size:36px;margin-bottom:10px;}
+.empty-state p{font-size:13px;}
+
+/* ── 졸업생 ── */
+.alumni-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+@media(max-width:700px){.alumni-stats{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+.stat-num{font-size:24px;font-weight:800;color:var(--accent2);}
+.stat-label{font-size:11px;color:var(--muted2);margin-top:2px;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- ── 잠금 화면 ── -->
+<div id="lockScreen">
+  <div class="lock-wrap">
+    <div class="icon">🗄️</div>
+    <h1>지식베이스 관리</h1>
+    <p style="margin-bottom:8px;">오상고 구글 계정으로 로그인하세요</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:24px;">관리자(@osang.hs.kr) 계정만 접속 가능합니다</p>
+
+    <div class="lock-field-label">Claude API Key (sk-ant-...)</div>
+    <input type="text" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+
+    <label class="remember-row">
+      <input type="checkbox" id="rememberMe">
+      <span>API 키 기억 (로그아웃 전까지 유지)</span>
+    </label>
+
+    <button class="lock-btn" onclick="handleGoogleLogin()" id="googleLoginBtn">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Google 계정으로 로그인
+    </button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<!-- ── 헤더 ── -->
+<header>
+  <h1>🗄️ 지식베이스 관리 <span class="header-badge">KB Admin</span></h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="model-selector" id="headerModelSelector" style="display:none;">
+      <div class="model-pill active" id="mpSonnet" onclick="selectModel('sonnet')" title="claude-sonnet-4-20250514">🧠 Sonnet</div>
+      <div class="model-pill" id="mpHaiku" onclick="selectModel('haiku')" title="claude-haiku-4-5-20251001">⚡ Haiku</div>
+    </div>
+    <span id="headerStatus"></span>
+  </div>
+</header>
+
+<!-- ── 탭 ── -->
+<div class="main-tabs">
+  <div class="main-tab active" onclick="switchTab('upload')">📤 파일 분석·저장</div>
+  <div class="main-tab" onclick="switchTab('univ')">🏫 대학별 KB</div>
+  <div class="main-tab" onclick="switchTab('topic')">📋 주제별 KB</div>
+  <div class="main-tab" onclick="switchTab('alumni')">🎓 졸업생 데이터</div>
+</div>
+
+<!-- ════════════════════════════════ 파일 분석 탭 ════════════════════════════════ -->
+<div id="tab-upload" class="page-body">
+  <div class="card">
+    <div class="card-title">📤 파일 업로드 → Claude 분석 → KB 저장</div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('over')"
+      ondragleave="this.classList.remove('over')"
+      ondrop="handleDrop(event)">
+      <div class="dz-icon">📁</div>
+      <div class="dz-text">파일을 여기에 드래그하거나 클릭해서 선택</div>
+      <div class="dz-hint">PDF · PPTX · TXT · DOCX 지원 | 여러 파일 동시 업로드 가능</div>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".pdf,.pptx,.txt,.docx"
+      onchange="handleFileSelect(this.files)">
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">분석 중...</div>
+    </div>
+  </div>
+
+  <!-- 분석 결과 미리보기 -->
+  <div class="preview-section" id="previewSection">
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;">
+        <span>🔍 Claude 분석 결과 — 저장할 항목을 선택하세요</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="toggleAll(true)">전체 선택</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleAll(false)">전체 해제</button>
+          <button class="btn btn-green" id="saveSelectedBtn" onclick="saveSelected()">
+            ✅ 선택 항목 저장
+          </button>
+        </div>
+      </div>
+      <div id="previewContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ 대학별 KB 탭 ════════════════════════════════ -->
+<div id="tab-univ" class="page-body" style="display:none;">
+  <div class="card">
+    <div class="kb-toolbar">
+      <input class="kb-search" id="univSearch" placeholder="대학명·전형 검색..."
+        oninput="renderUnivList()">
+      <select class="form-select" id="univTypeFilter" onchange="renderUnivList()"
+        style="width:120px;padding:8px;">
+        <option value="">전형 전체</option>
+        <option value="교과">교과</option>
+        <option value="종합">종합</option>
+        <option value="논술">논술</option>
+        <option value="정시">정시</option>
+      </select>
+      <button class="btn btn-primary" onclick="openUnivModal()">+ 직접 추가</button>
+      <span class="kb-count" id="univCount"></span>
+    </div>
+    <div class="kb-list" id="univList">
+      <div class="empty-state"><div class="empty-icon">🏫</div><p>데이터 로딩 중...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ 주제별 KB 탭 ════════════════════════════════ -->
+<div id="tab-topic" class="page-body" style="display:none;">
+  <div class="card">
+    <div class="kb-toolbar">
+      <input class="kb-search" id="topicSearch" placeholder="주제·내용 검색..."
+        oninput="renderTopicList()">
+      <select class="form-select" id="topicCatFilter" onchange="renderTopicList()"
+        style="width:130px;padding:8px;">
+        <option value="">카테고리 전체</option>
+        <option value="입시전략">입시전략</option>
+        <option value="교육과정">교육과정</option>
+        <option value="계열분석">계열분석</option>
+        <option value="전형분석">전형분석</option>
+        <option value="기타">기타</option>
+      </select>
+      <select class="form-select" id="topicTargetFilter" onchange="renderTopicList()"
+        style="width:110px;padding:8px;">
+        <option value="">적용대상 전체</option>
+        <option value="공통">공통</option>
+        <option value="2028">2028 (2학년)</option>
+        <option value="2027">2027 (3학년)</option>
+      </select>
+      <button class="btn btn-primary" onclick="openTopicModal()">+ 직접 추가</button>
+      <span class="kb-count" id="topicCount"></span>
+    </div>
+    <div class="kb-list" id="topicList">
+      <div class="empty-state"><div class="empty-icon">📋</div><p>데이터 로딩 중...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ 졸업생 탭 ════════════════════════════════ -->
+<div id="tab-alumni" class="page-body" style="display:none;">
+  <div class="alumni-stats" id="alumniStats">
+    <div class="stat-card"><div class="stat-num" id="statTotal">-</div><div class="stat-label">전체 건수</div></div>
+    <div class="stat-card"><div class="stat-num" id="statPass">-</div><div class="stat-label">합격</div></div>
+    <div class="stat-card"><div class="stat-num" id="statFail">-</div><div class="stat-label">불합격</div></div>
+    <div class="stat-card"><div class="stat-num" id="statYears">-</div><div class="stat-label">졸업년도 수</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📥 엑셀 일괄 업로드</div>
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:12px;">
+      헤더: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">졸업년도 | 계열 | 내신평균 | 내신상세 | 모의수준 | 세특키워드 | 창체특징 | 행발특징 | 지원대학 | 지원학과 | 전형유형 | 세부전형 | 결과 | 충원순위 | 메모</code>
+    </p>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-ghost" onclick="document.getElementById('alumniFile').click()">
+        📂 엑셀 파일 선택
+      </button>
+      <span id="alumniFileName" style="font-size:12px;color:var(--muted2);">파일 미선택</span>
+      <button class="btn btn-primary" id="alumniUploadBtn" onclick="uploadAlumni()" disabled>
+        ⬆️ 업로드
+      </button>
+    </div>
+    <input type="file" id="alumniFile" accept=".xlsx,.xls" style="display:none"
+      onchange="alumniFileSelected(this)">
+    <div id="alumniPreview" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <div class="kb-toolbar">
+      <input class="kb-search" id="alumniSearch" placeholder="대학·학과·결과 검색..."
+        oninput="renderAlumniList()">
+      <select class="form-select" id="alumniResultFilter" onchange="renderAlumniList()"
+        style="width:110px;padding:8px;">
+        <option value="">결과 전체</option>
+        <option value="합격">합격</option>
+        <option value="불합격">불합격</option>
+        <option value="충원">충원</option>
+      </select>
+      <button class="btn btn-primary" onclick="openAlumniModal()">+ 직접 추가</button>
+      <span class="kb-count" id="alumniCount"></span>
+    </div>
+    <div class="kb-list" id="alumniList">
+      <div class="empty-state"><div class="empty-icon">🎓</div><p>데이터 로딩 중...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 모달: 대학별 KB ════════════════════════ -->
+<div class="modal-overlay hidden" id="univModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="univModalTitle">🏫 대학별 KB 추가</span>
+      <button class="modal-close" onclick="closeModal('univModal')">✕</button>
+    </div>
+    <input type="hidden" id="univModalId">
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">대학명 *</div>
+        <input class="form-input" id="fUnivName" placeholder="예: 경북대학교">
+      </div>
+      <div class="form-row">
+        <div class="form-label">전형유형 *</div>
+        <select class="form-select" id="fUnivType">
+          <option value="">선택</option>
+          <option value="교과">교과</option>
+          <option value="종합">종합</option>
+          <option value="논술">논술</option>
+          <option value="정시">정시</option>
+          <option value="공통">공통</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">세부전형명</div>
+        <input class="form-input" id="fUnivSubType" placeholder="예: 지역인재, SW특기자">
+      </div>
+      <div class="form-row">
+        <div class="form-label">계열</div>
+        <select class="form-select" id="fUnivGye">
+          <option value="">전체</option>
+          <option value="인문">인문</option>
+          <option value="자연">자연</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">모집단위</div>
+        <input class="form-input" id="fUnivDept" placeholder="예: 의예과, 컴퓨터학부">
+      </div>
+      <div class="form-row">
+        <div class="form-label">수능최저</div>
+        <input class="form-input" id="fUnivMinscore" placeholder="예: 3합7, 2합5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">내용 *</div>
+      <textarea class="form-textarea" id="fUnivContent" rows="5"
+        placeholder="전형 상세 내용, 특이사항, 변경사항 등 자유롭게 입력"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-label">출처</div>
+      <input class="form-input" id="fUnivSource" placeholder="예: 2028경북대입시설명회.pdf">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('univModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitUnivModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 모달: 주제별 KB ════════════════════════ -->
+<div class="modal-overlay hidden" id="topicModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="topicModalTitle">📋 주제별 KB 추가</span>
+      <button class="modal-close" onclick="closeModal('topicModal')">✕</button>
+    </div>
+    <input type="hidden" id="topicModalId">
+    <div class="form-row">
+      <div class="form-label">주제 *</div>
+      <input class="form-input" id="fTopicTitle" placeholder="예: 2028 대입전략 핵심">
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">카테고리 *</div>
+        <select class="form-select" id="fTopicCat">
+          <option value="입시전략">입시전략</option>
+          <option value="교육과정">교육과정</option>
+          <option value="계열분석">계열분석</option>
+          <option value="전형분석">전형분석</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">적용대상</div>
+        <input class="form-input" id="fTopicTarget" placeholder="공통 / 2학년 / 2028 (쉼표구분)">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">입시년도</div>
+      <input class="form-input" id="fTopicYear" placeholder="예: 2028">
+    </div>
+    <div class="form-row">
+      <div class="form-label">내용 *</div>
+      <textarea class="form-textarea" id="fTopicContent" rows="6"
+        placeholder="핵심 내용을 정리해서 입력. 모의지원 프롬프트에 그대로 활용됩니다."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-label">출처</div>
+      <input class="form-input" id="fTopicSource" placeholder="예: 2028대입전략.pdf">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('topicModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitTopicModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 모달: 졸업생 ════════════════════════ -->
+<div class="modal-overlay hidden" id="alumniModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="alumniModalTitle">🎓 졸업생 데이터 추가</span>
+      <button class="modal-close" onclick="closeModal('alumniModal')">✕</button>
+    </div>
+    <input type="hidden" id="alumniModalId">
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">졸업년도 *</div>
+        <input class="form-input" id="fAlGrad" placeholder="예: 2025">
+      </div>
+      <div class="form-row">
+        <div class="form-label">계열</div>
+        <select class="form-select" id="fAlGye">
+          <option value="">선택</option>
+          <option value="인문">인문</option>
+          <option value="자연">자연</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">내신평균 (9등급)</div>
+        <input class="form-input" id="fAlAvg" placeholder="예: 2.35">
+      </div>
+      <div class="form-row">
+        <div class="form-label">모의수준</div>
+        <input class="form-input" id="fAlMock" placeholder="예: 상 (수학1등급)">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">내신상세</div>
+      <input class="form-input" id="fAlDetail" placeholder="예: 국어2.1 수학2.0 영어2.5 과학2.2">
+    </div>
+    <div class="form-row">
+      <div class="form-label">세특키워드</div>
+      <input class="form-input" id="fAlSewtuk" placeholder="쉼표 구분: 생명과학,유전자실험,의학윤리">
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">창체특징</div>
+        <input class="form-input" id="fAlCc" placeholder="예: 의학동아리 부장, 봉사 200h">
+      </div>
+      <div class="form-row">
+        <div class="form-label">행발특징</div>
+        <input class="form-input" id="fAlHb" placeholder="예: 리더십, 성실, 탐구력">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">지원대학 *</div>
+        <input class="form-input" id="fAlUniv" placeholder="예: 경북대학교">
+      </div>
+      <div class="form-row">
+        <div class="form-label">지원학과 *</div>
+        <input class="form-input" id="fAlDept" placeholder="예: 의예과">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">전형유형</div>
+        <select class="form-select" id="fAlType">
+          <option value="">선택</option>
+          <option value="교과">교과</option>
+          <option value="종합">종합</option>
+          <option value="논술">논술</option>
+          <option value="정시">정시</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">세부전형</div>
+        <input class="form-input" id="fAlSubType" placeholder="예: 지역인재">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">결과 *</div>
+        <select class="form-select" id="fAlResult">
+          <option value="">선택</option>
+          <option value="합격">합격</option>
+          <option value="충원합격">충원합격</option>
+          <option value="불합격">불합격</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">충원순위</div>
+        <input class="form-input" id="fAlChung" placeholder="충원합격 시 순위">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">메모</div>
+      <input class="form-input" id="fAlMemo" placeholder="수능최저 충족 여부 등 특이사항">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('alumniModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitAlumniModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// 설정
+// ══════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbyt9jB9ojJJ82IK5bz3Udsx0p2VlpWs9rYJ4EtROhYSGxYkedadhXIJZ2PgY5bv04eb4Q/exec';
+const GOOGLE_CLIENT_ID = '1006274417056-6divepuvlql4psfraqefi6npfuauhqtm.apps.googleusercontent.com';
+const ADMIN_SESSION_KEY = 'osh_kb_session';
+
+let currentPw = '';
+let apiKey = '';
+let currentAnthropicModel = 'claude-sonnet-4-20250514';
+let kbUniv = [];
+let kbTopic = [];
+let alumniData = [];
+let pendingEntries = []; // Claude 분석 결과 대기 항목
+let alumniParsed = [];  // 엑셀 파싱 결과
+
+// ══════════════════════════════════════════════
+// 인증
+// ══════════════════════════════════════════════
+function selectModel(type) {
+  const isSonnet = type === 'sonnet';
+  currentAnthropicModel = isSonnet ? 'claude-sonnet-4-20250514' : 'claude-haiku-4-5-20251001';
+  document.getElementById('mpSonnet').className = 'model-pill' + (isSonnet ? ' active' : '');
+  document.getElementById('mpHaiku').className = 'model-pill' + (isSonnet ? '' : ' haiku-active');
+}
+
+function handleGoogleLogin() {
+  const ak = document.getElementById('apiKeyInput').value.trim();
+  const errEl = document.getElementById('lockError');
+  if (!ak || !ak.startsWith('sk-ant-')) {
+    errEl.textContent = 'Claude API 키를 입력하세요 (sk-ant-로 시작).';
+    return;
+  }
+
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'email profile',
+    callback: async (resp) => {
+      if (resp.error) { errEl.textContent = '로그인 실패: ' + resp.error; return; }
+      errEl.textContent = '로그인 중...';
+      document.getElementById('googleLoginBtn').disabled = true;
+      try {
+        const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + resp.access_token }
+        }).then(r => r.json());
+
+        const email = userInfo.email;
+        if (!email.endsWith('@osang.hs.kr')) {
+          errEl.textContent = '오상고 계정(@osang.hs.kr)만 접속 가능합니다.';
+          document.getElementById('googleLoginBtn').disabled = false;
+          return;
+        }
+
+        const result = await apiGet({ action: 'checkEmail', email });
+        if (result.role !== 'admin') {
+          errEl.textContent = '관리자 계정만 접속 가능합니다. (현재 역할: ' + result.role + ')';
+          document.getElementById('googleLoginBtn').disabled = false;
+          return;
+        }
+
+        currentPw = result.token;
+        apiKey = ak;
+        sessionStorage.setItem('kb_apiKey', ak);
+        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+          email, token: result.token, apiKey: ak
+        }));
+
+        document.getElementById('lockScreen').classList.add('hidden');
+        document.getElementById('headerStatus').textContent = email + ' | 관리자';
+        document.getElementById('headerModelSelector').style.display = 'flex';
+        await loadAllData();
+      } catch(e) {
+        errEl.textContent = e.message || '오류가 발생했습니다.';
+        document.getElementById('googleLoginBtn').disabled = false;
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+// ══════════════════════════════════════════════
+// API 헬퍼
+// ══════════════════════════════════════════════
+async function apiGet(params, ms=15000) {
+  const url = API_URL + '?' + new URLSearchParams(params);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    return d;
+  } catch(e) {
+    if (e.name === 'AbortError') throw new Error('응답 시간 초과');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+async function apiPost(body, ms=20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(API_URL, { method:'POST', body:JSON.stringify(body), signal:ctrl.signal });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    return d;
+  } catch(e) {
+    if (e.name === 'AbortError') throw new Error('응답 시간 초과');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+async function callClaude(prompt, maxTokens=3000) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: currentAnthropicModel,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.content[0].text;
+}
+
+// ══════════════════════════════════════════════
+// 데이터 로드
+// ══════════════════════════════════════════════
+async function loadAllData() {
+  try {
+    const [u, t, a] = await Promise.all([
+      apiGet({ action:'getKbUniv',  password:currentPw }),
+      apiGet({ action:'getKbTopic', password:currentPw }),
+      apiGet({ action:'getAlumni',  password:currentPw })
+    ]);
+    kbUniv    = Array.isArray(u) ? u : [];
+    kbTopic   = Array.isArray(t) ? t : [];
+    alumniData= Array.isArray(a) ? a : [];
+    renderUnivList();
+    renderTopicList();
+    renderAlumniList();
+    updateAlumniStats();
+    document.getElementById('headerStatus').textContent =
+      `관리자 | KB대학 ${kbUniv.length}건 · 주제 ${kbTopic.length}건 · 졸업생 ${alumniData.length}건`;
+  } catch(e) { showToast('데이터 로드 실패: ' + e.message, true); }
+}
+
+// ══════════════════════════════════════════════
+// 탭 전환
+// ══════════════════════════════════════════════
+function switchTab(name) {
+  ['upload','univ','topic','alumni'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
+    document.querySelectorAll('.main-tab')[['upload','univ','topic','alumni'].indexOf(t)]
+      .classList.toggle('active', t===name);
+  });
+}
+
+// ══════════════════════════════════════════════
+// 파일 업로드 & Claude 분석
+// ══════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('over');
+  handleFileSelect(e.dataTransfer.files);
+}
+
+async function handleFileSelect(files) {
+  if (!files || !files.length) return;
+  const pw = document.getElementById('progressWrap');
+  const pf = document.getElementById('progressFill');
+  const pl = document.getElementById('progressLabel');
+  pw.style.display = 'block';
+  document.getElementById('previewSection').style.display = 'none';
+  pendingEntries = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const pct = Math.round((i / files.length) * 100);
+    pf.style.width = pct + '%';
+    pl.textContent = `(${i+1}/${files.length}) ${file.name} 분석 중...`;
+    try {
+      const text = await extractFileText(file);
+      if (!text || text.length < 50) continue;
+      pl.textContent = `(${i+1}/${files.length}) ${file.name} → Claude 분석 중...`;
+      const entries = await analyzeWithClaude(text, file.name);
+      pendingEntries.push(...entries);
+    } catch(e) {
+      console.error(file.name, e);
+    }
+  }
+
+  pf.style.width = '100%';
+  pl.textContent = `완료! ${pendingEntries.length}개 항목 추출됨`;
+  renderPreview();
+  document.getElementById('previewSection').style.display = 'block';
+}
+
+async function extractFileText(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'txt') {
+    return await file.text();
+  }
+  if (ext === 'pdf') {
+    // PDF는 base64로 Claude에게 전달
+    return `[PDF 파일: ${file.name}]\n(내용 추출 제한 - 텍스트 파일로 변환 후 업로드 권장)`;
+  }
+  if (ext === 'xlsx' || ext === 'xls') {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    let text = '';
+    wb.SheetNames.forEach(sn => {
+      const ws = wb.Sheets[sn];
+      text += `[시트: ${sn}]\n` + XLSX.utils.sheet_to_csv(ws) + '\n\n';
+    });
+    return text.substring(0, 12000);
+  }
+  if (ext === 'pptx' || ext === 'docx') {
+    try {
+      const buf = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      let text = '';
+      const xmlFiles = ext === 'pptx'
+        ? Object.keys(zip.files).filter(f => f.match(/ppt\/slides\/slide\d+\.xml/))
+        : Object.keys(zip.files).filter(f => f === 'word/document.xml');
+      for (const xf of xmlFiles.slice(0, 30)) {
+        const xml = await zip.file(xf).async('string');
+        const clean = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        text += clean + '\n';
+      }
+      return text.substring(0, 12000);
+    } catch(e) { return ''; }
+  }
+  return '';
+}
+
+async function analyzeWithClaude(text, filename) {
+  const prompt = `당신은 한국 대입 정보를 분류·정리하는 전문가입니다.
+아래 문서를 읽고, 내용을 두 가지 유형으로 분류하여 JSON 배열로 반환하세요.
+
+【유형 1: kb_univ — 특정 대학에 관한 정보】
+특정 대학의 전형 방법, 수능최저기준, 모집인원, 합격 기준, 면접, 서류, 변경사항 등
+
+【유형 2: kb_topic — 주제·전략에 관한 공통 정보】
+대입 전략, 교육과정 변화, 특정 계열 전반 분석, 수시 트렌드 등 특정 대학에 한정되지 않는 내용
+
+반드시 아래 JSON 배열만 출력 (마크다운 금지, 설명 금지):
+[
+  {
+    "type": "kb_univ",
+    "대학명": "경북대학교",
+    "전형유형": "교과",
+    "세부전형명": "지역인재",
+    "계열": "자연",
+    "모집단위": "의예과",
+    "수능최저": "3합7",
+    "내용": "핵심 내용 요약 (500자 이내)",
+    "출처목록": "${filename}"
+  },
+  {
+    "type": "kb_topic",
+    "주제": "2028 수능 변화",
+    "카테고리": "입시전략",
+    "적용대상": "2학년, 2028",
+    "입시년도": "2028",
+    "내용": "핵심 내용 요약 (500자 이내)",
+    "출처목록": "${filename}"
+  }
+]
+
+규칙:
+- 한 문서에서 여러 대학 또는 여러 주제가 나오면 각각 별도 항목으로 분리
+- 내용이 불충분한 항목은 제외
+- 대학명이 명확하지 않으면 kb_topic으로 분류
+- 항목이 없으면 빈 배열 [] 반환
+
+【분석할 문서: ${filename}】
+${text.substring(0, 10000)}`;
+
+  try {
+    const raw = await callClaude(prompt, 2000);
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const arr = JSON.parse(clean);
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) {
+    console.error('Claude 분석 오류:', e);
+    return [];
+  }
+}
+
+function renderPreview() {
+  const el = document.getElementById('previewContent');
+  if (!pendingEntries.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🤔</div><p>추출된 항목이 없습니다. 파일 내용을 확인해주세요.</p></div>';
+    return;
+  }
+  el.innerHTML = pendingEntries.map((e, i) => {
+    const isUniv = e.type === 'kb_univ';
+    const label = isUniv ? '대학별' : '주제별';
+    const labelCls = isUniv ? 'label-univ' : 'label-topic';
+    const title = isUniv
+      ? `${e['대학명']} / ${e['전형유형']} ${e['세부전형명']||''} ${e['모집단위']||''}`
+      : `${e['주제']} (${e['카테고리']})`;
+    return `
+      <div class="entry-item">
+        <div class="entry-check">
+          <input type="checkbox" id="chk_${i}" checked>
+          <span class="kb-badge ${labelCls}">${label}</span>
+          <strong>${escHtml(title)}</strong>
+          ${e['수능최저'] ? `<span class="kb-badge badge-yellow">최저: ${escHtml(e['수능최저'])}</span>` : ''}
+          ${e['적용대상'] ? `<span class="kb-badge badge-green">${escHtml(e['적용대상'])}</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.6;white-space:pre-wrap;margin-left:20px;">
+          ${escHtml((e['내용']||'').substring(0,300))}${e['내용']?.length>300?'…':''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-left:20px;">출처: ${escHtml(e['출처목록']||'')}</div>
+      </div>`;
+  }).join('');
+}
+
+function toggleAll(v) {
+  pendingEntries.forEach((_, i) => {
+    const chk = document.getElementById('chk_' + i);
+    if (chk) chk.checked = v;
+  });
+}
+
+async function saveSelected() {
+  const selected = pendingEntries.filter((_, i) => {
+    const chk = document.getElementById('chk_' + i);
+    return chk && chk.checked;
+  });
+  if (!selected.length) { showToast('선택된 항목이 없습니다.', true); return; }
+
+  const btn = document.getElementById('saveSelectedBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 저장 중...';
+
+  let saved = 0;
+  for (const e of selected) {
+    try {
+      if (e.type === 'kb_univ') {
+        await apiPost({ action:'saveKbUniv', password:currentPw, entry:e });
+      } else {
+        await apiPost({ action:'saveKbTopic', password:currentPw, entry:e });
+      }
+      saved++;
+    } catch(err) { console.error(err); }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✅ 선택 항목 저장';
+  showToast(`${saved}개 항목이 저장됐습니다!`);
+  await loadAllData();
+}
+
+// ══════════════════════════════════════════════
+// 대학별 KB 목록
+// ══════════════════════════════════════════════
+function renderUnivList() {
+  const q = (document.getElementById('univSearch')?.value || '').toLowerCase();
+  const tf = document.getElementById('univTypeFilter')?.value || '';
+  let list = kbUniv.filter(r => {
+    const txt = `${r['대학명']} ${r['전형유형']} ${r['세부전형명']} ${r['모집단위']} ${r['내용']}`.toLowerCase();
+    const typeMatch = !tf || (r['전형유형']||'').includes(tf);
+    return txt.includes(q) && typeMatch;
+  });
+  document.getElementById('univCount').textContent = `${list.length}건`;
+  const el = document.getElementById('univList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏫</div><p>항목이 없습니다</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(r => {
+    const typeBadge = {'교과':'badge-blue','종합':'badge-green','논술':'badge-yellow','정시':'badge-red'}[r['전형유형']] || 'badge-gray';
+    return `<div class="kb-item">
+      <div class="kb-item-body">
+        <div class="kb-item-head">
+          <span class="kb-item-title">${escHtml(r['대학명']||'')}</span>
+          ${r['전형유형'] ? `<span class="kb-badge ${typeBadge}">${escHtml(r['전형유형'])}</span>` : ''}
+          ${r['세부전형명'] ? `<span class="kb-badge badge-gray">${escHtml(r['세부전형명'])}</span>` : ''}
+          ${r['모집단위'] ? `<span class="kb-badge badge-gray">${escHtml(r['모집단위'])}</span>` : ''}
+          ${r['수능최저'] ? `<span class="kb-badge badge-yellow">최저: ${escHtml(r['수능최저'])}</span>` : ''}
+          ${r['계열'] ? `<span class="kb-badge badge-gray">${escHtml(r['계열'])}</span>` : ''}
+        </div>
+        <div class="kb-item-content">${escHtml(r['내용']||'')}</div>
+        <div class="kb-item-meta">출처: ${escHtml(r['출처목록']||'-')} · 업데이트: ${r['업데이트일']||'-'}</div>
+      </div>
+      <div class="kb-item-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openUnivModal('${r['id']}')">✏️ 수정</button>
+        <button class="btn btn-red btn-sm" onclick="deleteEntry('kb_univ','${r['id']}','${escHtml(r['대학명']||'')}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// 주제별 KB 목록
+// ══════════════════════════════════════════════
+function renderTopicList() {
+  const q = (document.getElementById('topicSearch')?.value || '').toLowerCase();
+  const cf = document.getElementById('topicCatFilter')?.value || '';
+  const tgf = document.getElementById('topicTargetFilter')?.value || '';
+  let list = kbTopic.filter(r => {
+    const txt = `${r['주제']} ${r['카테고리']} ${r['적용대상']} ${r['내용']}`.toLowerCase();
+    const catMatch = !cf || (r['카테고리']||'').includes(cf);
+    const tgMatch = !tgf || (r['적용대상']||'').includes(tgf);
+    return txt.includes(q) && catMatch && tgMatch;
+  });
+  document.getElementById('topicCount').textContent = `${list.length}건`;
+  const el = document.getElementById('topicList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>항목이 없습니다</p></div>';
+    return;
+  }
+  const catColor = {'입시전략':'badge-blue','교육과정':'badge-green','계열분석':'badge-yellow','전형분석':'badge-red','기타':'badge-gray'};
+  el.innerHTML = list.map(r => `
+    <div class="kb-item">
+      <div class="kb-item-body">
+        <div class="kb-item-head">
+          <span class="kb-item-title">${escHtml(r['주제']||'')}</span>
+          <span class="kb-badge ${catColor[r['카테고리']]||'badge-gray'}">${escHtml(r['카테고리']||'')}</span>
+          <span class="kb-badge badge-gray">${escHtml(r['적용대상']||'공통')}</span>
+          ${r['입시년도'] ? `<span class="kb-badge badge-blue">${escHtml(r['입시년도'])}년도</span>` : ''}
+        </div>
+        <div class="kb-item-content">${escHtml(r['내용']||'')}</div>
+        <div class="kb-item-meta">출처: ${escHtml(r['출처목록']||'-')} · 업데이트: ${r['업데이트일']||'-'}</div>
+      </div>
+      <div class="kb-item-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openTopicModal('${r['id']}')">✏️ 수정</button>
+        <button class="btn btn-red btn-sm" onclick="deleteEntry('kb_topic','${r['id']}','${escHtml(r['주제']||'')}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// 졸업생 목록 & 통계
+// ══════════════════════════════════════════════
+function updateAlumniStats() {
+  document.getElementById('statTotal').textContent = alumniData.length;
+  document.getElementById('statPass').textContent = alumniData.filter(r=>String(r['결과']).includes('합격')).length;
+  document.getElementById('statFail').textContent = alumniData.filter(r=>String(r['결과']).includes('불합격')).length;
+  const years = new Set(alumniData.map(r=>r['졸업년도']).filter(Boolean));
+  document.getElementById('statYears').textContent = years.size;
+}
+
+function renderAlumniList() {
+  const q = (document.getElementById('alumniSearch')?.value || '').toLowerCase();
+  const rf = document.getElementById('alumniResultFilter')?.value || '';
+  let list = alumniData.filter(r => {
+    const txt = `${r['지원대학']} ${r['지원학과']} ${r['결과']} ${r['전형유형']} ${r['졸업년도']}`.toLowerCase();
+    const rMatch = !rf || (r['결과']||'').includes(rf);
+    return txt.includes(q) && rMatch;
+  });
+  document.getElementById('alumniCount').textContent = `${list.length}건`;
+  const el = document.getElementById('alumniList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>데이터가 없습니다</p></div>';
+    return;
+  }
+  const resBadge = {'합격':'badge-green','충원합격':'badge-yellow','불합격':'badge-red'};
+  el.innerHTML = list.slice(0,100).map(r => `
+    <div class="kb-item">
+      <div class="kb-item-body">
+        <div class="kb-item-head">
+          <span class="kb-item-title">${escHtml(r['지원대학']||'')} ${escHtml(r['지원학과']||'')}</span>
+          <span class="kb-badge ${resBadge[r['결과']]||'badge-gray'}">${escHtml(r['결과']||'')}</span>
+          ${r['전형유형'] ? `<span class="kb-badge badge-blue">${escHtml(r['전형유형'])}</span>` : ''}
+          ${r['세부전형'] ? `<span class="kb-badge badge-gray">${escHtml(r['세부전형'])}</span>` : ''}
+          ${r['졸업년도'] ? `<span class="kb-badge badge-gray">${escHtml(String(r['졸업년도']))}년</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.8;">
+          내신: <b>${r['내신평균']||'-'}</b>등급 · 모의: ${escHtml(r['모의수준']||'-')} · 계열: ${escHtml(r['계열']||'-')}
+          ${r['세특키워드'] ? ` · 세특: ${escHtml(r['세특키워드'])}` : ''}
+        </div>
+        ${r['메모'] ? `<div class="kb-item-meta">메모: ${escHtml(r['메모'])}</div>` : ''}
+      </div>
+      <div class="kb-item-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openAlumniModal('${r['id']}')">✏️</button>
+        <button class="btn btn-red btn-sm" onclick="deleteEntry('alumni','${r['id']}','${escHtml(r['지원대학']||'')} ${escHtml(r['지원학과']||'')}')">🗑️</button>
+      </div>
+    </div>`).join('');
+  if (list.length > 100) {
+    el.innerHTML += `<div style="text-align:center;padding:12px;font-size:12px;color:var(--muted);">+ ${list.length-100}건 더 있음 (검색으로 좁혀보세요)</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════
+// 졸업생 엑셀 업로드
+// ══════════════════════════════════════════════
+function alumniFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('alumniFileName').textContent = file.name;
+  document.getElementById('alumniUploadBtn').disabled = false;
+  alumniParsed = [];
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type:'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    alumniParsed = rows;
+    const prev = document.getElementById('alumniPreview');
+    prev.innerHTML = `<p style="font-size:12px;color:var(--green);margin-top:8px;">✅ ${rows.length}행 파싱 완료. 업로드 버튼을 눌러 저장하세요.</p>`;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function uploadAlumni() {
+  if (!alumniParsed.length) { showToast('파일을 먼저 선택하세요.', true); return; }
+  const btn = document.getElementById('alumniUploadBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 저장 중...';
+  try {
+    // 헤더 매핑 (엑셀 컬럼명 → GAS 필드명)
+    const entries = alumniParsed.map(row => ({
+      '졸업년도':  row['졸업년도']  || row['졸업_년도'] || '',
+      '계열':      row['계열']      || '',
+      '내신평균':  row['내신평균']  || row['내신_평균'] || '',
+      '내신상세':  row['내신상세']  || '',
+      '모의수준':  row['모의수준']  || '',
+      '세특키워드':row['세특키워드']|| row['세특_키워드'] || '',
+      '창체특징':  row['창체특징']  || '',
+      '행발특징':  row['행발특징']  || '',
+      '지원대학':  row['지원대학']  || '',
+      '지원학과':  row['지원학과']  || '',
+      '전형유형':  row['전형유형']  || '',
+      '세부전형':  row['세부전형']  || '',
+      '결과':      row['결과']      || '',
+      '충원순위':  row['충원순위']  || '',
+      '메모':      row['메모']      || ''
+    }));
+    await apiPost({ action:'saveBatchAlumni', password:currentPw, entries }, 60000);
+    showToast(`${entries.length}건 저장 완료!`);
+    await loadAllData();
+  } catch(e) {
+    showToast('저장 실패: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⬆️ 업로드';
+  }
+}
+
+// ══════════════════════════════════════════════
+// 삭제
+// ══════════════════════════════════════════════
+async function deleteEntry(type, id, name) {
+  if (!confirm(`"${name}" 항목을 삭제하시겠습니까?`)) return;
+  const actionMap = { kb_univ:'deleteKbUniv', kb_topic:'deleteKbTopic', alumni:'deleteAlumni' };
+  try {
+    await apiPost({ action:actionMap[type], password:currentPw, id });
+    showToast('삭제됐습니다.');
+    await loadAllData();
+  } catch(e) { showToast('삭제 실패: ' + e.message, true); }
+}
+
+// ══════════════════════════════════════════════
+// 모달: 대학별 KB
+// ══════════════════════════════════════════════
+function openUnivModal(id) {
+  const r = id ? kbUniv.find(x => x['id'] === id) : null;
+  document.getElementById('univModalTitle').textContent = r ? '🏫 대학별 KB 수정' : '🏫 대학별 KB 추가';
+  document.getElementById('univModalId').value = r?.id || '';
+  document.getElementById('fUnivName').value = r?.['대학명'] || '';
+  document.getElementById('fUnivType').value = r?.['전형유형'] || '';
+  document.getElementById('fUnivSubType').value = r?.['세부전형명'] || '';
+  document.getElementById('fUnivGye').value = r?.['계열'] || '';
+  document.getElementById('fUnivDept').value = r?.['모집단위'] || '';
+  document.getElementById('fUnivMinscore').value = r?.['수능최저'] || '';
+  document.getElementById('fUnivContent').value = r?.['내용'] || '';
+  document.getElementById('fUnivSource').value = r?.['출처목록'] || '';
+  document.getElementById('univModal').classList.remove('hidden');
+}
+
+async function submitUnivModal() {
+  const name = document.getElementById('fUnivName').value.trim();
+  const content = document.getElementById('fUnivContent').value.trim();
+  if (!name || !content) { showToast('대학명과 내용은 필수입니다.', true); return; }
+  const id = document.getElementById('univModalId').value || undefined;
+  const entry = {
+    id,
+    '대학명':    name,
+    '전형유형':  document.getElementById('fUnivType').value,
+    '세부전형명':document.getElementById('fUnivSubType').value,
+    '계열':      document.getElementById('fUnivGye').value,
+    '모집단위':  document.getElementById('fUnivDept').value,
+    '수능최저':  document.getElementById('fUnivMinscore').value,
+    '내용':      content,
+    '출처목록':  document.getElementById('fUnivSource').value,
+  };
+  try {
+    await apiPost({ action:'saveKbUniv', password:currentPw, entry });
+    showToast('저장됐습니다!');
+    closeModal('univModal');
+    await loadAllData();
+  } catch(e) { showToast('저장 실패: ' + e.message, true); }
+}
+
+// ══════════════════════════════════════════════
+// 모달: 주제별 KB
+// ══════════════════════════════════════════════
+function openTopicModal(id) {
+  const r = id ? kbTopic.find(x => x['id'] === id) : null;
+  document.getElementById('topicModalTitle').textContent = r ? '📋 주제별 KB 수정' : '📋 주제별 KB 추가';
+  document.getElementById('topicModalId').value = r?.id || '';
+  document.getElementById('fTopicTitle').value = r?.['주제'] || '';
+  document.getElementById('fTopicCat').value = r?.['카테고리'] || '입시전략';
+  document.getElementById('fTopicTarget').value = r?.['적용대상'] || '공통';
+  document.getElementById('fTopicYear').value = r?.['입시년도'] || '';
+  document.getElementById('fTopicContent').value = r?.['내용'] || '';
+  document.getElementById('fTopicSource').value = r?.['출처목록'] || '';
+  document.getElementById('topicModal').classList.remove('hidden');
+}
+
+async function submitTopicModal() {
+  const title = document.getElementById('fTopicTitle').value.trim();
+  const content = document.getElementById('fTopicContent').value.trim();
+  if (!title || !content) { showToast('주제와 내용은 필수입니다.', true); return; }
+  const id = document.getElementById('topicModalId').value || undefined;
+  const entry = {
+    id,
+    '주제':      title,
+    '카테고리':  document.getElementById('fTopicCat').value,
+    '적용대상':  document.getElementById('fTopicTarget').value || '공통',
+    '입시년도':  document.getElementById('fTopicYear').value,
+    '내용':      content,
+    '출처목록':  document.getElementById('fTopicSource').value,
+  };
+  try {
+    await apiPost({ action:'saveKbTopic', password:currentPw, entry });
+    showToast('저장됐습니다!');
+    closeModal('topicModal');
+    await loadAllData();
+  } catch(e) { showToast('저장 실패: ' + e.message, true); }
+}
+
+// ══════════════════════════════════════════════
+// 모달: 졸업생
+// ══════════════════════════════════════════════
+function openAlumniModal(id) {
+  const r = id ? alumniData.find(x => String(x['id']) === String(id)) : null;
+  document.getElementById('alumniModalTitle').textContent = r ? '🎓 졸업생 수정' : '🎓 졸업생 추가';
+  document.getElementById('alumniModalId').value = r?.id || '';
+  document.getElementById('fAlGrad').value = r?.['졸업년도'] || '';
+  document.getElementById('fAlGye').value = r?.['계열'] || '';
+  document.getElementById('fAlAvg').value = r?.['내신평균'] || '';
+  document.getElementById('fAlMock').value = r?.['모의수준'] || '';
+  document.getElementById('fAlDetail').value = r?.['내신상세'] || '';
+  document.getElementById('fAlSewtuk').value = r?.['세특키워드'] || '';
+  document.getElementById('fAlCc').value = r?.['창체특징'] || '';
+  document.getElementById('fAlHb').value = r?.['행발특징'] || '';
+  document.getElementById('fAlUniv').value = r?.['지원대학'] || '';
+  document.getElementById('fAlDept').value = r?.['지원학과'] || '';
+  document.getElementById('fAlType').value = r?.['전형유형'] || '';
+  document.getElementById('fAlSubType').value = r?.['세부전형'] || '';
+  document.getElementById('fAlResult').value = r?.['결과'] || '';
+  document.getElementById('fAlChung').value = r?.['충원순위'] || '';
+  document.getElementById('fAlMemo').value = r?.['메모'] || '';
+  document.getElementById('alumniModal').classList.remove('hidden');
+}
+
+async function submitAlumniModal() {
+  const univ = document.getElementById('fAlUniv').value.trim();
+  const dept = document.getElementById('fAlDept').value.trim();
+  const result = document.getElementById('fAlResult').value;
+  if (!univ || !dept || !result) { showToast('지원대학·학과·결과는 필수입니다.', true); return; }
+  const id = document.getElementById('alumniModalId').value || undefined;
+  const entry = {
+    id,
+    '졸업년도':  document.getElementById('fAlGrad').value,
+    '계열':      document.getElementById('fAlGye').value,
+    '내신평균':  document.getElementById('fAlAvg').value,
+    '내신상세':  document.getElementById('fAlDetail').value,
+    '모의수준':  document.getElementById('fAlMock').value,
+    '세특키워드':document.getElementById('fAlSewtuk').value,
+    '창체특징':  document.getElementById('fAlCc').value,
+    '행발특징':  document.getElementById('fAlHb').value,
+    '지원대학':  univ,
+    '지원학과':  dept,
+    '전형유형':  document.getElementById('fAlType').value,
+    '세부전형':  document.getElementById('fAlSubType').value,
+    '결과':      result,
+    '충원순위':  document.getElementById('fAlChung').value,
+    '메모':      document.getElementById('fAlMemo').value,
+  };
+  try {
+    await apiPost({ action:'saveAlumni', password:currentPw, entry });
+    showToast('저장됐습니다!');
+    closeModal('alumniModal');
+    await loadAllData();
+  } catch(e) { showToast('저장 실패: ' + e.message, true); }
+}
+
+// ══════════════════════════════════════════════
+// 공통 유틸
+// ══════════════════════════════════════════════
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function showToast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' error' : '');
+  setTimeout(() => t.className = '', 2500);
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 모달 바깥 클릭 시 닫기
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+});
+
+// 세션 복원 (이전에 로그인한 경우 자동 접속)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null');
+    if (saved && saved.token) {
+      currentPw = saved.token;
+      apiKey = saved.apiKey;
+      document.getElementById('apiKeyInput').value = saved.apiKey || '';
+      document.getElementById('rememberMe').checked = true;
+      apiGet({ action: 'checkRole', password: saved.token }).then(res => {
+        if (res.role === 'admin') {
+          document.getElementById('lockScreen').classList.add('hidden');
+          document.getElementById('headerStatus').textContent = (saved.email || '') + ' | 관리자';
+          document.getElementById('headerModelSelector').style.display = 'flex';
+          loadAllData();
+        } else {
+          localStorage.removeItem(ADMIN_SESSION_KEY);
+        }
+      }).catch(() => {});
+      return;
+    }
+  } catch(e) {}
+});
+</script>
+</body>
+</html>
