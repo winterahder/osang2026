@@ -1832,10 +1832,10 @@ function buildKbPromptText(univ, dept, grade) {
   });
   if(univEntries.length){
     out += `▶ ${univ} 대학 정보 (KB)\n`;
-    univEntries.forEach(r=>{
-      const tags = [r['전형유형'],r['세부전형명'],r['모집단위'],r['수능최저']?`수능최저:${r['수능최저']}`:null]
-        .filter(Boolean).join(' / ');
-      out += `[${tags}] ${(r['내용']||'').substring(0,300)}\n`;
+    univEntries.slice(0, 5).forEach(r=>{ // 최대 5개
+      const tags = [r['전형유형'],r['세부전형명'],r['모집단위'],r['수능최저']?`최저:${r['수능최저']}`:null]
+        .filter(Boolean).join('/');
+      out += `[${tags}] ${(r['내용']||'').substring(0,150)}\n`; // 150자로 축소
     });
     out += '\n';
   }
@@ -1849,8 +1849,8 @@ function buildKbPromptText(univ, dept, grade) {
   });
   if(topicEntries.length){
     out += `▶ 입시 전략·정보 (KB)\n`;
-    topicEntries.forEach(r=>{
-      out += `[${r['주제']||''}] ${(r['내용']||'').substring(0,250)}\n`;
+    topicEntries.slice(0, 3).forEach(r=>{ // 최대 3개
+      out += `[${r['주제']||''}] ${(r['내용']||'').substring(0,120)}\n`; // 120자로 축소
     });
     out += '\n';
   }
@@ -2528,72 +2528,79 @@ async function runApplyAnalysis(){
   // ══════════════════════════════════════════════════
   // 최종 프롬프트 조합
   // ══════════════════════════════════════════════════
-  const prompt = `당신은 한국 대입 전형 전문 컨설턴트입니다. 아래 데이터를 기반으로 학생의 ${univ} ${dept} ${type}전형 지원 가능성을 분석하세요.
+  // ★ 프롬프트 캐싱 — systemPrompt(KB+지시문) / userPrompt(학생데이터) 분리
+  // 같은 대학을 여러 학생에 대해 분석 시 systemPrompt가 캐시 히트 → 90% 절감
 
-━━━ 【학생 프로필】 ━━━
-이름: ${currentStu.name} | ${grade}학년 | 학번: ${hak}
+  const systemPrompt = `당신은 한국 대입 전형 전문 컨설턴트입니다. 학생 데이터를 분석하여 학과 적합성을 평가하고 지정된 JSON 형식으로만 출력합니다.
+
+━━━ 【입시 지식베이스 — ${admYear}학년도 기준】 ━━━
+${refBlock}
+
+━━━ 【분석 원칙】 ━━━
+1. 내신은 등급제(5등급/9등급)를 정확히 파악하여 입결과 비교
+2. 50컷·70컷이 있으면 반드시 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
+3. 수능최저는 학생 모의고사 성적과 대조하여 충족 가능성 명시
+4. 세특 원본에서 지원 학과 관련 탐구 활동·역량을 직접 파악
+5. 창체·행발에서 인성·리더십·공동체 역량을 종합전형 평가 요소로 반영
+6. 지역인재전형 해당 여부 확인 후 언급
+⚠️ 수상경력·독서활동은 2024학년도부터 대입 미반영 — 절대 언급 금지
+⚠️ 종합역량평가 데이터 없어도 보완점으로 지적 금지
+
+━━━ 【출력 형식 (JSON만 출력, 마크다운 금지)】 ━━━
+{"적합도":"상|중|하","적합도점수":75,"한줄평":"20자 이내","수능최저충족":"가능|불확실|어려움","수능최저근거":"1~2문장","강점":"3~4가지(음슴체)","보완점":"2~3가지(음슴체)","전형분석":"3~4문장(음슴체,입결수치포함)","추천전략":"2~3가지(음슴체)","주의사항":"주의점(음슴체)"}`;
+
+  const userPrompt = `[분석 요청] ${currentStu.name} (${grade}학년) → ${univ} ${dept} ${type}전형
+${note ? `추가 요청: ${note}` : ''}
+
+━━━ 학생 프로필 ━━━
 등급제: ${gradeSystemGuide}
 
-【내신 성적 요약】
+【내신 성적】
 ${gradeProfile}
 ${gradeDetail}
 
-【모의고사 (최근 2회차)】
+【모의고사 최근 2회차】
 ${mockSummary}
 
 ${compSummary ? `【종합역량평가】\n${compSummary}` : ''}
 
-${sewtukSummary ? `【세특 원본 — ${dept} 관련 핵심 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
+${sewtukSummary ? `【세특 원본 — ${dept} 관련 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
 
 ${changcheSummary ? `【창체 활동 원본】\n${changcheSummary}` : ''}
 
 ${haengbalSummary ? `【행동발달사항 원본】\n${haengbalSummary}` : ''}
 
-━━━ 【지원 대학 데이터】 ━━━
+━━━ 지원 대학 데이터 ━━━
 목표: ${univ} / ${dept} / ${type}전형
-${note ? `추가 요청: ${note}` : ''}
-
 【입결 데이터 (50컷·70컷 3개년)】
 ${cutoffText}
 
-【우리 학교·지역 선배 합불 이력】
+【선배 합불 이력】
 ${admissionsToPromptText(admCases, univ, dept)}
 
-━━━ 【입시 참고자료 · 지식베이스 — ${admYear}학년도 기준】 ━━━
-※ KB(지식베이스) 우선 활용. 없으면 기존 참고자료 활용.
+━━━ 분석 지시 ━━━
+내신 해석: ${studentIs9 ? '9등급제 직접 적용' : '5등급제 → 9등급 환산(전체평균 ' + stuGradeAvg + '등급) 후 입결 비교'}
+${type}전형 특성에 맞게 강점·약점을 분석하고 위 JSON 형식으로만 출력하세요.`;
 
-${refBlock}
-
-━━━ 【분석 지시】 ━━━
-아래 기준으로 엄격하게 분석하세요:
-1. 내신 해석: ${studentIs9?'9등급제 직접 적용':'5등급제이므로 9등급 환산(전체평균 '+stuGradeAvg+'등급) 후 입결과 비교'}
-2. 입결 비교: 50컷·70컷이 있으면 반드시 학생 내신과 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
-3. 수능최저: Tier1·2 자료의 수능최저 기준과 학생 모의고사 성적을 대조하여 충족 가능성 명시
-4. 전형 특성: 교과/종합/논술 전형 특성에 맞게 강점·약점을 다르게 분석
-5. 세특 활용: 원본 세특에서 ${dept} 관련 탐구 활동·역량을 직접 파악하여 종합전형 강점으로 연결
-6. 창체·행발 활용: 창체 활동과 행발에서 드러나는 인성·리더십·공동체 역량을 종합전형 평가 요소로 반영
-7. 지역인재: ${univ} 지역인재전형 해당 여부 확인 후 언급
-⚠️ 주의: 수상경력·독서활동은 2024학년도부터 대입 미반영 항목이므로 분석에서 절대 언급하지 마세요. 종합역량평가 데이터가 없어도 이를 보완점으로 지적하지 마세요.
-
-반드시 아래 JSON만 출력 (마크다운 코드블록 금지):
-{
-  "적합도": "상|중|하",
-  "적합도점수": 75,
-  "한줄평": "20자 이내",
-  "수능최저충족": "가능|불확실|어려움",
-  "수능최저근거": "모의 성적 기준 판단 근거 1~2문장",
-  "강점": "지원에 유리한 강점 3~4가지 (음슴체)",
-  "보완점": "부족한 부분 2~3가지 (음슴체)",
-  "전형분석": "${type}전형 관점의 구체적 분석 (음슴체, 3~4문장, 입결 수치 반드시 포함)",
-  "추천전략": "합격 가능성 높이는 전략 2~3가지 (음슴체)",
-  "주의사항": "지원 시 주의할 점 (음슴체)"
-}`;
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'callClaude', password: currentPassword, prompt })
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
+    // 429 재시도 로직
+    let data;
+    for(let retry = 0; retry <= 2; retry++){
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'callClaude', password: currentPassword, systemPrompt, userPrompt })
+      });
+      data = await res.json();
+      if(!data.error) break;
+      const is429 = data.error.includes('rate limit') || data.error.includes('429') || data.error.includes('Too Many');
+      if(is429 && retry < 2){
+        const waitSec = (retry+1) * 30;
+        document.getElementById('applyResult').innerHTML =
+          `<div style="text-align:center;color:#64748b;padding:20px">⏳ API 한도 초과 — ${waitSec}초 후 재시도 (${retry+1}/2)...</div>`;
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+      } else {
+        throw new Error(data.error);
+      }
+    }
 
     let obj;
     try{
