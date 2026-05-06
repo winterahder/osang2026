@@ -273,22 +273,22 @@
   .eval-radar-card-title { font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px; }
 
   /* 3열: 게이지 | 레이더 | 역량카드 */
-  .eval-radar-grid { display: grid; grid-template-columns: 140px 320px 1fr; gap: 24px; align-items: center; }
+  .eval-radar-grid { display: grid; grid-template-columns: 160px 360px 1fr; gap: 28px; align-items: center; }
 
   /* 게이지 패널 */
-  .eval-gauge-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .eval-gauge-wrap { position: relative; width: 120px; height: 120px; }
+  .eval-gauge-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .eval-gauge-wrap { position: relative; width: 140px; height: 140px; }
   .eval-gauge-wrap svg { transform: rotate(-90deg); }
-  .eval-gauge-bg   { fill: none; stroke: #f1f5f9; stroke-width: 10; }
-  .eval-gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.34,1.2,.64,1); }
+  .eval-gauge-bg   { fill: none; stroke: #f1f5f9; stroke-width: 11; }
+  .eval-gauge-fill { fill: none; stroke-width: 11; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.34,1.2,.64,1); }
   .eval-gauge-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-  .eval-gauge-num   { font-size: 32px; font-weight: 900; line-height: 1; letter-spacing: -1.5px; }
-  .eval-gauge-denom { font-size: 10px; color: #94a3b8; font-weight: 600; }
-  .eval-gauge-badge { font-size: 12px; font-weight: 800; padding: 4px 14px; border-radius: 20px; text-align: center; }
+  .eval-gauge-num   { font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: -2px; }
+  .eval-gauge-denom { font-size: 11px; color: #94a3b8; font-weight: 600; }
+  .eval-gauge-badge { font-size: 13px; font-weight: 800; padding: 5px 16px; border-radius: 20px; text-align: center; }
   .eval-gauge-gisu  { font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.4; }
 
   /* 레이더 */
-  .eval-radar-canvas-box { position: relative; width: 320px; height: 320px; }
+  .eval-radar-canvas-box { position: relative; width: 360px; height: 360px; }
 
   /* 역량 카드 목록 */
   .eval-radar-stat-list { display: flex; flex-direction: column; gap: 10px; }
@@ -2870,7 +2870,7 @@ function drawEvalRadar(eval_, container){
         <!-- 1열: 게이지 -->
         <div class="eval-gauge-col">
           <div class="eval-gauge-wrap">
-            <svg viewBox="0 0 100 100" width="120" height="120">
+            <svg viewBox="0 0 100 100" width="140" height="140">
               <circle class="eval-gauge-bg" cx="${cx}" cy="${cy}" r="${r}"/>
               <circle class="eval-gauge-fill" cx="${cx}" cy="${cy}" r="${r}"
                 stroke="${color}" stroke-dasharray="${circ.toFixed(1)}"
@@ -2947,86 +2947,67 @@ function drawEvalRadar(eval_, container){
 // ========== ⑤ 내신 학기별 등급 추이 ==========
 function drawGradeTrend(container){
   if(!container) return;
-  const hak=String(currentStu.hak);
 
-  // 현재 학생 + 이전 학년 hak 모두에서 grades 데이터 수집
-  const hakList=[hak];
-  if(currentStu.g2_hak) hakList.unshift(String(currentStu.g2_hak));
-  if(currentStu.g1_hak) hakList.unshift(String(currentStu.g1_hak));
+  // getStudentGrades로 현재 학생의 전체 학기 데이터 수집 (3학년은 현재 hak에 1~3학년 모두 포함)
+  const gradeData = getStudentGrades(currentStu);
+  if(!gradeData?.grades){ container.innerHTML=''; return; }
 
-  // 학기별 평균 수집 (중복 학기 방지)
   const semMap={};
-  hakList.forEach(h=>{
-    const gd=grades[h];
-    if(!gd?.grades) return;
-    Object.entries(gd.grades).forEach(([sem,semData])=>{
-      if(semMap[sem]) return; // 이미 있으면 스킵
-      const subjs=semData.subjects||[];
-      const semIs9=isSem9Grade(currentStu,semData);
-      let cr=0,wt=0;
-      subjs.forEach(s=>{
-        if(s.등급==null||!s.학점) return;
-        let g=semIs9?s.등급:s.등급; // 5등급도 그대로 (등급제별로 Y축 구분)
-        if(g!=null){cr+=s.학점;wt+=g*s.학점;}
-      });
-      if(cr>0) semMap[sem]={avg:wt/cr,is9:semIs9,credit:cr};
+  Object.entries(gradeData.grades).forEach(([sem,semData])=>{
+    const subjs=semData.subjects||[];
+    const semIs9=isSem9Grade(currentStu,semData);
+    let cr=0,wt=0;
+    subjs.forEach(s=>{
+      if(s.등급==null||!s.학점) return;
+      const g=s.등급;
+      if(g!=null){cr+=s.학점;wt+=g*s.학점;}
     });
+    if(cr>0) semMap[sem]={avg:wt/cr,is9:semIs9};
   });
 
   const sems=Object.keys(semMap).sort();
   if(!sems.length){ container.innerHTML=''; return; }
 
-  // Y축 범위 결정 — 9등급 데이터가 하나라도 있으면 9, 아니면 5
   const has9=sems.some(s=>semMap[s].is9);
   const maxG=has9?9:5;
+  const MAX_H=160;
 
-  // 막대 최대 높이 px
-  const MAX_H=120;
-  function barH(avg){
+  function barH(avg){ return Math.max(6,Math.round((avg/maxG)*MAX_H)); }
+  function gradeColor(avg){
     const pct=avg/maxG;
-    return Math.max(4,Math.round(pct*MAX_H));
-  }
-
-  // 색상: 등급 → 색
-  function gradeColor(avg,is9){
-    const g=is9?avg:avg; // 0~maxG
-    const pct=avg/maxG;
-    if(pct<=0.22) return '#10b981'; // 상위 (1~2등급)
+    if(pct<=0.22) return '#10b981';
     if(pct<=0.44) return '#06b6d4';
     if(pct<=0.67) return '#f59e0b';
     return '#ef4444';
   }
-
-  // 변화 태그
   function changeTag(prev,curr){
-    const diff=(curr-prev).toFixed(2);
-    if(Math.abs(curr-prev)<0.05) return `<span class="eval-grade-trend-change same">—</span>`;
-    if(curr>prev) return `<span class="eval-grade-trend-change down">▲${diff}</span>`; // 숫자 커지면 하락
-    return `<span class="eval-grade-trend-change up">▼${Math.abs(diff)}</span>`; // 숫자 작아지면 상승
+    const diff=Math.round((curr-prev)*100)/100;
+    if(Math.abs(diff)<0.05) return `<span class="eval-grade-trend-change same">—</span>`;
+    if(curr>prev) return `<span class="eval-grade-trend-change down">▲${Math.abs(diff).toFixed(2)}</span>`;
+    return `<span class="eval-grade-trend-change up">▼${Math.abs(diff).toFixed(2)}</span>`;
   }
 
   const cols=sems.map((sem,i)=>{
     const {avg,is9}=semMap[sem];
     const h=barH(avg);
-    const c=gradeColor(avg,is9);
+    const c=gradeColor(avg);
     const [yr,st]=sem.split('-');
-    const label=`${yr}학년\n${st}학기`;
     const prev=i>0?semMap[sems[i-1]].avg:null;
     const chg=prev!=null?changeTag(prev,avg):'';
-    const scaleTag=has9&&!is9?'<span style="font-size:8px;color:#a855f7;font-weight:700;">[5]</span>':
-                   has9&&is9 ?'<span style="font-size:8px;color:#9333ea;font-weight:700;">[9]</span>':'';
+    const scaleTag=`<span style="font-size:9px;color:#9333ea;font-weight:700;">[${is9?9:5}]</span>`;
     return `<div class="eval-grade-trend-col">
-      <div class="eval-grade-trend-val" style="color:${c}">${avg.toFixed(2)}</div>
+      <div class="eval-grade-trend-val" style="color:${c};font-size:13px;font-weight:900;">${avg.toFixed(2)}</div>
       <div class="eval-grade-trend-bar-wrap">
-        <div class="eval-grade-trend-bar" style="height:${h}px;background:${c};opacity:.85;"></div>
+        <div class="eval-grade-trend-bar" style="height:${h}px;background:linear-gradient(180deg,${c}cc,${c});width:36px;"></div>
       </div>
-      <div class="eval-grade-trend-label">${label.replace('\n','<br>')}${scaleTag}</div>
-      <div style="margin-top:2px;">${chg}</div>
+      <div class="eval-grade-trend-label" style="font-size:11px;">${yr}학년<br>${st}학기${scaleTag}</div>
+      <div style="margin-top:3px;min-height:16px;">${chg}</div>
     </div>`;
   }).join('');
 
-  // Y축 라벨 (1~maxG)
-  const yLabels=Array.from({length:maxG},(_,i)=>i+1).map(v=>`<div class="eval-grade-trend-axis-label">${v}</div>`).join('');
+  const yLabels=Array.from({length:maxG},(_,i)=>i+1)
+    .map(v=>`<div style="font-size:9px;color:#e2e8f0;font-weight:600;line-height:1;">${v}</div>`)
+    .join('');
 
   container.innerHTML=`
     <div class="eval-grade-trend-card">
@@ -3034,13 +3015,13 @@ function drawGradeTrend(container){
         <div class="eval-grade-trend-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           내신 학기별 등급 변화
-          <span style="font-size:11px;color:#94a3b8;font-weight:500;">(${maxG}등급제 기준 / 낮을수록 우수)</span>
+          <span style="font-size:11px;color:#94a3b8;font-weight:500;">(${maxG}등급제 · 낮을수록 우수)</span>
         </div>
         <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:3px 10px;border-radius:20px;font-weight:600;">${sems.length}개 학기</span>
       </div>
-      <div style="display:flex;align-items:flex-end;gap:0;">
-        <div class="eval-grade-trend-axis" style="height:${MAX_H+28}px;">${yLabels}</div>
-        <div class="eval-grade-trend-body" style="flex:1;align-items:flex-end;min-height:${MAX_H+28}px;">${cols}</div>
+      <div style="display:flex;align-items:flex-end;gap:0;overflow-x:auto;">
+        <div style="display:flex;flex-direction:column;justify-content:space-between;height:${MAX_H+44}px;padding:0 8px 44px 0;flex-shrink:0;">${yLabels}</div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:0;">${cols}</div>
       </div>
     </div>`;
 }
