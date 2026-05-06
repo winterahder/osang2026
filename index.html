@@ -2716,6 +2716,162 @@ function printApplyResult(){
   win.document.close();
 }
 
+function printCompEval(){
+  const stu = currentStu;
+  if(!stu){ alert('학생을 먼저 선택하세요.'); return; }
+  const hak = String(stu.hak);
+
+  const eval_ = evalData[hak]?.종합역량평가
+    || sewtuk[hak]?.종합역량평가
+    || (stu.g2_hak ? evalData[String(stu.g2_hak)]?.종합역량평가 : null)
+    || null;
+  if(!eval_){ alert('종합역량평가 데이터가 없습니다.'); return; }
+
+  const swot    = evalData[hak]?.강점보완점 || null;
+  const date    = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const gradeLabel = `${String(stu.hak)[0]}학년 ${parseInt(String(stu.hak).substring(1,3))}반 ${parseInt(String(stu.hak).substring(3,5))}번`;
+
+  const GN  = {S:100,A:83,B:66,C:50,D:33};
+  const GC  = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
+  const BGC = {S:'#ede9fe',A:'#d1fae5',B:'#cffafe',C:'#fef9c3',D:'#fee2e2'};
+  const GRP_INFO = {
+    '학업역량':  {icon:'📚', subs:[['성취도','학업성취도'],['태도','학업태도'],['탐구력','탐구력']]},
+    '진로역량':  {icon:'🎯', subs:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
+    '공동체역량':{icon:'🤝', subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]}
+  };
+
+  // 종합 점수
+  const grpScores = Object.keys(GRP_INFO).map(k=>GN[eval_[k]?.grade]||0);
+  const total = Math.round(grpScores.reduce((a,b)=>a+b,0)/grpScores.length);
+  const overallGrade = total>=83?'A':total>=66?'B':total>=50?'C':'D';
+  const mainColor = GC[overallGrade]||'#64748b';
+
+  // 내신 평균
+  let gradeAvgHtml = '';
+  const gradeData = getStudentGrades(stu);
+  if(gradeData?.grades){
+    const avg = calcStudentAvg(gradeData,null,stu);
+    if(avg!=null){
+      const is9=isStudent9Grade(stu);
+      gradeAvgHtml=`내신 평균 <b>${avg.toFixed(2)}등급</b> (${is9?'9':'5'}등급제)`;
+    }
+  }
+
+  // 역량 카드 HTML
+  function getG(grp,sub){const d=eval_[grp]?.[sub];if(!d)return '-';return typeof d==='string'?d:d.grade||'-';}
+
+  const grpCardsHtml = Object.entries(GRP_INFO).map(([grp,info])=>{
+    const d = eval_[grp]; if(!d) return '';
+    const g = d.grade||'?';
+    const bc = BGC[g]||'#f8fafc', gc = GC[g]||'#64748b';
+    const subsHtml = info.subs.map(([lbl,sub])=>{
+      const sg=getG(grp,sub);
+      return `<span style="margin-right:10px;font-size:9pt;">${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b></span>`;
+    }).join('');
+    const reasonHtml = d.근거 ? `<div style="margin-top:6px;font-size:9pt;color:#475569;line-height:1.7;padding:8px;background:rgba(0,0,0,.04);border-radius:5px;">${escapeHtml(d.근거)}</div>` : '';
+    return `<div style="background:${bc};border:1.5px solid ${gc}44;border-radius:10px;padding:13px 16px;page-break-inside:avoid;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:11pt;font-weight:700;color:${gc}">${info.icon} ${grp}</div>
+        <div style="font-size:28pt;font-weight:900;color:${gc};line-height:1;">${g}</div>
+      </div>
+      <div>${subsHtml}</div>
+      ${reasonHtml}
+    </div>`;
+  }).join('');
+
+  // 종합의견
+  const opinionHtml = eval_.종합의견
+    ? `<div style="margin-top:4px;padding:12px 15px;background:#f5f3ff;border-left:3px solid #6366f1;border-radius:0 8px 8px 0;font-size:10pt;line-height:1.8;color:#334155;">${escapeHtml(eval_.종합의견)}</div>`
+    : '';
+
+  // 강점/보완점
+  let swotHtml = '';
+  if(swot){
+    const strengths  = Array.isArray(swot.강점)?swot.강점:(swot.강점||'').split('\n').filter(Boolean);
+    const weaknesses = Array.isArray(swot.보완점)?swot.보완점:(swot.보완점||'').split('\n').filter(Boolean);
+    const summary = swot.한줄요약||'';
+    swotHtml = `
+      <div class="section-header">💡 강점 · 보완 포인트</div>
+      ${summary?`<div style="margin-bottom:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde68a;border-radius:7px;font-size:10pt;font-weight:600;color:#92400e;">한줄요약: ${escapeHtml(summary)}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 14px;">
+          <div style="font-size:10pt;font-weight:800;color:#15803d;margin-bottom:8px;">✅ 핵심 강점</div>
+          ${strengths.map(s=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:9.5pt;line-height:1.6;"><span style="color:#16a34a;flex-shrink:0;">●</span><span>${escapeHtml(String(s).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('')}
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px 14px;">
+          <div style="font-size:10pt;font-weight:800;color:#c2410c;margin-bottom:8px;">⚠️ 보완 포인트</div>
+          ${weaknesses.map(w=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:9.5pt;line-height:1.6;"><span style="color:#ea580c;flex-shrink:0;">●</span><span>${escapeHtml(String(w).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  const win = window.open('', '_blank', 'width=860,height=1100');
+  win.document.write(`<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<title>종합역량평가 — ${stu.name}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-size:10.5pt; color:#1e293b; padding:14mm 16mm; line-height:1.6; }
+  .print-header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid ${mainColor}; padding-bottom:10px; margin-bottom:16px; }
+  .print-title  { font-size:16pt; font-weight:900; color:#1e293b; display:flex; align-items:center; gap:8px; }
+  .print-meta   { font-size:9pt; color:#64748b; text-align:right; line-height:1.9; }
+  .score-row    { display:flex; align-items:center; gap:16px; background:${BGC[overallGrade]||'#f8fafc'}; border:1.5px solid ${mainColor}44; border-radius:10px; padding:12px 18px; margin-bottom:16px; }
+  .score-big    { font-size:40pt; font-weight:900; color:${mainColor}; line-height:1; letter-spacing:-2px; }
+  .score-info   { flex:1; }
+  .score-grade  { font-size:13pt; font-weight:800; color:${mainColor}; }
+  .score-sub    { font-size:9.5pt; color:#64748b; margin-top:2px; }
+  .grp-grid     { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
+  .section-header { font-size:11pt; font-weight:800; color:#1e293b; border-bottom:1.5px solid #e2e8f0; padding-bottom:5px; margin:14px 0 10px; }
+  .opinion-label  { font-size:10pt; font-weight:700; color:#6366f1; margin-bottom:5px; }
+  .print-footer   { border-top:1px solid #e2e8f0; margin-top:16px; padding-top:8px; font-size:8.5pt; color:#94a3b8; display:flex; justify-content:space-between; }
+  @page { size:A4; margin:0; }
+  @media print { body { padding:12mm 14mm; } }
+</style>
+</head><body>
+  <div class="print-header">
+    <div>
+      <div class="print-title">🏆 종합역량평가</div>
+      <div style="font-size:10.5pt;color:#334155;margin-top:3px;">
+        <b>${stu.name}</b> &nbsp;|&nbsp; ${gradeLabel}
+      </div>
+    </div>
+    <div class="print-meta">
+      ${gradeAvgHtml}<br>
+      평가일: ${date}<br>
+      오상고 상담카드 시스템
+    </div>
+  </div>
+
+  <!-- 종합 점수 -->
+  <div class="score-row">
+    <div class="score-big">${total}</div>
+    <div style="font-size:10pt;color:#94a3b8;margin-right:8px;">/ 100</div>
+    <div class="score-info">
+      <div class="score-grade">${overallGrade}등급 수준</div>
+      <div class="score-sub">학업·진로·공동체 3영역 평균 환산 점수</div>
+    </div>
+  </div>
+
+  <!-- 3영역 카드 -->
+  <div class="section-header">📊 3영역 역량 평가</div>
+  <div class="grp-grid">${grpCardsHtml}</div>
+
+  <!-- 종합의견 -->
+  ${eval_.종합의견 ? `<div class="section-header">💬 종합의견</div>${opinionHtml}` : ''}
+
+  <!-- 강점/보완점 -->
+  ${swotHtml}
+
+  <div class="print-footer">
+    <span>오상고 상담카드 시스템 2026</span>
+    <span>본 평가는 AI 분석 기반 참고 자료입니다.</span>
+  </div>
+  <script>window.onload=()=>{ setTimeout(()=>window.print(), 400); }<\/script>
+</body></html>`);
+  win.document.close();
+}
+
 function showApplyHistory(idx){
   const hak = String(currentStu.hak);
   const hist = applyHistory[hak] || [];
@@ -2762,6 +2918,13 @@ function renderCompEvalTab(el){
   }
 
   el.innerHTML = `<div class="card" style="padding:16px;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button onclick="printCompEval()" class="print-no" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
+        onmouseover="this.style.background='#eff6ff';this.style.borderColor='#6366f1';this.style.color='#6366f1';"
+        onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#475569';">
+        🖨️ 종합역량평가 인쇄
+      </button>
+    </div>
     <div id="evalRadarArea"></div>
     <div id="evalGradeTrendArea"></div>
     <div id="evalSwotArea"></div>
