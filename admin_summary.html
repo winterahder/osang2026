@@ -1820,9 +1820,10 @@ async function generateHbSummary(grade){
     if(!haengbal[hak]) haengbal[hak]={};
     if(!haengbal[hak].요약) haengbal[hak].요약={};
     haengbal[hak].요약[grade] = arr;
+    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(행발)에 저장 중...');
     await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
     addMsgToChat('chatBodyHb','assistant',
-      `✅ **${grade}학년** 행발 요약 완료!\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
+      `✅ **${grade}학년** 행발 요약 완료! (구글 시트 저장됨)\n\n${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
     renderHaengbalPanel();
   }catch(e){
     addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
@@ -1862,10 +1863,11 @@ async function generateHbOverall(){
 
     if(!haengbal[hak]) haengbal[hak]={};
     haengbal[hak].종합평가 = obj;
+    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(행발)에 저장 중...');
     await apiPost({action:'saveHaengbal', password:currentPw, hak:String(hak), haengbalData:haengbal[hak]});
     renderHbOverallSection(obj, false);
     addMsgToChat('chatBodyHb','assistant',
-      `✅ 행발 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
+      `✅ 행발 종합 평가 완료! (구글 시트 저장됨)\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
   }catch(e){
     addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
   }finally{
