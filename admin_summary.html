@@ -788,6 +788,9 @@ function selectStu(hak){
     `전체 **${subs.length}개** 과목 · 완료 **${doneN}개** · 미완료 **${needN}개**\n\n`+
     (needN>0?`상단 **"✨ 전체 요약 생성"** 버튼으로 한 번에 처리하거나,\n각 과목 아래 **"AI 요약 생성"** 버튼을 개별 클릭하세요.`:'✅ 모든 과목 요약이 완료되어 있습니다.\n각 과목의 **"🔄 재생성"** 버튼으로 다시 만들 수 있습니다.')
   );
+  // 기존 종합역량평가 있으면 채팅창에 바로 표시
+  const existing = evalData[String(hak)]?.종합역량평가;
+  if(existing) renderCompEvalMsg(existing, true);
 }
 
 /* ========== 메인 렌더링 ========== */
@@ -2109,12 +2112,7 @@ async function generateComprehensiveEval(){
     addMsg('assistant','💾 구글 시트(eval)에 저장 중...');
     await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
 
-    addMsg('assistant',
-      `🏆 **${currentStu.name}** 종합 역량 평가 완료 및 저장!\n\n`+
-      `📚 학업역량 **${obj.학업역량?.grade}** (성취도 ${obj.학업역량?.학업성취도?.grade} · 태도 ${obj.학업역량?.학업태도?.grade} · 탐구 ${obj.학업역량?.탐구력?.grade})\n`+
-      `🎯 진로역량 **${obj.진로역량?.grade}**\n`+
-      `🤝 공동체역량 **${obj.공동체역량?.grade}**`
-    );
+    renderCompEvalMsg(obj, false);
   }catch(e){
     addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
   }finally{
@@ -2445,6 +2443,32 @@ async function saveChangcheToSheet(hak){
   await apiPost({action:'saveChangche', password:currentPw, hak:String(hak), changcheData:data});
 }
 
+
+
+/* ========== 종합역량평가 채팅 카드 렌더링 ========== */
+function renderCompEvalMsg(obj, isSaved){
+  const gradeColor = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
+  const gc = g => `<strong style="color:${gradeColor[g]||'#94a3b8'}">${g||'?'}</strong>`;
+  const subRow = (label, g) => g ? `<span style="font-size:11px;color:#94a3b8;">${label} ${gc(g)}</span>` : '';
+
+  const 학업 = obj.학업역량||{};
+  const 진로 = obj.진로역량||{};
+  const 공동 = obj.공동체역량||{};
+
+  const msg =
+    `${isSaved?'📋 **저장된 종합역량평가**':'🏆 **종합역량평가 완료 및 저장!**'}\n\n`+
+    `┌─────────────────────────────┐\n`+
+    `│ 📚 학업역량 ${gc(학업.grade)}   🎯 진로역량 ${gc(진로.grade)}   🤝 공동체역량 ${gc(공동.grade)}\n`+
+    `├─────────────────────────────┤\n`+
+    `│ 학업: 성취도 ${gc(학업.학업성취도?.grade)} · 태도 ${gc(학업.학업태도?.grade)} · 탐구 ${gc(학업.탐구력?.grade)}\n`+
+    `│ 진로: 전공적합성 ${gc(진로.전공적합성?.grade)} · 진로탐색 ${gc(진로.진로탐색?.grade)}\n`+
+    `│ 공동: 협업소통 ${gc(공동.협업소통?.grade)} · 나눔배려 ${gc(공동.나눔배려?.grade)} · 성실성 ${gc(공동.성실성?.grade)} · 리더십 ${gc(공동.리더십?.grade)}\n`+
+    `└─────────────────────────────┘`+
+    (obj.종합의견 ? `\n\n💬 **종합의견**\n${obj.종합의견}` : '')+
+    `\n\n🔄 재생성하려면 **"🏆 종합 역량 평가"** 버튼을 다시 누르세요.`;
+
+  addMsg('assistant', msg);
+}
 
 async function saveToSheet(hak){
   const data=sewtuk[String(hak)];
