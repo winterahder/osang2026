@@ -2497,14 +2497,14 @@ function renderCompEvalTab(el){
 
   if(!eval_){
     el.innerHTML = `<div class="no-data">📋 종합 역량 평가 데이터가 없습니다<br>
-      <small style="color:#94a3b8;">admin에서 🏆 종합 역량 평가 (내신+세특) 버튼으로 생성해주세요</small>
+      <small style="color:#94a3b8;">admin에서 🏆 종합 역량 평가 (내신+세특+창체+행발) 버튼으로 생성해주세요</small>
     </div>`;
     return;
   }
   el.innerHTML = `<div class="card" style="padding:16px;">${renderCompEvalPanel(eval_)}</div>`;
 }
 
-// ========== 종합 역량 평가 패널 (내신+세특 종합) ==========
+// ========== 종합 역량 평가 패널 (내신+세특+창체+행발 종합) ==========
 function renderCompEvalPanel(eval_){
   if(!eval_) return '';
   const GC={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
@@ -2537,7 +2537,7 @@ function renderCompEvalPanel(eval_){
 
   return `<div class="overall-eval-panel" style="border:2px solid #8b5cf6;margin-bottom:10px;">
     <div class="overall-eval-header">
-      <div class="overall-eval-header-title">🏆 종합 역량 평가 <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:10px;margin-left:6px;">내신 + 세특 종합</span></div>
+      <div class="overall-eval-header-title">🏆 종합 역량 평가 <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:10px;margin-left:6px;">내신 + 세특 + 창체 + 행발 종합</span></div>
     </div>
     <div class="overall-eval-grid">
       ${card('학업역량','📚 학업역량',[['학업성취도','학업성취도','학업역량'],['학업태도','학업태도','학업역량'],['탐구력','탐구력','학업역량']])}
