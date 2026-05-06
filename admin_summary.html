@@ -515,7 +515,7 @@ async function loadJSON(url,pw){
 }
 
 /* ========== 상태 ========== */
-let students=[],sewtuk={},changche={},haengbal={},evalData={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
+let students=[],sewtuk={},changche={},haengbal={},evalData={},grades={},currentStu=null,currentPw='',apiKey='',apiProvider='anthropic';
 let chatHistory=[],filterMode='all',isGenAll=false;
 let pending={};
 let pendingOverall={};
@@ -661,18 +661,20 @@ async function loadData(){
   const errEl=document.getElementById('lockError');
   errEl.textContent='데이터 불러오는 중...';
   try{
-    const [s, sw, cc, hb, ev]=await Promise.all([
+    const [s, sw, cc, hb, ev, gr]=await Promise.all([
       apiGet({action:'getStudents',password:currentPw}),
       apiGet({action:'getSewtuk',password:currentPw}),
       apiGet({action:'getChangche',password:currentPw}).catch(()=>({})),
       apiGet({action:'getHaengbal',password:currentPw}).catch(()=>({})),
-      apiGet({action:'getEval',password:currentPw}).catch(()=>({}))
+      apiGet({action:'getEval',password:currentPw}).catch(()=>({})),
+      apiGet({action:'getGrades',password:currentPw}).catch(()=>({}))
     ]);
     students=s||[];
     sewtuk=sw||{};
     changche=cc||{};
     haengbal=hb||{};
     evalData=ev||{};
+    grades=gr||{};
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('progressWrap').style.display='block';
     updateProgress(); renderList();
@@ -1965,17 +1967,14 @@ async function generateComprehensiveEval(){
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
 
   // 내신 데이터 로드
-  let gradesData=null;
-  try{
-    const g=await apiGet({action:'getGrades',password:currentPw});
-    gradesData=g?.[hak]||g?.[String(currentStu.g2_hak)]||null;
-  }catch(e){}
+  // grades 전역변수에서 직접 사용 (이미 loadData에서 로드됨)
+  const gradesData=grades[hak]||grades[String(currentStu.g2_hak)]||null;
 
   // 내신 요약 텍스트 생성
   let gradesSummary='내신 데이터 없음';
-  if(gradesData?.grades){
+  if(gradesData && Object.keys(gradesData).length){
     const lines=[];
-    Object.entries(gradesData.grades).forEach(([sem,semData])=>{
+    Object.entries(gradesData).forEach(([sem,semData])=>{
       const subjs=semData.subjects||[];
       const semLabel=`${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
       subjs.forEach(s=>{
