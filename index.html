@@ -935,12 +935,13 @@ function renderHaengbal(el){
   if(!s) return;
   const hak = String(s.hak);
   const sw = sewtuk[hak] || {};
-  const hbData = haengbal[hak] || {};
-  const hbSummaries = sw['행발요약'] || {};
-  const hbOverall = sw['행발종합평가'] || null;
+  const hbAll = haengbal[hak] || {};
+  const 원문 = hbAll.원문 || {};
+  const hbSummaries = hbAll.요약 || {};
+  const hbOverall = hbAll.종합평가 || null;
   const colorMap = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
 
-  if(!Object.keys(hbData).length){
+  if(!Object.keys(원문).length){
     el.innerHTML = `<div class="placeholder">행동특성 및 종합의견 데이터가 없습니다.</div>`;
     return;
   }
@@ -962,23 +963,14 @@ function renderHaengbal(el){
           </div>`;
         }).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-        ${['인성','리더십','성실성'].map(k=>{
-          const d=hbOverall[k]; if(!d) return '';
-          return `<div style="background:#f1f5f9;border-radius:6px;padding:7px;text-align:center;">
-            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">${k}</div>
-            <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-            <div style="font-size:10px;color:#94a3b8;">${d.comment||''}</div>
-          </div>`;
-        }).join('')}
-      </div>
+
       ${hbOverall.종합의견?`<div style="font-size:13px;line-height:1.8;color:#334155;background:#f8fafc;border-radius:8px;padding:12px;">${hbOverall.종합의견}</div>`:''}
     </div>`;
   }
 
   // 학년별 카드
   ['1','2','3'].forEach(g => {
-    if(!hbData[g]) return;
+    if(!원문[g]) return;
     const summary = hbSummaries[g];
     html += `
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
@@ -989,8 +981,8 @@ function renderHaengbal(el){
           ${Array.isArray(summary) ? summary.map((t,i)=>`<div style="margin-bottom:4px;"><span style="font-weight:700;margin-right:4px;">${['①','②','③'][i]||i+1}</span>${t}</div>`).join('') : summary}
         </div>` : ''}
         <details>
-          <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${hbData[g].length}자)</summary>
-          <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${hbData[g]}</div>
+          <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${원문[g].length}자)</summary>
+          <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${원문[g]}</div>
         </details>
       </div>`;
   });
@@ -2131,7 +2123,7 @@ async function runApplyAnalysis(){
 
   // 1-F. 행발 — 모의지원에는 원문(행발 필드)만 사용, 없으면 제외
   // ※ 행발요약·행발종합평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
-  const haengbalRaw = haengbal[String(stu.hak)] || {};
+  const haengbalRaw = haengbal[String(stu.hak)]?.원문 || {};
   const haengbalSummary = (() => {
     const entries = Object.entries(haengbalRaw).filter(([, v]) => v && String(v).trim().length > 10);
     if(!entries.length) return null;
