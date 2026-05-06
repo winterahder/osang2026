@@ -165,6 +165,17 @@
   .overall-reason-toggle-row { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 10px; cursor: pointer; color: #64748b; font-size: 12px; font-weight: 600; user-select: none; padding: 6px 16px; border-radius: 20px; border: 1px solid #e2e8f0; width: fit-content; margin-left: auto; margin-right: auto; transition: all .15s; background: #fff; }
   .overall-reason-toggle-row:hover { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
   .overall-eval-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #cbd5e1; font-size: 16px; text-align: center; padding: 20px; }
+  /* 역량 레이더 차트 */
+  .radar-wrap { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: center; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+  .radar-canvas-box { position: relative; width: 220px; height: 220px; }
+  .radar-legend { display: flex; flex-direction: column; gap: 12px; }
+  .radar-legend-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 2px; }
+  .radar-legend-item { display: flex; align-items: center; gap: 10px; }
+  .radar-legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .radar-legend-label { font-size: 13px; color: #475569; font-weight: 600; flex: 1; }
+  .radar-legend-grade { font-size: 22px; font-weight: 900; min-width: 28px; text-align: right; }
+  .radar-legend-subs { font-size: 11px; color: #94a3b8; line-height: 1.7; margin-left: 21px; }
+  @media(max-width:640px){ .radar-wrap { grid-template-columns: 1fr; } .radar-canvas-box { width: 180px; height: 180px; margin: 0 auto; } }
 
   /* 모의지원 탭 */
   .apply-wrap { padding: 20px; max-width: 900px; }
@@ -923,6 +934,7 @@ function renderMain(){
 function renderTab(){
   const el = document.getElementById('tabContent');
   if(!el) return;
+  if(radarChartInst){ radarChartInst.destroy(); radarChartInst=null; }
   if(currentTab==='기본정보') renderInfo(el);
   else if(currentTab==='모의고사') renderMock(el);
   else if(currentTab==='내신') renderGrades(el);
@@ -990,6 +1002,7 @@ function renderInfo(el){
 
 // ========== 내신 탭 ==========
 let gradeChartInst = null;
+let radarChartInst = null;
 
 // 학생 한 명의 필터 기준 가중평균 계산 (stu 전달 시 등급제 자동 판별)
 function calcStudentAvg(studentData, filter, stu){
@@ -1180,6 +1193,8 @@ function drawGradeChart(data, semesters){
 
   const n = semesters.length;
   const xPos = semesters.map((_, i) => (2 * i + 1) / (2 * n));
+  // 9등급 학생은 라벨에 등급제 표시 없이 깔끔하게, 5등급 학생만 [5등급] 안내
+  const is9 = isStudent9Grade(currentStu);
   const semLabels = semesters.map(sem => `${sem.split('-')[0]}학년\n${sem.split('-')[1]}학기`);
 
   // ★ 버그2 수정: null 제거 → 일부 학기만 있어도 해당 포인트만 정상 표시
@@ -1217,7 +1232,6 @@ function drawGradeChart(data, semesters){
   const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
   const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
 
-  const is9       = isStudent9Grade(currentStu);
   const mainColor = is9 ? '#9333ea' : '#2563eb';
   const maxG      = is9 ? 9 : 5;
 
@@ -1276,6 +1290,12 @@ function drawGradeChart(data, semesters){
       layout: { padding: { top: is9 ? 28 : 18 } },
       plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
+        subtitle:{
+          display: true,
+          text: is9 ? '9등급제 (3학년)' : '5등급제 (1·2학년) — 9등급 환산 버튼으로 전환 가능',
+          color: is9 ? '#9333ea' : '#2563eb',
+          font:{ size:11 }, padding:{ bottom:4 }
+        },
         tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2)+'등급' : '-'}` } }
       },
       scales:{
@@ -2503,7 +2523,145 @@ function renderCompEvalTab(el){
     </div>`;
     return;
   }
-  el.innerHTML = `<div class="card" style="padding:16px;">${renderCompEvalPanel(eval_)}</div>`;
+  el.innerHTML = `<div class="card" style="padding:16px;">
+    <div id="radarChartArea"></div>
+    ${renderCompEvalPanel(eval_)}
+  </div>`;
+  // DOM이 삽입된 후 차트 그리기
+  requestAnimationFrame(() => drawRadarChart(eval_, document.getElementById('radarChartArea')));
+}
+
+// ========== 역량 레이더 차트 ==========
+function drawRadarChart(eval_, container){
+  if(!container) return;
+  if(radarChartInst){ radarChartInst.destroy(); radarChartInst=null; }
+
+  // 등급 → 수치 (S=6, A=5, B=4, C=3, D=2, 없음=1)
+  const GRADE_NUM = { S:6, A:5, B:4, C:3, D:2 };
+  const GC = { S:'#6366f1', A:'#10b981', B:'#06b6d4', C:'#f59e0b', D:'#ef4444' };
+  const GRP_COLOR = { '학업역량':'#3b82f6', '진로역량':'#f59e0b', '공동체역량':'#10b981' };
+
+  function gNum(g){ return GRADE_NUM[g] || 1; }
+  function gColor(g){ return GC[g] || '#94a3b8'; }
+  function getGrade(grp, sub){
+    const d = eval_[grp]?.[sub];
+    if(!d) return null;
+    return typeof d === 'string' ? d : d.grade;
+  }
+
+  // 레이더 꼭짓점 9개 — 3학년(9등급제) 학생은 학업성취도를 내신 평균등급 기반으로 추가 표시 가능하나
+  // 여기서는 세특 역량 평가 데이터를 기준으로 통일
+  const axes = [
+    { label:'학업성취도', grp:'학업역량',  sub:'학업성취도' },
+    { label:'학업태도',   grp:'학업역량',  sub:'학업태도' },
+    { label:'탐구력',     grp:'학업역량',  sub:'탐구력' },
+    { label:'전공적합성', grp:'진로역량',  sub:'전공관련교과성취도' },
+    { label:'진로탐색',   grp:'진로역량',  sub:'진로탐색활동' },
+    { label:'협업·소통',  grp:'공동체역량', sub:'협업소통' },
+    { label:'나눔·배려',  grp:'공동체역량', sub:'나눔배려' },
+    { label:'성실성',     grp:'공동체역량', sub:'성실성규칙준수' },
+    { label:'리더십',     grp:'공동체역량', sub:'리더십' },
+  ];
+
+  const values = axes.map(a => gNum(getGrade(a.grp, a.sub)));
+  const pointColors = axes.map(a => GRP_COLOR[a.grp] || '#64748b');
+
+  // 3대 역량 등급
+  const bigGrades = {
+    '학업역량':  eval_?.학업역량?.grade,
+    '진로역량':   eval_?.진로역량?.grade,
+    '공동체역량': eval_?.공동체역량?.grade,
+  };
+
+  // 세부항목 요약 텍스트 생성
+  const subSummary = {
+    '학업역량': [
+      ['성취도', '학업성취도'], ['태도', '학업태도'], ['탐구력', '탐구력']
+    ],
+    '진로역량': [
+      ['전공적합', '전공관련교과성취도'], ['진로탐색', '진로탐색활동']
+    ],
+    '공동체역량': [
+      ['협업', '협업소통'], ['나눔', '나눔배려'], ['성실', '성실성규칙준수'], ['리더십', '리더십']
+    ]
+  };
+
+  container.innerHTML = `
+    <div class="radar-wrap">
+      <div class="radar-canvas-box"><canvas id="radarCanvas"></canvas></div>
+      <div class="radar-legend">
+        <div class="radar-legend-title">📊 역량 레이더</div>
+        ${['학업역량','진로역량','공동체역량'].map(grp => {
+          const g = bigGrades[grp] || '-';
+          const subs = subSummary[grp].map(([lbl, sub]) => {
+            const sg = getGrade(grp, sub) || '-';
+            return `${lbl}: <b style="color:${gColor(sg)}">${sg}</b>`;
+          }).join(' · ');
+          return `<div>
+            <div class="radar-legend-item">
+              <div class="radar-legend-dot" style="background:${GRP_COLOR[grp]}"></div>
+              <div class="radar-legend-label">${grp}</div>
+              <div class="radar-legend-grade" style="color:${gColor(g)}">${g}</div>
+            </div>
+            <div class="radar-legend-subs">${subs}</div>
+          </div>`;
+        }).join('')}
+        <div style="font-size:11px;color:#cbd5e1;margin-top:4px;">S &gt; A &gt; B &gt; C &gt; D</div>
+      </div>
+    </div>`;
+
+  const ctx = document.getElementById('radarCanvas');
+  if(!ctx) return;
+
+  radarChartInst = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: axes.map(a => a.label),
+      datasets: [{
+        label: '역량 프로필',
+        data: values,
+        backgroundColor: 'rgba(99,102,241,0.12)',
+        borderColor: '#6366f1',
+        borderWidth: 2,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const numToGrade = {1:'D', 2:'D', 3:'C', 4:'B', 5:'A', 6:'S'};
+              const g = numToGrade[Math.round(c.raw)] || '-';
+              const a = axes[c.dataIndex];
+              return ` ${a.label}: ${g}등급`;
+            }
+          }
+        }
+      },
+      scales: {
+        r: {
+          min: 0, max: 6,
+          ticks: {
+            stepSize: 1,
+            callback: v => ({ 2:'D', 3:'C', 4:'B', 5:'A', 6:'S' }[v] || ''),
+            font: { size: 10 },
+            backdropColor: 'rgba(255,255,255,0.7)',
+          },
+          pointLabels: { font: { size: 11, weight: '600' }, color: '#475569' },
+          grid: { color: '#e2e8f0' },
+          angleLines: { color: '#e2e8f0' },
+        }
+      }
+    }
+  });
 }
 
 // ========== 종합 역량 평가 패널 (내신+세특+창체+행발 종합) ==========
