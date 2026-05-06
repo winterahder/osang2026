@@ -266,6 +266,13 @@ header h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px
         <option value="논술">논술</option>
         <option value="정시">정시</option>
       </select>
+      <select class="form-select" id="univYearFilter" onchange="renderUnivList()"
+        style="width:130px;padding:8px;">
+        <option value="">년도 전체</option>
+        <option value="2027">2027 (3학년)</option>
+        <option value="2028">2028 (2학년)</option>
+        <option value="2029">2029 (1학년)</option>
+      </select>
       <button class="btn btn-primary" onclick="openUnivModal()">+ 직접 추가</button>
       <span class="kb-count" id="univCount"></span>
     </div>
@@ -401,6 +408,19 @@ header h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px
       <div class="form-row">
         <div class="form-label">수능최저</div>
         <input class="form-input" id="fUnivMinscore" placeholder="예: 3합7, 2합5">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">입시년도</div>
+        <select class="form-select" id="fUnivYear">
+          <option value="">전체(공통)</option>
+          <option value="2027">2027 (현 3학년)</option>
+          <option value="2028">2028 (현 2학년)</option>
+          <option value="2029">2029 (현 1학년)</option>
+        </select>
+      </div>
+      <div class="form-row" style="flex:1;">
       </div>
     </div>
     <div class="form-row">
@@ -865,7 +885,8 @@ async function analyzeWithClaudePdf(file) {
     "계열": "자연",
     "모집단위": "의예과",
     "수능최저": "",
-    "내용": "핵심 내용 요약 (500자 이내)",
+    "입시년도": "2028",
+    "내용": "핵심 내용 요약 (200자 이내)",
     "출처목록": "${filename}"
   },
   {
@@ -886,6 +907,7 @@ async function analyzeWithClaudePdf(file) {
 - 항목이 없으면 빈 배열 [] 반환
 - 출처목록은 반드시 "${filename}"으로 설정
 - 내용(내용 필드)은 반드시 200자 이내로 핵심만 간결하게 요약
+- 입시년도는 문서에서 명시된 년도를 추출 (예: "2028학년도" → "2028"), 불명확하면 빈 문자열
 - 모집단위는 대표 학과만 기재 (예: "전학과", "자연계열 전체", "의예과·약학과")
 - 응답이 길어지면 항목 수를 줄여서라도 완전한 JSON 배열로 마무리할 것
 - 응답은 반드시 완전한 JSON 배열 [ ... ] 형태로 끝나야 함`;
@@ -1088,10 +1110,12 @@ async function saveSelected() {
 function renderUnivList() {
   const q = (document.getElementById('univSearch')?.value || '').toLowerCase();
   const tf = document.getElementById('univTypeFilter')?.value || '';
+  const yf = document.getElementById('univYearFilter')?.value || '';
   let list = kbUniv.filter(r => {
     const txt = `${r['대학명']} ${r['전형유형']} ${r['세부전형명']} ${r['모집단위']} ${r['내용']}`.toLowerCase();
     const typeMatch = !tf || (r['전형유형']||'').includes(tf);
-    return txt.includes(q) && typeMatch;
+    const yearMatch = !yf || (r['입시년도']||'') === yf || !(r['입시년도']);
+    return txt.includes(q) && typeMatch && yearMatch;
   });
   document.getElementById('univCount').textContent = `${list.length}건`;
   const el = document.getElementById('univList');
@@ -1110,6 +1134,7 @@ function renderUnivList() {
           ${r['모집단위'] ? `<span class="kb-badge badge-gray">${escHtml(r['모집단위'])}</span>` : ''}
           ${r['수능최저'] ? `<span class="kb-badge badge-yellow">최저: ${escHtml(r['수능최저'])}</span>` : ''}
           ${r['계열'] ? `<span class="kb-badge badge-gray">${escHtml(r['계열'])}</span>` : ''}
+          ${r['입시년도'] ? `<span class="kb-badge badge-blue">${escHtml(r['입시년도'])}년도</span>` : ''}
         </div>
         <div class="kb-item-content">${escHtml(r['내용']||'')}</div>
         <div class="kb-item-meta">출처: ${escHtml(r['출처목록']||'-')} · 업데이트: ${r['업데이트일']||'-'}</div>
@@ -1296,6 +1321,7 @@ function openUnivModal(id) {
   document.getElementById('fUnivGye').value = r?.['계열'] || '';
   document.getElementById('fUnivDept').value = r?.['모집단위'] || '';
   document.getElementById('fUnivMinscore').value = r?.['수능최저'] || '';
+  document.getElementById('fUnivYear').value = r?.['입시년도'] || '';
   document.getElementById('fUnivContent').value = r?.['내용'] || '';
   document.getElementById('fUnivSource').value = r?.['출처목록'] || '';
   document.getElementById('univModal').classList.remove('hidden');
@@ -1314,6 +1340,7 @@ async function submitUnivModal() {
     '계열':      document.getElementById('fUnivGye').value,
     '모집단위':  document.getElementById('fUnivDept').value,
     '수능최저':  document.getElementById('fUnivMinscore').value,
+    '입시년도':  document.getElementById('fUnivYear').value,
     '내용':      content,
     '출처목록':  document.getElementById('fUnivSource').value,
   };
