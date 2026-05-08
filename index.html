@@ -782,7 +782,7 @@ const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
 let students=[], mock={}, grades={}, sewtuk={}, changche={}, haengbal={}, evalData={}, admissionsDB=[], referencesList=[], cutoffIndex={}, kbUniv=[], kbTopic=[], alumniKb=[], currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
 let majorAnalysisCache = {}; // hak → 희망학과분석 데이터
-let admissionsAllCache = null; // 전체 합불 DB (GitHub JSON)
+let admissionsAllCache = null; // (deprecated) 구 버전 호환용 — 실제 캐시는 _admAllCache 사용
 let currentPassword = '';
 let showRank = false;
 let sewtukGrade='전체 학년', sewtukSem='전체 학기', sewtukCat='전체 과목';
@@ -2383,7 +2383,7 @@ function renderMockApplyTab(el){
 }
 
 // ========== API-FREE 모의지원 엔진 ==========
-function runApplyAnalysis(){
+async function runApplyAnalysis(){
   const hak  = String(currentStu.hak);
   const univ = document.getElementById('applyUniv').value.trim();
   const dept = document.getElementById('applyDept').value.trim();
@@ -2395,28 +2395,24 @@ function runApplyAnalysis(){
   const btn      = document.getElementById('applyBtn');
   const resultEl = document.getElementById('applyResult');
   btn.disabled   = true;
-  btn.innerHTML  = '<span class="apply-spinner"></span> 분석 중...';
-  resultEl.innerHTML = '';
+  btn.innerHTML  = '<span class="apply-spinner"></span> 데이터 조회 중...';
+  resultEl.innerHTML = '<div style="color:#64748b;padding:16px;text-align:center;">📡 입결·합불 데이터 조회 중...</div>';
 
-  // 약간의 딜레이로 UI 업데이트 후 계산
-  setTimeout(() => {
-    try {
-      const result = computeApplyResult(hak, univ, dept, type, note);
-      renderApplyResultHTML(result, resultEl);
-      saveApplyHistoryItem(hak, univ, dept, type, result);
-      // 탭 갱신 (이력 추가)
-      const el = document.getElementById('tabContent');
-      if(el) renderMockApplyTab(el);
-    } catch(e) {
-      resultEl.innerHTML = `<div style="color:#ef4444;padding:16px;">❌ 분석 오류: ${escapeHtml(e.message)}</div>`;
-    }
-    btn.disabled = false;
-    btn.innerHTML = '🔍 학과 적합성 분석하기';
-  }, 80);
+  try {
+    const result = await computeApplyResult(hak, univ, dept, type, note);
+    renderApplyResultHTML(result, resultEl);
+    saveApplyHistoryItem(hak, univ, dept, type, result);
+    const el = document.getElementById('tabContent');
+    if(el) renderMockApplyTab(el);
+  } catch(e) {
+    resultEl.innerHTML = `<div style="color:#ef4444;padding:16px;">❌ 분석 오류: ${escapeHtml(e.message)}</div>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🔍 학과 적합성 분석하기';
 }
 
-// ── 핵심 계산 엔진 ──
-function computeApplyResult(hak, univ, dept, type, note){
+// ── 핵심 계산 엔진 (async) ──
+async function computeApplyResult(hak, univ, dept, type, note){
   const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
   const studentIs9 = isStudent9Grade(currentStu);
 
@@ -2438,12 +2434,18 @@ function computeApplyResult(hak, univ, dept, type, note){
     if(tc>0) stuAvg = tw/tc;
   }
 
-  // ② 커트라인 비교
-  const cutoffRows = getCutoffForApply(univ, dept, type);
+  // ② 커트라인 — GAS API(cutoff_db) 실제 데이터 fetch
+  let cutoffRows = [];
+  try { cutoffRows = await fetchCutoffData(univ, dept); } catch(e){}
   const cutoff = parseCutoff(cutoffRows, type);
 
-  // ③ 선배 합불 이력
-  const alumniResult = getAlumniResult(univ, dept, stuAvg);
+  // ③ 합불 이력 — 전국(admissions_all.json) + 우리학교(alumniKb)
+  let admCases = { school:[], gb:[] };
+  try { admCases = await fetchAdmissionCases(univ, dept); } catch(e){}
+  const alumniResult = getAlumniResult(univ, dept, stuAvg); // 우리학교 선배(alumniKb)
+
+  // ③b 전국 합불 JSON에서 pseudo-cutoff 계산 (cutoff DB 없을 때 보조)
+  const gbCutoff = parseGbCutoff(admCases.gb, type);
 
   // ④ 비교과 분석 (저장된 희망학과분석 활용)
   const majorData = evalData[hak]?.희망학과분석 || {};
@@ -2457,20 +2459,33 @@ function computeApplyResult(hak, univ, dept, type, note){
   // ⑤ 수능최저 판단
   const suneungResult = checkSuneung(univ, dept, type, grade);
 
-  // ⑥ 종합역량평가 참조
-  const compEval = evalData[hak]?.종합역량평가;
+  // ⑥ 종합역량평가 참조 — evalData → sewtuk 순서로 fallback
+  const compEval = evalData[hak]?.종합역량평가
+    || sewtuk[hak]?.종합역량평가
+    || sewtuk[hak]?.종합평가
+    || null;
   const compScore = compEval ? calcCompScore(compEval) : null;
 
-  // ⑦ 최종 점수 계산
+  // ⑦ 세특 종합의견 (buildComments에서 활용)
+  const sewtukOverall = sewtuk[hak]?.종합평가?.종합의견
+    || sewtuk[hak]?.종합역량평가?.종합의견
+    || '';
+
+  // ⑧ 최종 점수 계산 (cutoff 없으면 gbCutoff 보조 사용)
+  const effectiveCutoff = cutoff || gbCutoff;
   const score = calcFinalScore({
-    stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult
+    stuAvg, cutoff: effectiveCutoff, type, alumniResult, majorScore, compScore, suneungResult,
+    admCases
   });
 
-  // ⑧ 코멘트 생성
+  // ⑨ 코멘트 생성
   const comments = buildComments({
-    stuAvg, cutoff, type, alumniResult, majorScore, majorEntry,
-    compScore, compEval, suneungResult, grade, studentIs9,
-    univ, dept, note
+    stuAvg, cutoff: effectiveCutoff, gbCutoff, type,
+    alumniResult, admCases,
+    majorScore, majorEntry,
+    compScore, compEval, sewtukOverall,
+    suneungResult, grade, studentIs9,
+    univ, dept, note, gradesData, hak
   });
 
   return {
@@ -2486,30 +2501,45 @@ function computeApplyResult(hak, univ, dept, type, note){
     전형분석: comments.typeAnalysis,
     추천전략: comments.strategy,
     주의사항: comments.caution,
-    _meta: { cutoff, alumniResult, stuAvg, majorScore }
+    _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore }
   };
 }
 
 // 커트라인 조회 (이미 로드된 cutoff DB에서)
-function getCutoffForApply(univ, dept, type){
-  // cutoffIndex는 인덱스만 — 실제 데이터는 admissionsDB 또는 별도 로드 필요
-  // admissionsAllCache (GitHub JSON)에서 먼저 탐색
-  const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
-  const uNorm = norm(univ), dNorm = norm(dept);
+// ── admissions_all.json 전국 합불 데이터에서 pseudo-cutoff 계산 ──
+function parseGbCutoff(gbRows, type){
+  if(!gbRows || !gbRows.length) return null;
+  const norm = s => String(s||'').trim();
+  // 전형 필터
+  const filtered = type && type !== '종합+교과'
+    ? gbRows.filter(r => norm(r.전형유형).includes(type))
+    : gbRows;
+  if(!filtered.length) return null;
 
-  let rows = [];
-  if(admissionsAllCache){
-    rows = admissionsAllCache.filter(r=>{
-      const ru = norm(r['대학']||r['대학명']||'');
-      const rd = norm(r['모집단위']||r['학과']||'');
-      const rt = String(r['전형']||r['전형유형']||'');
-      const uMatch = ru.includes(uNorm)||uNorm.includes(ru);
-      const dMatch = !dNorm || rd.includes(dNorm)||dNorm.includes(rd);
-      const tMatch = !type || type==='종합+교과' || rt.includes(type);
-      return uMatch && dMatch && tMatch;
-    }).slice(0,5);
-  }
-  return rows;
+  const passGrades = filtered
+    .filter(r => { const res = norm(r.최종결과); return res.includes('합격') || res.includes('충원'); })
+    .map(r => parseFloat(r.환산등급))
+    .filter(v => !isNaN(v) && v > 0)
+    .sort((a,b) => a-b);
+
+  if(!passGrades.length) return null;
+  const p50 = passGrades[Math.floor(passGrades.length * 0.5)] ?? null;
+  const p70 = passGrades[Math.floor(passGrades.length * 0.7)] ?? null;
+
+  const failGrades = filtered
+    .filter(r => norm(r.최종결과).includes('불합'))
+    .map(r => parseFloat(r.환산등급))
+    .filter(v => !isNaN(v) && v > 0)
+    .sort((a,b) => a-b);
+
+  return {
+    cut50: p50, cut70: p70,
+    passCount: passGrades.length,
+    failCount: failGrades.length,
+    passMin: passGrades[0] ?? null,
+    passMax: passGrades[passGrades.length-1] ?? null,
+    source: 'gb' // admissions_all.json 출처 표시
+  };
 }
 
 function parseCutoff(rows, type){
@@ -2569,35 +2599,44 @@ function calcCompScore(compEval){
   return Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
 }
 
-function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult}){
+function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult, admCases}){
   let score = 50; // 기본 50점
-  let reasons = [];
 
-  // 내신 vs 커트라인 (최대 ±30점)
+  // 내신 vs 커트라인 (최대 ±30점) — cutoff 우선, 없으면 gbCutoff(admCases 유도)
   if(stuAvg && cutoff?.cut50){
-    const diff = cutoff.cut50 - stuAvg; // 양수 = 학생이 커트보다 좋음
-    if(diff >= 0.5)      { score += 25; reasons.push('내신 커트라인 여유'); }
-    else if(diff >= 0)   { score += 12; reasons.push('내신 커트라인 근접'); }
-    else if(diff >= -0.3){ score -= 5;  reasons.push('내신 커트라인 미달 소폭'); }
-    else if(diff >= -0.7){ score -= 18; reasons.push('내신 커트라인 미달'); }
-    else                 { score -= 28; reasons.push('내신 커트라인 크게 미달'); }
+    const diff = cutoff.cut50 - stuAvg;
+    if(diff >= 0.5)      { score += 25; }
+    else if(diff >= 0)   { score += 12; }
+    else if(diff >= -0.3){ score -= 5;  }
+    else if(diff >= -0.7){ score -= 18; }
+    else                 { score -= 28; }
   } else if(stuAvg && cutoff?.cut70){
     const diff = cutoff.cut70 - stuAvg;
-    if(diff >= 0)   { score += 10; }
-    else if(diff >= -0.5) { score -= 8; }
+    if(diff >= 0)         { score += 10; }
+    else if(diff >= -0.5) { score -= 8;  }
     else                  { score -= 20; }
   }
 
-  // 선배 합불 (최대 ±15점)
+  // 선배 합불 (최대 ±15점) — alumniKb (우리학교) 우선
   if(alumniResult.total >= 3){
     const passRate = alumniResult.pass.length / alumniResult.total;
-    if(passRate >= 0.7)      { score += 12; reasons.push(`선배 합격률 ${Math.round(passRate*100)}%`); }
-    else if(passRate >= 0.4) { score += 5; }
+    if(passRate >= 0.7)      { score += 12; }
+    else if(passRate >= 0.4) { score += 5;  }
     else if(passRate <= 0.2) { score -= 10; }
-    // 내신 유사 선배 비교
     if(stuAvg && alumniResult.passAvg){
-      if(stuAvg <= alumniResult.passAvg + 0.3) { score += 8; }
+      if(stuAvg <= alumniResult.passAvg + 0.3)  { score += 8;  }
       else if(stuAvg > alumniResult.passAvg + 0.8) { score -= 10; }
+    }
+  } else if(admCases?.gb?.length >= 5){
+    // 전국 데이터 보조 활용
+    const passGrades = admCases.gb
+      .filter(r=>{ const res=String(r.최종결과||''); return res.includes('합격')||res.includes('충원'); })
+      .map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0).sort((a,b)=>a-b);
+    if(passGrades.length && stuAvg){
+      const median = passGrades[Math.floor(passGrades.length*0.5)];
+      if(stuAvg <= median)        { score += 8; }
+      else if(stuAvg <= median+0.5){ score += 3; }
+      else if(stuAvg > median+1)   { score -= 10; }
     }
   }
 
@@ -2625,78 +2664,190 @@ function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compSco
   return { score, grade, summary: summaries[grade] };
 }
 
-function buildComments({stuAvg, cutoff, type, alumniResult, majorScore, majorEntry,
-  compScore, compEval, suneungResult, grade, studentIs9, univ, dept, note}){
+function buildComments({stuAvg, cutoff, gbCutoff, type,
+  alumniResult, admCases,
+  majorScore, majorEntry,
+  compScore, compEval, sewtukOverall,
+  suneungResult, grade, studentIs9, univ, dept, note,
+  gradesData, hak}){
 
-  const GC_GRADE = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
-  const 근거들  = majorEntry ? (Array.isArray(majorEntry[1]?.핵심근거) ? majorEntry[1].핵심근거 : []) : [];
-  const 약점들  = majorEntry ? (Array.isArray(majorEntry[1]?.약점)    ? majorEntry[1].약점    : []) : [];
+  const GN = {S:100,A:83,B:66,C:50,D:33};
 
-  // 강점
+  // 비교과 분석 데이터
+  const 근거들 = majorEntry ? (Array.isArray(majorEntry[1]?.핵심근거) ? majorEntry[1].핵심근거 : []) : [];
+  const 약점들 = majorEntry ? (Array.isArray(majorEntry[1]?.약점)    ? majorEntry[1].약점    : []) : [];
+
+  // 종합역량평가 세부 데이터
+  const compA = compEval?.학업역량,  compJ = compEval?.진로역량,  compC = compEval?.공동체역량;
+  const compAg = compA?.grade||compA?.학업역량, compJg = compJ?.grade||compJ?.진로역량, compCg = compC?.grade||compC?.공동체역량;
+
+  // 전국 합불 통계
+  const gbTotal  = admCases?.gb?.length || 0;
+  const gbPass   = admCases?.gb?.filter(r=>{ const v=String(r.최종결과||''); return v.includes('합격')||v.includes('충원'); }) || [];
+  const gbFail   = admCases?.gb?.filter(r=>String(r.최종결과||'').includes('불합')) || [];
+  const gbPassGrades = gbPass.map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0).sort((a,b)=>a-b);
+  const gbPassAvg = gbPassGrades.length ? (gbPassGrades.reduce((a,b)=>a+b,0)/gbPassGrades.length).toFixed(2) : null;
+  const gbPassMin = gbPassGrades[0]?.toFixed(2) ?? null;
+  const gbPassMax = gbPassGrades[gbPassGrades.length-1]?.toFixed(2) ?? null;
+
+  // 내신 핵심과목 추출 (국수영사과)
+  const coreSubjects = [];
+  if(gradesData?.grades){
+    const allSubjs = [];
+    Object.values(gradesData.grades).forEach(sd=>{
+      (sd.subjects||[]).forEach(s=>{
+        const cat = s.교과||'';
+        const isCoreSubj = cat.includes('국어')||cat.includes('수학')||cat.includes('영어')||
+          cat.includes('사회')||cat.includes('과학');
+        if(isCoreSubj && s.등급) allSubjs.push({과목:s.과목||s.교과, 등급:s.등급, 교과:cat});
+      });
+    });
+    // 교과별 최신(마지막) 등급
+    const seen = new Set();
+    [...allSubjs].reverse().forEach(s=>{ if(!seen.has(s.교과)){seen.add(s.교과);coreSubjects.push(s);} });
+  }
+  const coreAvg = coreSubjects.length
+    ? (coreSubjects.reduce((a,b)=>a+b.등급,0)/coreSubjects.length).toFixed(2) : null;
+
+  // ─── 강점 ───
   const strengths = [];
-  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg >= 0)
-    strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 50컷(${cutoff.cut50.toFixed(2)}) ${(cutoff.cut50-stuAvg).toFixed(2)}등급 여유`);
-  if(근거들.length) strengths.push(...근거들.slice(0,2));
-  if(alumniResult.passAvg && stuAvg && stuAvg <= alumniResult.passAvg)
-    strengths.push(`우리학교 합격자 내신평균(${alumniResult.passAvg.toFixed(2)}) 대비 우위`);
-  if(compEval?.공동체역량?.grade && ['S','A'].includes(compEval.공동체역량.grade))
-    strengths.push(`공동체역량 ${compEval.공동체역량.grade}등급 — 종합전형 서류 강점`);
-  if(!strengths.length) strengths.push('개인별 비교과 분석 데이터를 추가하면 더 정확한 강점 파악 가능');
 
-  // 보완점
+  // 내신 vs 커트라인
+  if(stuAvg && cutoff?.cut50){
+    const diff = cutoff.cut50 - stuAvg;
+    if(diff >= 0){
+      const src = cutoff.source==='gb' ? '전국 합격자' : '입결DB';
+      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 50컷(${cutoff.cut50.toFixed(2)}, ${src}) 대비 ${diff.toFixed(2)}등급 여유`);
+    }
+  } else if(stuAvg && gbPassAvg && stuAvg <= parseFloat(gbPassAvg)){
+    strengths.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 우위 (학생: ${stuAvg.toFixed(2)}등급)`);
+  }
+
+  // 비교과 핵심근거
+  if(근거들.length) strengths.push(...근거들.slice(0,3));
+
+  // 우리학교 선배 합격
+  if(alumniResult.pass.length > 0 && stuAvg && alumniResult.passAvg){
+    if(stuAvg <= alumniResult.passAvg + 0.3)
+      strengths.push(`우리학교 선배 합격자 내신평균(${alumniResult.passAvg.toFixed(2)}) 대비 경쟁력 있음`);
+  }
+
+  // 종합역량 강점
+  if(compAg && ['S','A'].includes(compAg)) strengths.push(`학업역량 ${compAg}등급 — ${compA?.근거?.slice(0,50)||'탐구력·학습태도 우수'}...`);
+  if(compJg && ['S','A'].includes(compJg)) strengths.push(`진로역량 ${compJg}등급 — ${compJ?.근거?.slice(0,50)||'전공 연계 탐구 일관'}...`);
+  if(compCg && ['S','A'].includes(compCg)) strengths.push(`공동체역량 ${compCg}등급 — 협업·소통·리더십 종합전형 서류 강점`);
+
+  // 세특 종합의견 핵심 문장 (첫 2문장)
+  if(sewtukOverall){
+    const sentences = sewtukOverall.replace(/\n/g,' ').split('.').filter(s=>s.trim().length>10);
+    if(sentences.length) strengths.push(sentences[0].trim().slice(0,80)+'...');
+  }
+
+  if(!strengths.length) strengths.push('비교과 종합 분석을 먼저 생성하면 더 정확한 강점 파악 가능');
+
+  // ─── 보완점 ───
   const weaknesses = [];
-  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0)
-    weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 50컷(${cutoff.cut50.toFixed(2)})보다 ${(stuAvg-cutoff.cut50).toFixed(2)}등급 부족`);
+
+  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0){
+    const diff = stuAvg - cutoff.cut50;
+    const src = cutoff.source==='gb' ? '전국 합격자 기준' : '입결DB';
+    weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 50컷(${cutoff.cut50.toFixed(2)}, ${src})보다 ${diff.toFixed(2)}등급 부족`);
+  } else if(stuAvg && gbPassAvg && stuAvg > parseFloat(gbPassAvg)+0.3){
+    weaknesses.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 부족 (학생: ${stuAvg.toFixed(2)}등급)`);
+  }
+
   if(약점들.length) weaknesses.push(...약점들.slice(0,2));
-  if(suneungResult.status === '확인필요')
-    weaknesses.push(suneungResult.reason);
+
+  // 종합역량 취약점
+  if(compJg && ['C','D'].includes(compJg)) weaknesses.push(`진로역량 ${compJg}등급 — 전공 연계 활동 강화 필요`);
+  if(compAg && ['C','D'].includes(compAg)) weaknesses.push(`학업역량 ${compAg}등급 — 교과 성취도 제고 필요`);
+
+  // 핵심과목 하위 등급 경고
+  const weakCore = coreSubjects.filter(s=>s.등급>=5);
+  if(weakCore.length>=2) weaknesses.push(`핵심교과 하위등급 과목(${weakCore.map(s=>s.과목).join('·')}) — 서류 학업역량 정량 지표 취약`);
+
+  if(suneungResult.status === '확인필요') weaknesses.push(suneungResult.reason);
   if(!weaknesses.length) weaknesses.push('현재 데이터 기준 주요 보완점 없음 — 지속적 관리 권장');
 
-  // 전형 분석
+  // ─── 전형 분석 ───
   let typeAnalysis = '';
+  const avg  = stuAvg ? stuAvg.toFixed(2) : '-';
+  const c50  = cutoff?.cut50 ? cutoff.cut50.toFixed(2) : (gbCutoff?.cut50 ? `~${gbCutoff.cut50.toFixed(2)}(전국추정)` : '-');
+  const c70  = cutoff?.cut70 ? cutoff.cut70.toFixed(2) : (gbCutoff?.cut70 ? `~${gbCutoff.cut70.toFixed(2)}(전국추정)` : '-');
+
   if(type === '교과'){
-    const avg = stuAvg ? stuAvg.toFixed(2) : '-';
-    const c50  = cutoff?.cut50 ? cutoff.cut50.toFixed(2) : '-';
-    const c70  = cutoff?.cut70 ? cutoff.cut70.toFixed(2) : '-';
-    typeAnalysis = `교과전형 — 내신 ${avg}등급 기준. 3개년 50컷 평균 ${c50}등급, 70컷 ${c70}등급. `;
-    typeAnalysis += (alumniResult.pass.length > 0)
-      ? `우리학교 선배 합격 ${alumniResult.pass.length}건(내신평균 ${alumniResult.passAvg?.toFixed(2)||'-'}등급), 불합격 ${alumniResult.fail.length}건.`
-      : '선배 합불 이력 데이터 없음.';
+    typeAnalysis = `학생부교과전형 — 내신 ${avg}등급 기준. 50컷 ${c50}등급, 70컷 ${c70}등급.`;
+    if(alumniResult.pass.length > 0)
+      typeAnalysis += ` 우리학교 선배 합격 ${alumniResult.pass.length}건(합격 평균 ${alumniResult.passAvg?.toFixed(2)||'-'}등급), 불합격 ${alumniResult.fail.length}건.`;
+    else if(gbTotal > 0)
+      typeAnalysis += ` 전국 ${gbTotal}건 데이터 기준 합격자(${gbPass.length}건) 등급 범위 ${gbPassMin}~${gbPassMax}.`;
+    else typeAnalysis += ' 우리학교 선배 이력 없음.';
   } else if(type === '종합'){
-    const compG = compEval ? `종합역량 ${compScore}점` : '종합역량 데이터 없음';
-    const majG  = majorEntry ? `전공적합성 ${majorEntry[1]?.전공적합성}등급` : '비교과 분석 없음';
-    typeAnalysis = `학생부종합 — 서류 중심 평가. ${compG}, ${majG}. `;
-    typeAnalysis += (alumniResult.total > 0)
-      ? `선배 지원 ${alumniResult.total}건 중 합격 ${alumniResult.pass.length}건.`
-      : '선배 합불 이력 없음 — 추가 조사 권장.';
+    const compG = compEval ? `종합역량 ${compScore}점(학업${compAg||'-'}/진로${compJg||'-'}/공동체${compCg||'-'})` : '종합역량 데이터 없음';
+    const majG  = majorEntry ? `전공적합성 ${majorEntry[1]?.전공적합성||'-'}등급` : '비교과 미분석';
+    typeAnalysis = `학생부종합전형 — 서류 중심 정성평가. ${compG}, ${majG}.`;
+    if(gbTotal > 0)
+      typeAnalysis += ` 전국 ${gbTotal}건 기준 합격자(${gbPass.length}건) 평균내신 ${gbPassAvg||'-'}등급(범위 ${gbPassMin}~${gbPassMax}).`;
+    if(alumniResult.total > 0)
+      typeAnalysis += ` 우리학교 선배 ${alumniResult.total}건 지원(합격 ${alumniResult.pass.length}건).`;
+    else typeAnalysis += ' 우리학교 선배 이력 없음 — 추가 조사 권장.';
   } else if(type === '논술'){
-    typeAnalysis = `논술전형 — 논술 성적이 합격에 결정적. 내신 비중 낮음(20~30%). `;
-    typeAnalysis += cutoff?.cut50 ? `내신 커트라인 ${cutoff.cut50.toFixed(2)}등급 참고.` : '';
+    typeAnalysis = `논술전형 — 논술 성적이 합격에 결정적(60~80% 반영). 내신 비중 낮음(20~30%).`;
+    if(cutoff?.cut50) typeAnalysis += ` 내신 참고 커트 ${cutoff.cut50.toFixed(2)}등급.`;
+    if(gbTotal > 0) typeAnalysis += ` 전국 ${gbPass.length}건 합격자 내신 평균 ${gbPassAvg||'-'}등급.`;
   } else {
-    typeAnalysis = `${type} 전형 분석 — `;
-    typeAnalysis += cutoff?.cut50 ? `3개년 평균 50컷 ${cutoff.cut50.toFixed(2)}등급.` : '입결 데이터 없음.';
+    typeAnalysis = `${type}전형 — `;
+    typeAnalysis += cutoff?.cut50 ? `50컷 ${c50}등급, 70컷 ${c70}등급.` : '입결 데이터 없음.';
+    if(gbTotal > 0) typeAnalysis += ` 전국 ${gbTotal}건 기준 합격자 평균 ${gbPassAvg||'-'}등급.`;
   }
 
-  // 추천 전략
+  // ─── 추천 전략 ───
   const strategy = [];
-  if(type==='종합'||type==='종합+교과'){
-    if(!majorEntry) strategy.push(`"비교과 종합 분석"에서 ${dept} 세특 분석 먼저 생성하면 더 정확한 평가 가능`);
-    else strategy.push(`비교과 분석 ${majorEntry[0]} 기반으로 자기소개서/면접 준비`);
-  }
-  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg >= 0.3)
-    strategy.push('내신 여유 있음 — 추가 탐구활동·수상으로 서류 강화 권장');
-  else if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0)
-    strategy.push('내신 부족분을 세특 전공적합성·창체 활동으로 보완 집중');
-  if(alumniResult.total >= 5)
-    strategy.push(`우리학교 선배 ${alumniResult.total}명 지원 경험 — 담임 선생님께 사례 상담 요청`);
-  if(!strategy.length) strategy.push('추가 희망학과 분석을 통해 전략 구체화 권장');
 
-  // 주의사항
-  let caution = '';
-  if(suneungResult.status==='확인필요') caution += suneungResult.reason + ' / ';
-  caution += cutoff ? '' : `${univ} ${dept} 입결 DB 미수록 — 학교 홈페이지에서 직접 확인 필요. `;
-  if(!alumniResult.total) caution += '선배 합불 데이터 없음 — 본 분석은 입결 기반 추정치임. ';
-  caution += '이 분석은 저장된 데이터 기반 참고용이며, 실제 지원 전 담임 선생님과 최종 상담 필수.';
+  if(type==='종합'||type==='종합+교과'){
+    if(!majorEntry) strategy.push(`"비교과 종합 분석" 탭에서 ${dept} 세특 분석 먼저 생성 → 훨씬 정확한 강점 도출 가능`);
+    else {
+      const majorGrade = majorEntry[1]?.전공적합성;
+      if(['S','A'].includes(majorGrade))
+        strategy.push(`전공적합성 ${majorGrade}등급 비교과 분석을 자기소개서 핵심 소재로 활용`);
+      else
+        strategy.push(`${dept} 관련 세특 탐구 활동 추가·심화로 전공적합성 제고 필요`);
+    }
+  }
+
+  if(stuAvg && cutoff?.cut50){
+    const diff = cutoff.cut50 - stuAvg;
+    if(diff >= 0.5) strategy.push('내신 여유폭 확보 — 추가 탐구활동·교과 연계 보고서로 서류 차별화 집중');
+    else if(diff < -0.3 && diff >= -1.0) strategy.push('내신 소폭 미달 — 세특·창체·행발로 정성 평가 보완, 논술/수능 병행 검토');
+    else if(diff < -1.0) strategy.push('내신 격차 과다 — 상향 소신 1장으로 활용, 중위권 안전 대학 복수 확보 필수');
+  } else if(stuAvg && gbPassAvg){
+    const diff = parseFloat(gbPassAvg) - stuAvg;
+    if(diff >= 0) strategy.push(`전국 합격자 평균(${gbPassAvg}) 대비 우위 — 적극 지원 검토 가능`);
+    else strategy.push(`전국 합격자 평균(${gbPassAvg}) 대비 내신 부족 — 전형 특성상 서류/논술로 보완 전략 수립`);
+  }
+
+  if(alumniResult.total >= 5)
+    strategy.push(`우리학교 선배 ${alumniResult.total}명 지원 경험 — 담임 선생님께 구체 사례 상담 요청`);
+
+  if(gbTotal >= 20)
+    strategy.push(`전국 ${gbTotal}건 합불 데이터 분석 — 합격자 내신 범위 ${gbPassMin}~${gbPassMax}등급 참고하여 목표 등급 설정`);
+
+  // 세특 기반 전략
+  if(sewtukOverall && (type==='종합'||type==='종합+교과')){
+    const keywords = sewtukOverall.match(/[가-힣]{2,8}(?:능력|역량|탐구|분석|활동|관심)/g)?.slice(0,3) || [];
+    if(keywords.length) strategy.push(`세특 강점(${keywords.join('·')})을 자소서 및 면접 핵심 키워드로 활용`);
+  }
+
+  if(!strategy.length) strategy.push('추가 희망학과 비교과 분석 후 전략 구체화 권장');
+
+  // ─── 주의사항 ───
+  let cautionParts = [];
+  if(suneungResult.status==='확인필요') cautionParts.push(suneungResult.reason);
+  if(!cutoff && !gbCutoff) cautionParts.push(`${univ} ${dept} 입결 DB 미수록 — 학교 홈페이지 직접 확인 필요`);
+  else if(cutoff?.source==='gb') cautionParts.push('입결은 전국 합불 데이터 기반 추정치 — 공식 입결표와 비교 필요');
+  if(!alumniResult.total) cautionParts.push('우리학교 선배 합불 데이터 없음 — 본 분석은 전국 데이터 기반 참고용');
+  cautionParts.push('이 분석은 저장된 데이터 기반 참고용이며, 실제 지원 전 담임 선생님과 최종 상담 필수');
+  const caution = cautionParts.join('.\n');
 
   return {
     strengths: strengths.join('\n'),
@@ -2715,10 +2866,12 @@ function renderApplyResultHTML(obj, resultEl){
 
   // 데이터 근거 표시
   const meta = obj._meta || {};
+  const gbCount = meta.admCases?.gb?.length || 0;
   const metaHtml = `
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-      ${meta.cutoff ? `<span style="background:#eff6ff;color:#2563eb;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">📊 입결 데이터 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">입결 데이터 없음</span>`}
+      ${meta.cutoff ? `<span style="background:#eff6ff;color:#2563eb;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">📊 입결 데이터 반영${meta.cutoff.source==='gb'?' (전국추정)':''}</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">입결 데이터 없음</span>`}
       ${meta.alumniResult?.total ? `<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">👥 선배 ${meta.alumniResult.total}명 이력 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">선배 이력 없음</span>`}
+      ${gbCount ? `<span style="background:#f0f9ff;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">🗂 전국 ${gbCount}건 합불 반영</span>` : ''}
       ${meta.majorScore !== null ? `<span style="background:#fdf4ff;color:#9333ea;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">🧬 비교과 분석 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">비교과 분석 없음</span>`}
       <span style="background:#fef9c3;color:#92400e;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">⚡ API-free 즉시 분석</span>
     </div>`;
