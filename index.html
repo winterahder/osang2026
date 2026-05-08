@@ -781,7 +781,9 @@ const SEWTUK_GRADES = ['전체 학년','1학년','2학년','3학년'];
 const SEWTUK_SEMESTERS = ['전체 학기','1학기','2학기'];
 
 let students=[], mock={}, grades={}, sewtuk={}, changche={}, haengbal={}, evalData={}, admissionsDB=[], referencesList=[], cutoffIndex={}, kbUniv=[], kbTopic=[], alumniKb=[], currentStu=null, currentTab='기본정보', currentMode='등급', currentGradeFilter='전체', chartInst=null;
-let majorAnalysisCache = {}; // hak → 희망학과분석 데이터
+let majorAnalysisCache = {}; // (deprecated) 구 버전 호환용
+let applyHistoryDB = {};    // hak → [{id,univ,dept,type,result,date}] — apply_history 시트
+let majorAnalysisDB = {};   // hak → {dept:{전공적합성,...}}            — major_analysis 시트
 let admissionsAllCache = null; // (deprecated) 구 버전 호환용 — 실제 캐시는 _admAllCache 사용
 let currentPassword = '';
 let showRank = false;
@@ -1078,19 +1080,21 @@ async function init(password){
   currentPassword = password;
   try{
     // 전체 병렬 로드 (속도 최적화)
-    const [s, m, g, sw, cc, refs, ci, hb, ev, ku, kt, al] = await Promise.all([
-      apiGet({ action: 'getStudents',    password }).catch(()=>null),
-      apiGet({ action: 'getMockExam',    password }).catch(()=>null),
-      apiGet({ action: 'getGrades',      password }).catch(()=>null),
-      apiGet({ action: 'getSewtuk',      password }).catch(()=>null),
-      apiGet({ action: 'getChangche',    password }).catch(()=>null),
-      apiGet({ action: 'getReferences',  password }).catch(()=>null),
-      apiGet({ action: 'getCutoffIndex', password }).catch(()=>null),
-      apiGet({ action: 'getHaengbal',    password }).catch(()=>null),
-      apiGet({ action: 'getEval',         password }).catch(()=>null),
-      apiGet({ action: 'getKbUniv',      password }).catch(()=>null),
-      apiGet({ action: 'getKbTopic',     password }).catch(()=>null),
-      apiGet({ action: 'getAlumni',      password }).catch(()=>null),
+    const [s, m, g, sw, cc, refs, ci, hb, ev, ku, kt, al, ah, ma] = await Promise.all([
+      apiGet({ action: 'getStudents',       password }).catch(()=>null),
+      apiGet({ action: 'getMockExam',       password }).catch(()=>null),
+      apiGet({ action: 'getGrades',         password }).catch(()=>null),
+      apiGet({ action: 'getSewtuk',         password }).catch(()=>null),
+      apiGet({ action: 'getChangche',       password }).catch(()=>null),
+      apiGet({ action: 'getReferences',     password }).catch(()=>null),
+      apiGet({ action: 'getCutoffIndex',    password }).catch(()=>null),
+      apiGet({ action: 'getHaengbal',       password }).catch(()=>null),
+      apiGet({ action: 'getEval',           password }).catch(()=>null),
+      apiGet({ action: 'getKbUniv',         password }).catch(()=>null),
+      apiGet({ action: 'getKbTopic',        password }).catch(()=>null),
+      apiGet({ action: 'getAlumni',         password }).catch(()=>null),
+      apiGet({ action: 'getApplyHistory',   password }).catch(()=>null),
+      apiGet({ action: 'getMajorAnalysis',  password }).catch(()=>null),
     ]);
     students = s || [];
     mock     = m  || {};
@@ -1104,6 +1108,8 @@ async function init(password){
     if(ku) kbUniv   = Array.isArray(ku) ? ku : [];
     if(kt) kbTopic  = Array.isArray(kt) ? kt : [];
     if(al) alumniKb = Array.isArray(al) ? al : [];
+    if(ah && typeof ah === 'object') applyHistoryDB = ah;
+    if(ma && typeof ma === 'object') majorAnalysisDB = ma;
 
     const gradeLabel = currentRole === 'admin' ? '전체' : currentRole.replace('grade','') + '학년';
     const fullText = `${gradeLabel} ${students.length}명 · 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects?.length).length}명`;
@@ -2206,11 +2212,11 @@ function incrementApplyCount(hak){
 }
 
 // ========== 모의지원 탭 ==========
-let applyHistory = {}; // hak → [{id, univ, dept, type, result, date}] — 세션 캐시 (DB는 evalData[hak].모의지원이력)
+let applyHistory = {}; // hak → [{...}] — 세션 캐시 (DB는 applyHistoryDB)
 
 function renderMockApplyTab(el){
   const hak = String(currentStu.hak);
-  const dbHist = evalData[hak]?.모의지원이력 || [];
+  const dbHist = applyHistoryDB[hak] || evalData[hak]?.모의지원이력 || []; // fallback: 구 eval
   const sessHist = applyHistory[hak] || [];
   const dbIds = new Set(dbHist.map(h=>h.id));
   const hist = [...dbHist, ...sessHist.filter(h=>!dbIds.has(h.id))];
@@ -2239,8 +2245,8 @@ function renderMockApplyTab(el){
       </div>`;
   }
 
-  // 비교과 분석 카드 (왼쪽 패널)
-  const majorData = evalData[hak]?.희망학과분석 || majorAnalysisCache[hak] || {};
+  // 비교과 분석 카드
+  const majorData = majorAnalysisDB[hak] || evalData[hak]?.희망학과분석 || {}; // fallback: 구 eval
   const majorList = Object.entries(majorData);
   const GC_M = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
 
@@ -2430,8 +2436,8 @@ async function computeApplyResult(hak, univ, dept, type, note){
   // ③b 전국 합불 JSON에서 pseudo-cutoff 계산 (cutoff DB 없을 때 보조)
   const gbCutoff = parseGbCutoff(admCases.gb, type);
 
-  // ④ 비교과 분석 (저장된 희망학과분석 활용)
-  const majorData = evalData[hak]?.희망학과분석 || {};
+  // ④ 비교과 분석 (major_analysis 시트 → eval fallback)
+  const majorData = majorAnalysisDB[hak] || evalData[hak]?.희망학과분석 || {};
   const deptNorm  = dept.replace(/학과|학부|전공|계열/g,'').trim();
   const majorEntry = Object.entries(majorData).find(([k])=>
     k.replace(/학과|학부|전공|계열/g,'').trim().includes(deptNorm)||
@@ -2973,14 +2979,12 @@ async function saveApplyHistoryItem(hak, univ, dept, type, result){
   };
   applyHistory[hak] = applyHistory[hak] || [];
   applyHistory[hak].push(histItem);
+  applyHistoryDB[hak] = applyHistoryDB[hak] || [];
+  applyHistoryDB[hak].push(histItem);
+  if(applyHistoryDB[hak].length > 50) applyHistoryDB[hak] = applyHistoryDB[hak].slice(-50);
   try {
-    const current = evalData[hak] || {};
-    current.모의지원이력 = current.모의지원이력 || [];
-    current.모의지원이력.push(histItem);
-    if(current.모의지원이력.length > 50) current.모의지원이력 = current.모의지원이력.slice(-50);
-    evalData[hak] = current;
-    await apiPost({ action:'saveEval', password:currentPassword, hak, evalData:{ 모의지원이력:current.모의지원이력 } });
-  } catch(e){ console.warn('이력 DB 저장 실패:', e.message); }
+    await apiPost({ action:'saveApplyHistory', password:currentPassword, hak, item: histItem });
+  } catch(e){ console.warn('모의지원이력 DB 저장 실패:', e.message); }
 }
 
 function showApplyHistory(idx){
@@ -2992,7 +2996,7 @@ function showApplyHistory(idx){
 
 function showApplyHistoryById(id){
   const hak = String(currentStu.hak);
-  const dbHist = evalData[hak]?.모의지원이력 || [];
+  const dbHist = applyHistoryDB[hak] || evalData[hak]?.모의지원이력 || [];
   const sessHist = applyHistory[hak] || [];
   const h = [...dbHist, ...sessHist].find(x=>x.id===id);
   if(!h) return;
@@ -3010,11 +3014,9 @@ async function deleteApplyHistory(id){
   if(!confirm('이 분석 기록을 삭제하시겠습니까?')) return;
   const hak = String(currentStu.hak);
   if(applyHistory[hak]) applyHistory[hak] = applyHistory[hak].filter(h=>h.id!==id);
+  if(applyHistoryDB[hak]) applyHistoryDB[hak] = applyHistoryDB[hak].filter(h=>h.id!==id);
   try {
-    const current = evalData[hak] || {};
-    current.모의지원이력 = (current.모의지원이력||[]).filter(h=>h.id!==id);
-    evalData[hak] = current;
-    await apiPost({ action:'saveEval', password:currentPassword, hak, evalData:{ 모의지원이력: current.모의지원이력 } });
+    await apiPost({ action:'deleteApplyHistory', password:currentPassword, hak, id });
   } catch(e) { console.warn('삭제 DB 반영 실패:', e.message); }
   // UI 갱신
   const el = document.getElementById('tabContent');
@@ -3023,7 +3025,7 @@ async function deleteApplyHistory(id){
 
 // ========== 희망학과 세특분석 모달 ==========
 function showMajorAnalysisModal(){
-  const existing = Object.keys(evalData[String(currentStu.hak)]?.희망학과분석||{});
+  const existing = Object.keys(majorAnalysisDB[String(currentStu.hak)] || evalData[String(currentStu.hak)]?.희망학과분석 || {});
   const modal = document.createElement('div');
   modal.id = 'majorModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -3126,17 +3128,14 @@ ${hbSummary||'데이터 없음'}
     catch { throw new Error('응답 파싱 실패 — 다시 시도해주세요'); }
 
     // 로컬 상태 업데이트
-    const current = evalData[hak] || {};
-    current.희망학과분석 = current.희망학과분석 || {};
-    current.희망학과분석[dept] = { ...obj, 분석일: new Date().toLocaleDateString('ko-KR') };
-    evalData[hak] = current;
-    majorAnalysisCache[hak] = current.희망학과분석;
+    majorAnalysisDB[hak] = majorAnalysisDB[hak] || {};
+    majorAnalysisDB[hak][dept] = { ...obj, 분석일: new Date().toLocaleDateString('ko-KR') };
 
-    // DB 저장 (apiPost로 에러 감지)
+    // DB 저장 (major_analysis 시트)
     if(statusEl) statusEl.textContent = '💾 DB에 저장 중...';
     const saveRes = await apiPost({
-      action: 'saveEval', password: currentPassword, hak,
-      evalData: { 희망학과분석: current.희망학과분석 }
+      action: 'saveMajorAnalysis', password: currentPassword, hak,
+      dept, analysis: majorAnalysisDB[hak][dept]
     }, 15000);
     if(saveRes?.error) throw new Error(`저장 실패: ${saveRes.error}`);
 
@@ -3158,17 +3157,10 @@ ${hbSummary||'데이터 없음'}
 async function deleteMajorAnalysis(dept){
   if(!confirm(`"${dept}" 분석을 삭제하시겠습니까?`)) return;
   const hak = String(currentStu.hak);
-  const current = evalData[hak] || {};
-  if(current.희망학과분석) {
-    delete current.희망학과분석[dept];
-    evalData[hak] = current;
-    try {
-      await fetch(API_URL, {
-        method:'POST',
-        body: JSON.stringify({ action:'saveEval', password:currentPassword, hak, evalData:{ 희망학과분석: current.희망학과분석 } })
-      });
-    } catch(e) { console.warn('삭제 DB 반영 실패'); }
-  }
+  if(majorAnalysisDB[hak]) delete majorAnalysisDB[hak][dept];
+  try {
+    await apiPost({ action:'deleteMajorAnalysis', password:currentPassword, hak, dept });
+  } catch(e) { console.warn('학과분석 삭제 DB 반영 실패'); }
   const el = document.getElementById('tabContent');
   if(el) renderMockApplyTab(el);
 }
