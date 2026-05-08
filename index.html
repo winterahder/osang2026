@@ -1108,8 +1108,9 @@ async function init(password){
     if(ku) kbUniv   = Array.isArray(ku) ? ku : [];
     if(kt) kbTopic  = Array.isArray(kt) ? kt : [];
     if(al) alumniKb = Array.isArray(al) ? al : [];
-    if(ah && typeof ah === 'object') applyHistoryDB = ah;
-    if(ma && typeof ma === 'object') majorAnalysisDB = ma;
+    // 새 시트 API — 구 code.gs면 error 반환 → 무시하고 evalData fallback 사용
+    if(ah && typeof ah === 'object' && !ah.error) applyHistoryDB = ah;
+    if(ma && typeof ma === 'object' && !ma.error) majorAnalysisDB = ma;
 
     const gradeLabel = currentRole === 'admin' ? '전체' : currentRole.replace('grade','') + '학년';
     const fullText = `${gradeLabel} ${students.length}명 · 내신 ${Object.keys(grades).length}명 · 세특 ${Object.keys(sewtuk).filter(k=>sewtuk[k].subjects?.length).length}명`;
@@ -2246,7 +2247,10 @@ function renderMockApplyTab(el){
   }
 
   // 비교과 분석 카드
-  const majorData = majorAnalysisDB[hak] || evalData[hak]?.희망학과분석 || {}; // fallback: 구 eval
+  // evalData fallback: 구버전 잘못된 형식({전공적합성:'A',...}) 은 무시
+  const _evalMa = evalData[hak]?.희망학과분석 || {};
+  const _evalMaValid = _evalMa && !_evalMa.전공적합성 && typeof _evalMa === 'object';
+  const majorData = majorAnalysisDB[hak] || (_evalMaValid ? _evalMa : {}); // fallback: 구 eval
   const majorList = Object.entries(majorData);
   const GC_M = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
 
@@ -2983,7 +2987,16 @@ async function saveApplyHistoryItem(hak, univ, dept, type, result){
   applyHistoryDB[hak].push(histItem);
   if(applyHistoryDB[hak].length > 50) applyHistoryDB[hak] = applyHistoryDB[hak].slice(-50);
   try {
-    await apiPost({ action:'saveApplyHistory', password:currentPassword, hak, item: histItem });
+    // 신 code.gs: saveApplyHistory (apply_history 시트)
+    // 구 code.gs: 액션 없음 → error 반환 → saveEval fallback
+    const r = await apiPost({ action:'saveApplyHistory', password:currentPassword, hak, item: histItem });
+    if(r?.error === '알 수 없는 요청') {
+      // 구 code.gs fallback: eval 시트에 저장
+      const cur = evalData[hak] || {};
+      cur.모의지원이력 = applyHistoryDB[hak];
+      evalData[hak] = cur;
+      await apiPost({ action:'saveEval', password:currentPassword, hak, evalData: evalData[hak] });
+    }
   } catch(e){ console.warn('모의지원이력 DB 저장 실패:', e.message); }
 }
 
@@ -3016,7 +3029,14 @@ async function deleteApplyHistory(id){
   if(applyHistory[hak]) applyHistory[hak] = applyHistory[hak].filter(h=>h.id!==id);
   if(applyHistoryDB[hak]) applyHistoryDB[hak] = applyHistoryDB[hak].filter(h=>h.id!==id);
   try {
-    await apiPost({ action:'deleteApplyHistory', password:currentPassword, hak, id });
+    const r = await apiPost({ action:'deleteApplyHistory', password:currentPassword, hak, id });
+    if(r?.error === '알 수 없는 요청') {
+      // 구 code.gs fallback
+      const cur = evalData[hak] || {};
+      cur.모의지원이력 = applyHistoryDB[hak] || [];
+      evalData[hak] = cur;
+      await apiPost({ action:'saveEval', password:currentPassword, hak, evalData: evalData[hak] });
+    }
   } catch(e) { console.warn('삭제 DB 반영 실패:', e.message); }
   // UI 갱신
   const el = document.getElementById('tabContent');
@@ -3131,12 +3151,25 @@ ${hbSummary||'데이터 없음'}
     majorAnalysisDB[hak] = majorAnalysisDB[hak] || {};
     majorAnalysisDB[hak][dept] = { ...obj, 분석일: new Date().toLocaleDateString('ko-KR') };
 
-    // DB 저장 (major_analysis 시트)
+    // DB 저장 (신 code.gs: major_analysis 시트 / 구 code.gs: eval 시트 fallback)
     if(statusEl) statusEl.textContent = '💾 DB에 저장 중...';
-    const saveRes = await apiPost({
+    let saveRes = await apiPost({
       action: 'saveMajorAnalysis', password: currentPassword, hak,
       dept, analysis: majorAnalysisDB[hak][dept]
     }, 15000);
+    if(saveRes?.error === '알 수 없는 요청') {
+      // 구 code.gs fallback: saveEval에 전체 객체로 저장
+      saveRes = await apiPost({
+        action: 'saveEval', password: currentPassword, hak,
+        evalData: { 희망학과분석: majorAnalysisDB[hak] }
+      }, 15000);
+    } else if(saveRes?.error === '권한 없음') {
+      // 구 code.gs saveMajorAnalysis 호환 형식으로 재시도 (data.analysis = 전체 객체)
+      saveRes = await apiPost({
+        action: 'saveMajorAnalysis', password: currentPassword, hak,
+        analysis: majorAnalysisDB[hak]  // 구버전 형식: 전체 객체
+      }, 15000);
+    }
     if(saveRes?.error) throw new Error(`저장 실패: ${saveRes.error}`);
 
     if(statusEl) statusEl.innerHTML = `<span style="color:#10b981;">✅ ${dept} 분석 완료 (전공적합성: ${obj.전공적합성}등급) — DB 저장 완료</span>`;
@@ -3159,7 +3192,14 @@ async function deleteMajorAnalysis(dept){
   const hak = String(currentStu.hak);
   if(majorAnalysisDB[hak]) delete majorAnalysisDB[hak][dept];
   try {
-    await apiPost({ action:'deleteMajorAnalysis', password:currentPassword, hak, dept });
+    const r = await apiPost({ action:'deleteMajorAnalysis', password:currentPassword, hak, dept });
+    if(r?.error === '알 수 없는 요청') {
+      // 구 code.gs fallback
+      await apiPost({
+        action: 'saveEval', password: currentPassword, hak,
+        evalData: { 희망학과분석: majorAnalysisDB[hak] || {} }
+      });
+    }
   } catch(e) { console.warn('학과분석 삭제 DB 반영 실패'); }
   const el = document.getElementById('tabContent');
   if(el) renderMockApplyTab(el);
