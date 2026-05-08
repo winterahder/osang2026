@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>오상고 상담카드 시스템 2026</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="window._googleGsiLoaded=true"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; font-size: 14px; }
@@ -972,6 +972,10 @@ async function apiPost(body, timeoutMs = 20000){
 const SESSION_KEY = 'osh_google_session';
 
 function handleGoogleLogin() {
+  if(typeof google === 'undefined' || !google?.accounts?.oauth2){
+    showLockError('구글 로그인 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: 'email profile',
@@ -1235,16 +1239,24 @@ function renderHaengbal(el){
   const g2hak = s.g2_hak ? String(s.g2_hak) : null;
   const g1hak = s.g1_hak ? String(s.g1_hak) : null;
 
-  const sw = sewtuk[hak] || {};
   const hbAll = haengbal[hak] || {};
-  const 원문 = hbAll.원문 || {};
+
+  // 원문: haengbal[hak].원문 또는 haengbal[hak] 직접 (구버전: {1:..., 2:...})
+  let 원문 = hbAll.원문 || {};
+  // haengbal 시트에 {1:'...', 2:'...'} 직접 저장된 경우
+  if(!Object.keys(원문).length){
+    const directKeys = Object.keys(hbAll).filter(k=>['1','2','3'].includes(String(k)));
+    if(directKeys.length){
+      directKeys.forEach(k=>{ if(typeof hbAll[k]==='string') 원문[k] = hbAll[k]; });
+    }
+  }
 
   // evalData: 현재 학번 → g2_hak → g1_hak 순으로 탐색
   const evalCurrent = evalData[hak] || {};
   const evalG2 = g2hak ? (evalData[g2hak] || {}) : {};
   const evalG1 = g1hak ? (evalData[g1hak] || {}) : {};
 
-  // 행발요약·종합평가: 학년별로 분산 저장됐을 수 있으므로 합산
+  // 행발요약·종합평가 합산
   const hbSummaries = {
     ...(evalG1.행발요약 || {}),
     ...(evalG2.행발요약 || {}),
@@ -1257,35 +1269,42 @@ function renderHaengbal(el){
     || hbAll.종합평가
     || null;
 
-  const colorMap = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
-
-  if(!Object.keys(원문).length){
+  // 원문도 없고 요약/평가도 없으면 빈 화면
+  const hasAnyData = Object.keys(원문).length || Object.keys(hbSummaries).length || hbOverall;
+  if(!hasAnyData){
     el.innerHTML = `<div class="placeholder">행동특성 및 종합의견 데이터가 없습니다.</div>`;
     return;
   }
 
   const gradeLabels = {'1':'1학년','2':'2학년','3':'3학년'};
+  // 원문 키 + 요약 키 합집합으로 렌더링 대상 결정
+  const allGradeKeys = [...new Set([
+    ...Object.keys(원문),
+    ...Object.keys(hbSummaries)
+  ])].filter(k=>['1','2','3'].includes(String(k))).sort();
+
   let html = `<div style="display:flex;flex-direction:column;gap:14px;padding:16px;">`;
 
   if(hbOverall && typeof hbOverall === 'object'){
     html += renderAIOverallPanel(hbOverall, '🏆 행발 종합 역량 평가', '행발 AI 분석');
   }
 
-  ['1','2','3'].forEach(g => {
-    if(!원문[g]) return;
+  allGradeKeys.forEach(g => {
+    const rawText = 원문[g];
     const summary = hbSummaries[g];
+    if(!rawText && !summary) return;
     html += `
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
         <div style="font-weight:700;font-size:14px;color:#1e40af;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #dbeafe;">
-          📋 ${gradeLabels[g]} 행동특성 및 종합의견
+          📋 ${gradeLabels[g]||g+'학년'} 행동특성 및 종합의견
         </div>
         ${summary ? `<div style="background:#f0fdf4;border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;line-height:1.8;color:#15803d;">
           ${Array.isArray(summary) ? summary.map((t,i)=>`<div style="margin-bottom:4px;"><span style="font-weight:700;margin-right:4px;">${['①','②','③'][i]||i+1}</span>${t}</div>`).join('') : summary}
         </div>` : ''}
-        <details>
-          <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${원문[g].length}자)</summary>
-          <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${원문[g]}</div>
-        </details>
+        ${rawText ? `<details>
+          <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${rawText.length}자)</summary>
+          <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${rawText}</div>
+        </details>` : ''}
       </div>`;
   });
 
@@ -2185,11 +2204,7 @@ function admissionsToPromptText(cases, univInput, deptInput) {
 // 저장 키: applyCount_{token}_{hak} → 사용 횟수
 // 교사/관리자는 횟수 제한 없음
 
-function getApplyLimit(stu){
-  // 3학년 30회, 1·2학년 10회
-  const grade = parseInt(stu?.grade) || parseInt(String(stu?.hak||'')[0]) || 0;
-  return grade >= 3 ? 30 : 10;
-}
+function getApplyLimit(stu){ return 9999; } // API-free — 횟수 제한 없음
 
 function getApplyCountKey(hak){
   // 학생 토큰 + 학번 조합으로 키 생성 (토큰은 개인 식별자)
@@ -2367,8 +2382,9 @@ function renderMockApplyTab(el){
     </div>`;
 }
 
-async function runApplyAnalysis(){
-  const hak = String(currentStu.hak);
+// ========== API-FREE 모의지원 엔진 ==========
+function runApplyAnalysis(){
+  const hak  = String(currentStu.hak);
   const univ = document.getElementById('applyUniv').value.trim();
   const dept = document.getElementById('applyDept').value.trim();
   const type = document.getElementById('applyType').value;
@@ -2376,766 +2392,386 @@ async function runApplyAnalysis(){
 
   if(!univ || !dept){ alert('대학교와 학과를 입력해주세요.'); return; }
 
-  // ── 학생 접속 시 횟수 제한 체크 ──
-  const isStudent = currentRole && currentRole.startsWith('student_');
-  if(isStudent){
-    const limit = getApplyLimit(currentStu);
-    const used  = getApplyUsed(hak);
-    const left  = limit - used;
-
-    if(left <= 0){
-      alert(`모의지원 횟수를 모두 사용했습니다.\n(${limit}회 한도 초과)\n\n담임 선생님께 문의해 주세요.`);
-      return;
-    }
-
-    // 확인 다이얼로그
-    const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
-    const confirmed = confirm(
-      `📊 모의지원 분석을 실행합니다.\n\n` +
-      `대학: ${univ}\n학과: ${dept}\n전형: ${type}\n\n` +
-      `잔여 횟수: ${left}회 / ${limit}회\n` +
-      `(${grade}학년 한도: ${limit}회)\n\n` +
-      `분석을 시작하면 횟수 1회가 차감됩니다.\n계속하시겠습니까?`
-    );
-    if(!confirmed) return;
-
-    // 횟수 차감
-    incrementApplyCount(hak);
-    // UI 갱신 (배너 업데이트)
-    const el = document.querySelector('.apply-wrap')?.closest('.tab-content');
-    if(el) renderMockApplyTab(el);
-  }
-
-  const btn = document.getElementById('applyBtn');
+  const btn      = document.getElementById('applyBtn');
   const resultEl = document.getElementById('applyResult');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="apply-spinner"></span> 분석 중...';
+  btn.disabled   = true;
+  btn.innerHTML  = '<span class="apply-spinner"></span> 분석 중...';
   resultEl.innerHTML = '';
 
-  // ★ 기본 변수 선언 (모든 Layer에서 공통 사용)
-  const grade    = parseInt(currentStu.grade) || parseInt(hak[0]);
-  let   stuData  = sewtuk[hak]
-    || (currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null)
-    || (currentStu.g1_hak ? sewtuk[String(currentStu.g1_hak)] : null);
-  const mockData = mock[hak] || [];
-  const gradesData = getStudentGrades(currentStu);
+  // 약간의 딜레이로 UI 업데이트 후 계산
+  setTimeout(() => {
+    try {
+      const result = computeApplyResult(hak, univ, dept, type, note);
+      renderApplyResultHTML(result, resultEl);
+      saveApplyHistoryItem(hak, univ, dept, type, result);
+      // 탭 갱신 (이력 추가)
+      const el = document.getElementById('tabContent');
+      if(el) renderMockApplyTab(el);
+    } catch(e) {
+      resultEl.innerHTML = `<div style="color:#ef4444;padding:16px;">❌ 분석 오류: ${escapeHtml(e.message)}</div>`;
+    }
+    btn.disabled = false;
+    btn.innerHTML = '🔍 학과 적합성 분석하기';
+  }, 80);
+}
 
-  // 내신 전체 평균 (9등급 기준으로 통일) — 여러 곳에서 사용하므로 먼저 계산
-  let stuGradeAvg = null, stuGradeAvgNote = '';
+// ── 핵심 계산 엔진 ──
+function computeApplyResult(hak, univ, dept, type, note){
+  const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
+  const studentIs9 = isStudent9Grade(currentStu);
+
+  // ① 내신 평균 계산 (9등급 기준 통일)
+  const gradesData = getStudentGrades(currentStu);
+  let stuAvg = null;
   if(gradesData?.grades){
-    let totalCredit=0, weighted=0, estCount=0;
-    const studentIs9 = isStudent9Grade(currentStu);
-    Object.entries(gradesData.grades).forEach(([sem, sd])=>{
+    let tc=0, tw=0;
+    Object.entries(gradesData.grades).forEach(([sem,sd])=>{
       const semIs9 = isSem9Grade(currentStu, sd);
       (sd.subjects||[]).forEach(s=>{
         if(s.등급==null || !s.학점) return;
         let g;
-        if(semIs9){
-          g = s.등급; // 9등급제: 그대로 사용
-        } else {
-          const est = estGrade9(s); // 5등급제: 9등급으로 환산
-          if(est){ g=est.grade; if(est.source==='추정') estCount++; }
-        }
-        if(g!=null){ totalCredit+=s.학점; weighted+=g*s.학점; }
+        if(semIs9){ g=s.등급; }
+        else { const est=estGrade9(s); if(est) g=est.grade; }
+        if(g!=null){ tc+=s.학점; tw+=g*s.학점; }
       });
     });
-    if(totalCredit>0){
-      stuGradeAvg = (weighted/totalCredit).toFixed(2);
-      stuGradeAvgNote = studentIs9 ? '' : (estCount>0 ? '(9등급 환산, 일부추정)' : '(9등급 환산)');
-    }
+    if(tc>0) stuAvg = tw/tc;
   }
 
-  // ★ try 블록을 데이터 준비 전으로 이동 — 어디서든 오류 발생 시 버튼 복구
-  try{
+  // ② 커트라인 비교
+  const cutoffRows = getCutoffForApply(univ, dept, type);
+  const cutoff = parseCutoff(cutoffRows, type);
 
-  // ══════════════════════════════════════════════════
-  // Layer 1: 학생 압축 프로필 생성
-  // ══════════════════════════════════════════════════
+  // ③ 선배 합불 이력
+  const alumniResult = getAlumniResult(univ, dept, stuAvg);
 
-  // 1-A. 내신 — 교과군별 평균으로 압축 (과목 나열 X)
-  let gradeProfile = '내신 데이터 없음';
-  let gradeDetail  = '';
-  if(gradesData?.grades){
-    const byGroup = { 국어:[], 수학:[], 영어:[], 사회:[], 과학:[], 기타:[] };
-    const semLines = [];
-    Object.entries(gradesData.grades).sort().forEach(([sem, sd])=>{
-      const semGrade = parseInt(sem.split('-')[0]) || grade;
-      const scale    = semGrade >= 3 ? '9등급' : '5등급';
-      let cr=0, wt=0;
-      (sd.subjects||[]).forEach(s=>{
-        const g = getG(s);
-        if(g==null || !s.학점) return;
-        cr+=s.학점; wt+=g*s.학점;
-        const grp = getSubjectGroup(s.교과||'');
-        if(byGroup[grp]) byGroup[grp].push({g, cr:s.학점, name:s.과목});
-      });
-      if(cr>0) semLines.push(`  ${sem.replace('-','학년 '+'학기')} (${scale}): 평균 ${(wt/cr).toFixed(2)}`);
-    });
-    // 교과군 요약
-    const groupSummary = Object.entries(byGroup)
-      .filter(([,arr])=>arr.length>0)
-      .map(([grp,arr])=>{
-        let tc=0,tw=0;
-        arr.forEach(({g,cr})=>{tc+=cr;tw+=g*cr;});
-        return `${grp} ${(tw/tc).toFixed(2)}`;
-      }).join(' | ');
-    gradeProfile = `전체평균: ${stuGradeAvg??'-'}${stuGradeAvgNote}\n교과군별: ${groupSummary}\n학기별:\n${semLines.join('\n')}`;
-    // 핵심 과목 상세 (국·수·영만)
-    const keySubjs = ['국어','수학','영어'].flatMap(g=>byGroup[g])
-      .map(({name,g})=>`${name}:${g}`).join(' ');
-    gradeDetail = keySubjs ? `핵심과목(국·수·영): ${keySubjs}` : '';
-  }
+  // ④ 비교과 분석 (저장된 희망학과분석 활용)
+  const majorData = evalData[hak]?.희망학과분석 || {};
+  const deptNorm  = dept.replace(/학과|학부|전공|계열/g,'').trim();
+  const majorEntry = Object.entries(majorData).find(([k])=>
+    k.replace(/학과|학부|전공|계열/g,'').trim().includes(deptNorm)||
+    deptNorm.includes(k.replace(/학과|학부|전공|계열/g,'').trim())
+  ) || Object.entries(majorData)[0];
+  const majorScore = majorEntry ? ({S:100,A:83,B:66,C:50,D:33}[majorEntry[1]?.전공적합성]||50) : null;
 
-  // 1-B. 등급제 안내
-  const studentIs9 = isStudent9Grade(currentStu);
-  const gradeSystemGuide = studentIs9
-    ? `9등급제 (3학년, 2015개정) — 1~2:최상위 / 3~4:상위 / 5:중위 / 6~:하위`
-    : `5등급제 (${grade}학년, 2022개정) — 1:최상위A / 2:상위B / 3:중위C / 4:하위D / 5:최하위E\n※ 교과전형 비교 시 9등급 환산 적용 (전체평균 ${stuGradeAvg??'-'}등급 기준)`;
+  // ⑤ 수능최저 판단
+  const suneungResult = checkSuneung(univ, dept, type, grade);
 
-  // 1-C. 모의고사 — 최근 2회차 핵심만
-  let mockSummary = '모의고사 데이터 없음';
-  if(mockData.length){
-    const recent = mockData.slice(-2).reverse();
-    mockSummary = recent.map(r=>{
-      const scores = SUBJECTS.map(sub=>{
-        const d = r[sub]; if(!d) return null;
-        const sel = d.선택?.trim();
-        return `${sub}${sel?`(${sel})`:''} ${d.등급??'-'}등급`;
-      }).filter(Boolean).join(' / ');
-      return `${ROUND_LABEL[r.round]||r.round}: ${scores}`;
-    }).join('\n');
-  }
+  // ⑥ 종합역량평가 참조
+  const compEval = evalData[hak]?.종합역량평가;
+  const compScore = compEval ? calcCompScore(compEval) : null;
 
-  // 1-D. 세특 — 지원 학과 관련 키워드로 필터링
-  const deptNormForFilter = dept.replace(/학과$|학부$|전공$/, '').toLowerCase();
-  const DEPT_RELATED = { // 계열별 관련 키워드
-    '의':['의학','생명','화학','생물','의료','해부','약리'],
-    '약':['약학','화학','생명','제약','약리','유기화학'],
-    '수의':['수의','동물','생명','미생물','해부','생물'],
-    '치':['치의','구강','생명','화학','해부'],
-    '한의':['한의','한방','동의','생명','약초'],
-    '경':['경제','경영','금융','회계','마케팅','재무','무역'],
-    '법':['법','헌법','민법','형법','법학','사회'],
-    '교육':['교육','교사','수업','학습','학생'],
-    '공':['공학','물리','전자','기계','화공','토목','컴퓨터','AI','프로그램'],
-    '컴':['컴퓨터','소프트웨어','알고리즘','프로그래밍','AI','데이터','코딩'],
-  };
-  const relatedKeywords = Object.entries(DEPT_RELATED)
-    .filter(([k])=>deptNormForFilter.includes(k))
-    .flatMap(([,v])=>v);
-
-  // 1-D. 세특 — 모의지원에는 원본(내용 필드)만 사용
-  // ※ 요약·평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
-  const allSubjects = stuData?.subjects || [];
-
-  // grades에서 과목명 → 등급 맵 생성 (세특 원본 없는 과목에 성적 표시용)
-  const gradeMap = {};
-  if(gradesData?.grades){
-    Object.values(gradesData.grades).forEach(sd=>{
-      (sd.subjects||[]).forEach(s=>{
-        if(s.과목 && s.등급!=null){
-          // 같은 과목이 여러 학기면 가장 좋은 등급 유지
-          if(!gradeMap[s.과목] || s.등급 < gradeMap[s.과목]) gradeMap[s.과목] = s.등급;
-        }
-      });
-    });
-  }
-
-  const relevantSubjects = relatedKeywords.length > 0
-    ? allSubjects.filter(s=>{
-        // 키워드 매칭도 원본 내용(내용 필드)만 사용 — 요약/평가 필드는 참조하지 않음
-        const text = (s.내용||'').toLowerCase();
-        return relatedKeywords.some(k=>text.includes(k));
-      })
-    : allSubjects;
-  const baseSubjects = relevantSubjects.length > 0 ? relevantSubjects : allSubjects;
-
-  const sewtukToShow = baseSubjects.slice(0, 10);
-  const sewtukSummary = sewtukToShow.length > 0
-    ? sewtukToShow.map(s => {
-        const raw = (s.내용||'').trim();
-        const hasRaw = raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
-        // 과목명으로 grades에서 등급 조회 (세특 과목명이 "공통국어1·공통국어2" 형태일 수 있어 분리 시도)
-        const subjectNames = s.과목 ? s.과목.split(/[·,]/).map(n=>n.trim()) : [];
-        const gradeVal = subjectNames.map(n=>gradeMap[n]).find(g=>g!=null) ?? null;
-        const gradeTag = gradeVal!=null ? ` (${gradeVal}등급)` : '';
-        if(hasRaw){
-          return `[${s.교과}-${s.과목}${gradeTag}]\n${raw}`;
-        } else {
-          return `[${s.교과}-${s.과목}${gradeTag}] ※세특 미입력`;
-        }
-      }).join('\n\n')
-    : null;
-
-  // 1-E. 창체 — 모의지원에는 원본(내용 필드)만 사용, 원본 없는 활동은 완전 제외
-  // ※ 요약·평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
-  const changcheData = changche[hak]
-    || (currentStu.g3_hak ? changche[String(currentStu.g3_hak)] : null)
-    || (currentStu.g2_hak ? changche[String(currentStu.g2_hak)] : null)
-    || (currentStu.g1_hak ? changche[String(currentStu.g1_hak)] : null);
-  const changcheSummary = (() => {
-    const acts = (changcheData?.activities || []).filter(a => {
-      const raw = (a.내용 || '').trim();
-      return raw && raw !== '내용을 입력해주세요.' && raw.length > 20;
-    });
-    if(!acts.length) return null; // null이면 프롬프트에서 제외
-    return acts.map(a =>
-      `[${a.학년}학년 ${a.분류} - ${a.활동명}]\n${a.내용.trim()}`
-    ).join('\n\n');
-  })();
-
-  // 1-F. 행발 — 모의지원에는 원문(행발 필드)만 사용, 없으면 제외
-  // ※ 행발요약·행발종합평가 필드는 선생님/학생 참고용 — 프롬프트에 절대 포함하지 않음
-  const haengbalRaw = haengbal[String(currentStu.hak)]?.원문 || {};
-  const haengbalSummary = (() => {
-    const entries = Object.entries(haengbalRaw).filter(([, v]) => v && String(v).trim().length > 10);
-    if(!entries.length) return null;
-    return entries
-      .sort(([a],[b]) => a.localeCompare(b))
-      .map(([g, text]) => `[${g}학년]\n${String(text).trim()}`)
-      .join('\n\n');
-  })();
-
-  // 1-G. 종합역량평가 — 데이터 있을 때만 포함, 없으면 프롬프트에서 완전 제외
-  const compEval = stuData?.종합역량평가 || null;
-  const compSummary = compEval ? [
-    `학업역량 ${compEval.학업역량?.grade??'-'} / 진로역량 ${compEval.진로역량?.grade??'-'} / 공동체역량 ${compEval.공동체역량?.grade??'-'}`,
-    compEval.종합의견 ? compEval.종합의견.substring(0,300) : ''
-  ].filter(Boolean).join('\n') : null;
-
-  // ══════════════════════════════════════════════════
-  // Layer 2: 입결 + 합불이력
-  // ══════════════════════════════════════════════════
-  btn.innerHTML = '<span class="apply-spinner"></span> 입결 조회 중...';
-  const [cutoffRaw, admCases] = await Promise.all([
-    fetchCutoffData(univ, dept),
-    fetchAdmissionCases(univ, dept)
-  ]);
-  const cutoffText = cutoffToPromptText(cutoffRaw, univ, dept, type);
-  btn.innerHTML = '<span class="apply-spinner"></span> Claude 분석 중...';
-
-  // ══════════════════════════════════════════════════
-  // Layer 3: KB(지식베이스) + 참고자료 통합
-  // ══════════════════════════════════════════════════
-  const admYear = studentIs9 ? '2027' : '2028';
-
-  // ★ 새 KB 시스템
-  const kbText = buildKbPromptText(univ, dept, grade);
-
-  // ★ 기존 references (KB 없을 때 fallback)
-  const normRef = s => String(s||'').replace(/\s/g,'').toLowerCase();
-  const univBase = normRef(univ).replace(/학교$|대학교$|대학$/, '');
-  function classifyRef(r){
-    const title   = normRef(r['제목']||'');
-    const preview = normRef((r['내용']||'').substring(0,600));
-    const isUnivMatch = title.includes(univBase) || preview.includes(univBase);
-    const isDeptMatch = DEPT_KEYWORD_MAP.some(({match,keywords})=>
-      match.some(m=>normRef(dept).includes(m)) &&
-      keywords.some(k=>title.includes(normRef(k))||preview.includes(normRef(k)))
-    );
-    const isStrategy = ['전략','특징','흐름','변화사항','변화 사항','의약학'].some(k=>title.includes(normRef(k)));
-    if(isUnivMatch) return 1;
-    if(isDeptMatch) return 2;
-    if(isStrategy)  return 3;
-    return 4;
-  }
-  const allMatchedRefs = referencesList.filter(r=>{
-    const target = r['적용학년']||'공통';
-    if(admYear && target!=='공통' && target!==admYear) return false;
-    return classifyRef(r) <= 3;
+  // ⑦ 최종 점수 계산
+  const score = calcFinalScore({
+    stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult
   });
-  const tier1 = allMatchedRefs.filter(r=>classifyRef(r)===1);
-  const tier2 = allMatchedRefs.filter(r=>classifyRef(r)===2);
-  const tier3 = allMatchedRefs.filter(r=>classifyRef(r)===3);
-  const formatTier = (refs, maxChars) => refs.map(r=>{
-    const content = (r['내용']||'').substring(0, maxChars);
-    return `📌 ${r['제목']||r.id}\n${content}`;
-  }).join('\n\n');
-  const legacyRefBlock = [
-    tier1.length ? `▶ Tier1 해당 대학 전형 정보\n${formatTier(tier1, 900)}` : '',
-    tier2.length ? `▶ Tier2 해당 계열 전국 분석\n${formatTier(tier2, 700)}` : '',
-    tier3.length ? `▶ Tier3 대입 전략·흐름 (요약)\n${formatTier(tier3, 400)}` : '',
-  ].filter(Boolean).join('\n\n');
 
-  // KB 있으면 KB 우선, 없으면 기존 references 사용
-  const refBlock = kbText
-    ? kbText + (legacyRefBlock ? '\n\n' + legacyRefBlock : '')
-    : (legacyRefBlock || '등록된 참고자료 없음');
+  // ⑧ 코멘트 생성
+  const comments = buildComments({
+    stuAvg, cutoff, type, alumniResult, majorScore, majorEntry,
+    compScore, compEval, suneungResult, grade, studentIs9,
+    univ, dept, note
+  });
 
-  // ══════════════════════════════════════════════════
-  // 최종 프롬프트 조합
-  // ══════════════════════════════════════════════════
-  // ★ 프롬프트 캐싱 — systemPrompt(KB+지시문) / userPrompt(학생데이터) 분리
-  // 같은 대학을 여러 학생에 대해 분석 시 systemPrompt가 캐시 히트 → 90% 절감
-
-  const systemPrompt = `당신은 한국 대입 전형 전문 컨설턴트입니다. 학생 데이터를 분석하여 학과 적합성을 평가하고 지정된 JSON 형식으로만 출력합니다.
-
-━━━ 【입시 지식베이스 — ${admYear}학년도 기준】 ━━━
-${refBlock}
-
-━━━ 【분석 원칙】 ━━━
-1. 내신은 등급제(5등급/9등급)를 정확히 파악하여 입결과 비교
-2. 50컷·70컷이 있으면 반드시 수치로 비교 (컷보다 높으면 불리, 낮으면 유리)
-3. 수능최저는 학생 모의고사 성적과 대조하여 충족 가능성 명시
-4. 세특 원본에서 지원 학과 관련 탐구 활동·역량을 직접 파악
-5. 창체·행발에서 인성·리더십·공동체 역량을 종합전형 평가 요소로 반영
-6. 지역인재전형 해당 여부 확인 후 언급
-⚠️ 수상경력·독서활동은 2024학년도부터 대입 미반영 — 절대 언급 금지
-⚠️ 종합역량평가 데이터 없어도 보완점으로 지적 금지
-
-━━━ 【출력 형식 (JSON만 출력, 마크다운 금지)】 ━━━
-{"적합도":"상|중|하","적합도점수":75,"한줄평":"20자 이내","수능최저충족":"가능|불확실|어려움","수능최저근거":"1~2문장","강점":"3~4가지(음슴체)","보완점":"2~3가지(음슴체)","전형분석":"3~4문장(음슴체,입결수치포함)","추천전략":"2~3가지(음슴체)","주의사항":"주의점(음슴체)"}`;
-
-  // ── 희망학과 세특분석 결과 (저장된 경우 프롬프트에 반영) ──
-  const majorAnalysisAll = evalData[hak]?.희망학과분석 || {};
-  let majorAnalysisSection = '';
-  if(Object.keys(majorAnalysisAll).length > 0){
-    // 지원 학과와 가장 유사한 분석 찾기
-    const deptNorm = dept.replace(/학과|학부|전공|계열/g,'').trim();
-    const matchedEntry = Object.entries(majorAnalysisAll).find(([k])=>
-      k.replace(/학과|학부|전공|계열/g,'').trim().includes(deptNorm) ||
-      deptNorm.includes(k.replace(/학과|학부|전공|계열/g,'').trim())
-    ) || Object.entries(majorAnalysisAll)[0]; // 없으면 첫 번째
-
-    if(matchedEntry){
-      const [mDept, mData] = matchedEntry;
-      const 근거 = Array.isArray(mData.핵심근거) ? mData.핵심근거.join(', ') : '';
-      const 약점 = Array.isArray(mData.약점) ? mData.약점.join(', ') : '';
-      majorAnalysisSection = `\n【희망학과 세특분석 — ${mDept}】\n전공적합성: ${mData.전공적합성||'?'}등급\n핵심근거: ${근거||'없음'}\n약점: ${약점||'없음'}\n한줄평: ${mData.한줄평||''}\n`;
-    }
-  }
-
-  const userPrompt = `[분석 요청] ${currentStu.name} (${grade}학년) → ${univ} ${dept} ${type}전형
-${note ? `추가 요청: ${note}` : ''}
-
-━━━ 학생 프로필 ━━━
-등급제: ${gradeSystemGuide}
-
-【내신 성적】
-${gradeProfile}
-${gradeDetail}
-
-【모의고사 최근 2회차】
-${mockSummary}
-
-${compSummary ? `【종합역량평가】\n${compSummary}` : ''}
-${majorAnalysisSection}
-${sewtukSummary ? `【세특 원본 — ${dept} 관련 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
-
-${changcheSummary ? `【창체 활동 원본】\n${changcheSummary}` : ''}
-
-${haengbalSummary ? `【행동발달사항 원본】\n${haengbalSummary}` : ''}
-
-━━━ 지원 대학 데이터 ━━━
-목표: ${univ} / ${dept} / ${type}전형
-【입결 데이터 (50컷·70컷 3개년)】
-${cutoffText}
-
-【선배 합불 이력】
-${admissionsToPromptText(admCases, univ, dept)}
-
-━━━ 분석 지시 ━━━
-내신 해석: ${studentIs9 ? '9등급제 직접 적용' : '5등급제 → 9등급 환산(전체평균 ' + stuGradeAvg + '등급) 후 입결 비교'}
-${type}전형 특성에 맞게 강점·약점을 분석하고 위 JSON 형식으로만 출력하세요.`;
-
-    // 429 재시도 로직
-    let data;
-    for(let retry = 0; retry <= 2; retry++){
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'callClaude', password: currentPassword, systemPrompt, userPrompt })
-      });
-      data = await res.json();
-      if(!data.error) break;
-      const is429 = data.error.includes('rate limit') || data.error.includes('429') || data.error.includes('Too Many');
-      if(is429 && retry < 2){
-        const waitSec = (retry+1) * 30;
-        document.getElementById('applyResult').innerHTML =
-          `<div style="text-align:center;color:#64748b;padding:20px">⏳ API 한도 초과 — ${waitSec}초 후 재시도 (${retry+1}/2)...</div>`;
-        await new Promise(r => setTimeout(r, waitSec * 1000));
-      } else {
-        throw new Error(data.error);
-      }
-    }
-
-    let obj;
-    try{
-      let clean = data.text.replace(/```json|```/g,'').trim();
-      if(!clean.endsWith('}')){
-        const last = clean.lastIndexOf('}');
-        if(last > 0) clean = clean.substring(0, last+1);
-        const opens = (clean.match(/{/g)||[]).length;
-        const closes = (clean.match(/}/g)||[]).length;
-        for(let i=0; i<opens-closes; i++) clean += '}';
-      }
-      obj = JSON.parse(clean);
-    }catch{ throw new Error('결과 파싱 실패 — 잠시 후 다시 시도해주세요'); }
-
-    // 기록 저장
-    applyHistory[hak] = applyHistory[hak] || [];
-    const histItem = {
-      id: `AH_${Date.now()}`,
-      univ, dept, type,
-      result: obj,
-      date: new Date().toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) + ' ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
-    };
-    applyHistory[hak].push(histItem);
-
-    // DB 저장 (eval 시트 모의지원이력 키)
-    try {
-      const current = evalData[hak] || {};
-      current.모의지원이력 = current.모의지원이력 || [];
-      current.모의지원이력.push(histItem);
-      // 최대 50건 유지
-      if(current.모의지원이력.length > 50) current.모의지원이력 = current.모의지원이력.slice(-50);
-      evalData[hak] = current;
-      await fetch(API_URL, {
-        method:'POST',
-        body: JSON.stringify({ action:'saveEval', password:currentPassword, hak, evalData:{ 모의지원이력: current.모의지원이력 } })
-      });
-    } catch(dbErr) { console.warn('이력 DB 저장 실패 (세션에는 저장됨):', dbErr.message); }
-
-    // 결과 표시
-    const GC = {'상':'#10b981','중':'#f59e0b','하':'#ef4444'};
-    const BGC = {'상':'#dcfce7','중':'#fef9c3','하':'#fee2e2'};
-    const color = GC[obj.적합도]||'#64748b';
-    const bg = BGC[obj.적합도]||'#f1f5f9';
-    // 입결 비교 패널 생성
-    const typeMatched = cutoffRaw.filter(r=>!type||type==='종합+교과'||String(r['전형']||'').includes(type));
-    const cutoffRows  = (typeMatched.length ? typeMatched : cutoffRaw).slice(0,3);
-    const years = ['2025','2024','2023'];
-    const scaleNote = studentIs9 ? '(9등급 기준)' : '(5→9등급 환산)';
-
-    function gradeCompare(stuG, cutG){
-      if(!stuG||!cutG) return {icon:'—',cls:'#94a3b8',diff:''};
-      const diff = (parseFloat(stuG)-parseFloat(cutG)).toFixed(2);
-      if(parseFloat(diff)<=-0.1) return {icon:'✅',cls:'#10b981',diff:`${diff}`};
-      if(parseFloat(diff)<=0.3)  return {icon:'⚠️',cls:'#f59e0b',diff:`+${diff}`};
-      return {icon:'❌',cls:'#ef4444',diff:`+${diff}`};
-    }
-
-    const cutoffPanelHtml = cutoffRows.length ? `
-      <div style="padding:12px 14px;border-left:3px solid #e2e8f0;">
-        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">
-          📊 내신 vs 70컷 비교 ${scaleNote}
-        </div>
-        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
-          <span style="font-size:11px;color:#64748b;">내 내신 평균</span>
-          <span style="font-size:26px;font-weight:900;color:#1e293b;">${stuGradeAvg||'-'}</span>
-          <span style="font-size:11px;color:#94a3b8;">등급 ${stuGradeAvgNote}</span>
-        </div>
-        ${cutoffRows.map(r=>{
-          const sejeon = r['세부전형명']||r['전형']||'-';
-          const rows70 = years.map(y=>{
-            const cut70 = r[`70컷_${y}`];
-            const cmp = gradeCompare(stuGradeAvg, cut70);
-            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9;">
-              <span style="font-size:11px;color:#64748b;width:36px;">${y}년</span>
-              <span style="font-size:13px;font-weight:700;color:#334155;width:34px;">${cut70||'—'}</span>
-              <span style="font-size:12px;">${cmp.icon}</span>
-              <span style="font-size:11px;font-weight:600;color:${cmp.cls};width:40px;text-align:right;">${cmp.diff}</span>
-            </div>`;
-          }).join('');
-          return `<div style="margin-bottom:8px;">
-            <div style="font-size:10px;font-weight:700;color:#475569;background:#f8fafc;padding:3px 6px;border-radius:4px;margin-bottom:4px;">${escapeHtml(sejeon)}</div>
-            ${rows70}
-          </div>`;
-        }).join('')}
-      </div>` :
-      `<div style="padding:14px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;border-left:3px solid #f1f5f9;">
-        입결 데이터 없음
-      </div>`;
-
-    resultEl.innerHTML = `
-      <div class="apply-result-card">
-        <div class="apply-result-head" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>📊 ${univ} ${dept} — ${type} 전형 분석 결과</span>
-          <button onclick="printApplyResult()" class="print-no" style="padding:5px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">🖨️ 인쇄</button>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-          <div class="apply-possibility" style="background:${bg};border-radius:0;margin:0;border-right:1px solid rgba(0,0,0,.06);">
-            <div class="apply-possibility-grade" style="color:${color};">${obj.적합도}</div>
-            <div class="apply-possibility-label">
-              <div style="font-weight:700;font-size:15px;color:${color};">${obj.한줄평||''}</div>
-              <div style="margin-top:3px;">적합도 점수: <b style="color:${color};">${obj.적합도점수||'-'}점</b> / 100점</div>
-            </div>
-          </div>
-          ${cutoffPanelHtml}
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">📊 수능최저 충족 가능성</div>
-          <div class="apply-section-body" style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:15px;font-weight:700;color:${obj.수능최저충족==='가능'?'#10b981':obj.수능최저충족==='불확실'?'#f59e0b':'#ef4444'}">${obj.수능최저충족||'-'}</span>
-            <span style="color:#64748b;font-size:13px;">${escapeHtml(obj.수능최저근거||'')}</span>
-          </div>
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">✅ 강점</div>
-          <div class="apply-section-body">${escapeHtml(obj.강점||'')}</div>
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">⚠️ 보완점</div>
-          <div class="apply-section-body">${escapeHtml(obj.보완점||'')}</div>
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">📋 전형 분석</div>
-          <div class="apply-section-body">${escapeHtml(obj.전형분석||'')}</div>
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">💡 추천 전략</div>
-          <div class="apply-section-body">${escapeHtml(obj.추천전략||'')}</div>
-        </div>
-        <div class="apply-section">
-          <div class="apply-section-title">🔴 주의사항</div>
-          <div class="apply-section-body">${escapeHtml(obj.주의사항||'')}</div>
-        </div>
-      </div>`;
-    renderMockApplyTab(document.getElementById('tabContent')); // 기록 갱신
-    document.getElementById('applyResult').innerHTML = resultEl.innerHTML; // 결과 유지
-  }catch(e){
-    resultEl.innerHTML = `<div class="no-data">❌ 분석 실패: ${e.message}</div>`;
-  }finally{
-    if(btn){ btn.disabled=false; btn.innerHTML='🔍 학과 적합성 분석하기'; }
-  }
-}
-
-// ========== 모의지원 결과 인쇄 ==========
-function printApplyResult(){
-  const resultEl = document.getElementById('applyResult');
-  if(!resultEl || !resultEl.innerHTML.trim()){ alert('인쇄할 분석 결과가 없습니다.'); return; }
-
-  const stu = currentStu;
-  const univ = document.getElementById('applyUniv')?.value || '';
-  const dept = document.getElementById('applyDept')?.value || '';
-  const type = document.getElementById('applyType')?.value || '';
-  const date = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'});
-
-  const win = window.open('', '_blank', 'width=800,height=1000');
-  win.document.write(`<!DOCTYPE html>
-<html lang="ko"><head>
-<meta charset="UTF-8">
-<title>모의지원 분석 — ${stu?.name||''} ${univ} ${dept}</title>
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-size:11pt; color:#1e293b; padding:16mm 18mm; line-height:1.6; }
-
-  /* 헤더 */
-  .print-header { border-bottom:2.5px solid #2563eb; padding-bottom:10px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; }
-  .print-title { font-size:15pt; font-weight:800; color:#1e293b; }
-  .print-sub { font-size:9pt; color:#64748b; text-align:right; line-height:1.8; }
-
-  /* 적합도 배지 */
-  .possibility-row { display:flex; align-items:center; gap:14px; padding:10px 14px; border-radius:8px; margin-bottom:12px; }
-  .pos-grade { font-size:32pt; font-weight:900; line-height:1; }
-  .pos-label { font-size:11pt; line-height:1.8; }
-  .pos-score { font-size:10pt; color:#475569; }
-
-  /* 섹션 */
-  .section { margin-bottom:10px; page-break-inside:avoid; }
-  .section-title { font-size:10pt; font-weight:700; color:#334155; padding:4px 0; border-bottom:1px solid #e2e8f0; margin-bottom:5px; }
-  .section-body { font-size:10pt; color:#475569; white-space:pre-line; line-height:1.7; }
-
-  /* 푸터 */
-  .print-footer { border-top:1px solid #e2e8f0; margin-top:14px; padding-top:8px; font-size:8.5pt; color:#94a3b8; display:flex; justify-content:space-between; }
-
-  @page { size:A4; margin:0; }
-  @media print { body { padding:14mm 16mm; } }
-</style>
-</head><body>
-  <div class="print-header">
-    <div>
-      <div class="print-title">📊 모의지원 적합성 분석</div>
-      <div style="font-size:10pt;color:#334155;margin-top:3px;">
-        <b>${stu?.name||'학생'}</b> &nbsp;|&nbsp; ${String(stu?.hak||'')[0]}학년 ${parseInt(String(stu?.hak||'0').substring(1,3))}반 ${parseInt(String(stu?.hak||'0').substring(3,5))}번
-      </div>
-    </div>
-    <div class="print-sub">
-      목표: <b>${univ} ${dept}</b><br>
-      전형: ${type}<br>
-      분석일: ${date}
-    </div>
-  </div>
-  ${resultEl.querySelector('.apply-possibility') ? `
-    <div class="possibility-row" style="background:${resultEl.querySelector('.apply-possibility').style.background};">
-      <div class="pos-grade" style="color:${resultEl.querySelector('.apply-possibility-grade').style.color};">
-        ${resultEl.querySelector('.apply-possibility-grade').textContent}
-      </div>
-      <div class="pos-label">
-        <div style="font-weight:700;font-size:13pt;color:${resultEl.querySelector('.apply-possibility-grade').style.color};">
-          ${resultEl.querySelector('.apply-possibility-label div:first-child')?.textContent||''}
-        </div>
-        <div class="pos-score">${resultEl.querySelector('.apply-possibility-label div:last-child')?.textContent||''}</div>
-      </div>
-    </div>` : ''}
-  ${[...resultEl.querySelectorAll('.apply-section')].map(sec => `
-    <div class="section">
-      <div class="section-title">${sec.querySelector('.apply-section-title')?.textContent||''}</div>
-      <div class="section-body">${sec.querySelector('.apply-section-body')?.textContent||''}</div>
-    </div>`).join('')}
-  <div class="print-footer">
-    <span>오상고 상담카드 시스템 2026</span>
-    <span>본 분석은 AI 기반 참고 자료이며 실제 입시 결과와 다를 수 있습니다.</span>
-  </div>
-  <script>window.onload=()=>{window.print();}<\/script>
-</body></html>`);
-  win.document.close();
-}
-
-function printCompEval(){
-  const stu = currentStu;
-  if(!stu){ alert('학생을 먼저 선택하세요.'); return; }
-  const hak = String(stu.hak);
-
-  const eval_ = evalData[hak]?.종합역량평가
-    || sewtuk[hak]?.종합역량평가
-    || (stu.g2_hak ? evalData[String(stu.g2_hak)]?.종합역량평가 : null)
-    || null;
-  if(!eval_){ alert('종합역량평가 데이터가 없습니다.'); return; }
-
-  const swot    = evalData[hak]?.강점보완점 || null;
-  const date    = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const gradeLabel = `${String(stu.hak)[0]}학년 ${parseInt(String(stu.hak).substring(1,3))}반 ${parseInt(String(stu.hak).substring(3,5))}번`;
-
-  const GN  = {S:100,A:83,B:66,C:50,D:33};
-  const GC  = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
-  const BGC = {S:'#ede9fe',A:'#d1fae5',B:'#cffafe',C:'#fef9c3',D:'#fee2e2'};
-  const GRP_INFO = {
-    '학업역량':  {icon:'📚', subs:[['성취도','학업성취도'],['태도','학업태도'],['탐구력','탐구력']]},
-    '진로역량':  {icon:'🎯', subs:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
-    '공동체역량':{icon:'🤝', subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]}
+  return {
+    id: `AH_${Date.now()}`,
+    univ, dept, type,
+    적합도: score.grade,
+    적합도점수: score.score,
+    한줄평: score.summary,
+    수능최저충족: suneungResult.status,
+    수능최저근거: suneungResult.reason,
+    강점: comments.strengths,
+    보완점: comments.weaknesses,
+    전형분석: comments.typeAnalysis,
+    추천전략: comments.strategy,
+    주의사항: comments.caution,
+    _meta: { cutoff, alumniResult, stuAvg, majorScore }
   };
+}
 
-  // 종합 점수
-  const grpScores = Object.keys(GRP_INFO).map(k=>GN[eval_[k]?.grade]||0);
-  const total = Math.round(grpScores.reduce((a,b)=>a+b,0)/grpScores.length);
-  const overallGrade = total>=83?'A':total>=66?'B':total>=50?'C':'D';
-  const mainColor = GC[overallGrade]||'#64748b';
+// 커트라인 조회 (이미 로드된 cutoff DB에서)
+function getCutoffForApply(univ, dept, type){
+  // cutoffIndex는 인덱스만 — 실제 데이터는 admissionsDB 또는 별도 로드 필요
+  // admissionsAllCache (GitHub JSON)에서 먼저 탐색
+  const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
+  const uNorm = norm(univ), dNorm = norm(dept);
 
-  // 내신 평균
-  let gradeAvgHtml = '';
-  const gradeData = getStudentGrades(stu);
-  if(gradeData?.grades){
-    const avg = calcStudentAvg(gradeData,null,stu);
-    if(avg!=null){
-      const is9=isStudent9Grade(stu);
-      gradeAvgHtml=`내신 평균 <b>${avg.toFixed(2)}등급</b> (${is9?'9':'5'}등급제)`;
+  let rows = [];
+  if(admissionsAllCache){
+    rows = admissionsAllCache.filter(r=>{
+      const ru = norm(r['대학']||r['대학명']||'');
+      const rd = norm(r['모집단위']||r['학과']||'');
+      const rt = String(r['전형']||r['전형유형']||'');
+      const uMatch = ru.includes(uNorm)||uNorm.includes(ru);
+      const dMatch = !dNorm || rd.includes(dNorm)||dNorm.includes(rd);
+      const tMatch = !type || type==='종합+교과' || rt.includes(type);
+      return uMatch && dMatch && tMatch;
+    }).slice(0,5);
+  }
+  return rows;
+}
+
+function parseCutoff(rows, type){
+  if(!rows.length) return null;
+  const years = ['2025','2024','2023'];
+  const cuts50 = [], cuts70 = [];
+  rows.forEach(r=>{
+    years.forEach(y=>{
+      const v50 = parseFloat(r[`50컷_${y}`]); if(!isNaN(v50)) cuts50.push(v50);
+      const v70 = parseFloat(r[`70컷_${y}`]); if(!isNaN(v70)) cuts70.push(v70);
+    });
+  });
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  return {
+    cut50: avg(cuts50), cut70: avg(cuts70),
+    raw: rows[0],
+    모집인원: rows[0]?.['모집인원_2025'] || null,
+    경쟁률: rows[0]?.['경쟁률_2025'] || null,
+  };
+}
+
+function getAlumniResult(univ, dept, stuAvg){
+  const norm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
+  const uNorm=norm(univ), dNorm=norm(dept||'');
+  const matched = alumniKb.filter(r=>{
+    const ru=norm(r['지원대학']||''), rd=norm(r['지원학과']||'');
+    return (ru.includes(uNorm)||uNorm.includes(ru)) && (!dNorm||rd.includes(dNorm)||dNorm.includes(rd));
+  });
+  if(!matched.length) return {pass:[], fail:[], passAvg:null, failAvg:null, total:0};
+  const pass = matched.filter(r=>String(r['결과']||'').includes('합격'));
+  const fail = matched.filter(r=>String(r['결과']||'').includes('불합격'));
+  const avg = arr => {
+    const vs = arr.map(r=>parseFloat(r['내신평균']||r['내신']||0)).filter(v=>v>0);
+    return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : null;
+  };
+  return { pass, fail, passAvg: avg(pass), failAvg: avg(fail), total: matched.length };
+}
+
+function checkSuneung(univ, dept, type, grade){
+  // kb_univ에서 해당 대학 수능최저 확인
+  const norm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
+  const uNorm = norm(univ);
+  const kbEntry = kbUniv.find(r=>{
+    const u = norm(r['대학명']||'');
+    return u.includes(uNorm)||uNorm.includes(u);
+  });
+  const suneungText = kbEntry?.['수능최저'] || '';
+  if(!suneungText || suneungText==='없음' || suneungText==='미적용') {
+    return { status:'해당없음', reason:'수능최저 없음 (서류/면접 100%)' };
+  }
+  return { status:'확인필요', reason:`수능최저 기준: ${suneungText} — 모의고사 성적 확인 필요` };
+}
+
+function calcCompScore(compEval){
+  const GN = {S:100,A:83,B:66,C:50,D:33};
+  const scores = ['학업역량','진로역량','공동체역량'].map(k=>GN[compEval[k]?.grade]||0);
+  return Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+}
+
+function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult}){
+  let score = 50; // 기본 50점
+  let reasons = [];
+
+  // 내신 vs 커트라인 (최대 ±30점)
+  if(stuAvg && cutoff?.cut50){
+    const diff = cutoff.cut50 - stuAvg; // 양수 = 학생이 커트보다 좋음
+    if(diff >= 0.5)      { score += 25; reasons.push('내신 커트라인 여유'); }
+    else if(diff >= 0)   { score += 12; reasons.push('내신 커트라인 근접'); }
+    else if(diff >= -0.3){ score -= 5;  reasons.push('내신 커트라인 미달 소폭'); }
+    else if(diff >= -0.7){ score -= 18; reasons.push('내신 커트라인 미달'); }
+    else                 { score -= 28; reasons.push('내신 커트라인 크게 미달'); }
+  } else if(stuAvg && cutoff?.cut70){
+    const diff = cutoff.cut70 - stuAvg;
+    if(diff >= 0)   { score += 10; }
+    else if(diff >= -0.5) { score -= 8; }
+    else                  { score -= 20; }
+  }
+
+  // 선배 합불 (최대 ±15점)
+  if(alumniResult.total >= 3){
+    const passRate = alumniResult.pass.length / alumniResult.total;
+    if(passRate >= 0.7)      { score += 12; reasons.push(`선배 합격률 ${Math.round(passRate*100)}%`); }
+    else if(passRate >= 0.4) { score += 5; }
+    else if(passRate <= 0.2) { score -= 10; }
+    // 내신 유사 선배 비교
+    if(stuAvg && alumniResult.passAvg){
+      if(stuAvg <= alumniResult.passAvg + 0.3) { score += 8; }
+      else if(stuAvg > alumniResult.passAvg + 0.8) { score -= 10; }
     }
   }
 
-  // 역량 카드 HTML
-  function getG(grp,sub){const d=eval_[grp]?.[sub];if(!d)return '-';return typeof d==='string'?d:d.grade||'-';}
-
-  const grpCardsHtml = Object.entries(GRP_INFO).map(([grp,info])=>{
-    const d = eval_[grp]; if(!d) return '';
-    const g = d.grade||'?';
-    const bc = BGC[g]||'#f8fafc', gc = GC[g]||'#64748b';
-    const subsHtml = info.subs.map(([lbl,sub])=>{
-      const sg=getG(grp,sub);
-      return `<span style="margin-right:10px;font-size:9pt;">${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b></span>`;
-    }).join('');
-    const reasonHtml = d.근거 ? `<div style="margin-top:6px;font-size:9pt;color:#475569;line-height:1.7;padding:8px;background:rgba(0,0,0,.04);border-radius:5px;">${escapeHtml(d.근거)}</div>` : '';
-    return `<div style="background:${bc};border:1.5px solid ${gc}44;border-radius:10px;padding:13px 16px;page-break-inside:avoid;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div style="font-size:11pt;font-weight:700;color:${gc}">${info.icon} ${grp}</div>
-        <div style="font-size:28pt;font-weight:900;color:${gc};line-height:1;">${g}</div>
-      </div>
-      <div>${subsHtml}</div>
-      ${reasonHtml}
-    </div>`;
-  }).join('');
-
-  // 종합의견
-  const opinionHtml = eval_.종합의견
-    ? `<div style="margin-top:4px;padding:12px 15px;background:#f5f3ff;border-left:3px solid #6366f1;border-radius:0 8px 8px 0;font-size:10pt;line-height:1.8;color:#334155;">${escapeHtml(eval_.종합의견)}</div>`
-    : '';
-
-  // 강점/보완점
-  let swotHtml = '';
-  if(swot){
-    const strengths  = Array.isArray(swot.강점)?swot.강점:(swot.강점||'').split('\n').filter(Boolean);
-    const weaknesses = Array.isArray(swot.보완점)?swot.보완점:(swot.보완점||'').split('\n').filter(Boolean);
-    const summary = swot.한줄요약||'';
-    swotHtml = `
-      <div class="section-header">💡 강점 · 보완 포인트</div>
-      ${summary?`<div style="margin-bottom:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde68a;border-radius:7px;font-size:10pt;font-weight:600;color:#92400e;">한줄요약: ${escapeHtml(summary)}</div>`:''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 14px;">
-          <div style="font-size:10pt;font-weight:800;color:#15803d;margin-bottom:8px;">✅ 핵심 강점</div>
-          ${strengths.map(s=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:9.5pt;line-height:1.6;"><span style="color:#16a34a;flex-shrink:0;">●</span><span>${escapeHtml(String(s).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('')}
-        </div>
-        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px 14px;">
-          <div style="font-size:10pt;font-weight:800;color:#c2410c;margin-bottom:8px;">⚠️ 보완 포인트</div>
-          ${weaknesses.map(w=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:9.5pt;line-height:1.6;"><span style="color:#ea580c;flex-shrink:0;">●</span><span>${escapeHtml(String(w).replace(/^[-·•\d.]\s*/,''))}</span></div>`).join('')}
-        </div>
-      </div>`;
+  // 비교과 전공적합성 (최대 ±10점, 종합전형에서만)
+  if(majorScore !== null && (type==='종합'||type==='종합+교과')){
+    if(majorScore >= 83)      score += 10;
+    else if(majorScore >= 66) score += 5;
+    else if(majorScore <= 33) score -= 8;
   }
 
-  const win = window.open('', '_blank', 'width=860,height=1100');
-  win.document.write(`<!DOCTYPE html>
-<html lang="ko"><head>
-<meta charset="UTF-8">
-<title>종합역량평가 — ${stu.name}</title>
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-size:10.5pt; color:#1e293b; padding:14mm 16mm; line-height:1.6; }
-  .print-header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid ${mainColor}; padding-bottom:10px; margin-bottom:16px; }
-  .print-title  { font-size:16pt; font-weight:900; color:#1e293b; display:flex; align-items:center; gap:8px; }
-  .print-meta   { font-size:9pt; color:#64748b; text-align:right; line-height:1.9; }
-  .score-row    { display:flex; align-items:center; gap:16px; background:${BGC[overallGrade]||'#f8fafc'}; border:1.5px solid ${mainColor}44; border-radius:10px; padding:12px 18px; margin-bottom:16px; }
-  .score-big    { font-size:40pt; font-weight:900; color:${mainColor}; line-height:1; letter-spacing:-2px; }
-  .score-info   { flex:1; }
-  .score-grade  { font-size:13pt; font-weight:800; color:${mainColor}; }
-  .score-sub    { font-size:9.5pt; color:#64748b; margin-top:2px; }
-  .grp-grid     { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
-  .section-header { font-size:11pt; font-weight:800; color:#1e293b; border-bottom:1.5px solid #e2e8f0; padding-bottom:5px; margin:14px 0 10px; }
-  .opinion-label  { font-size:10pt; font-weight:700; color:#6366f1; margin-bottom:5px; }
-  .print-footer   { border-top:1px solid #e2e8f0; margin-top:16px; padding-top:8px; font-size:8.5pt; color:#94a3b8; display:flex; justify-content:space-between; }
-  @page { size:A4; margin:0; }
-  @media print { body { padding:12mm 14mm; } }
-</style>
-</head><body>
-  <div class="print-header">
-    <div>
-      <div class="print-title">🏆 종합역량평가</div>
-      <div style="font-size:10.5pt;color:#334155;margin-top:3px;">
-        <b>${stu.name}</b> &nbsp;|&nbsp; ${gradeLabel}
-      </div>
-    </div>
-    <div class="print-meta">
-      ${gradeAvgHtml}<br>
-      평가일: ${date}<br>
-      오상고 상담카드 시스템
-    </div>
-  </div>
+  // 종합역량평가 반영 (최대 ±8점, 종합전형)
+  if(compScore !== null && (type==='종합'||type==='종합+교과')){
+    if(compScore >= 80)      score += 8;
+    else if(compScore >= 60) score += 3;
+    else if(compScore <= 40) score -= 5;
+  }
 
-  <!-- 종합 점수 -->
-  <div class="score-row">
-    <div class="score-big">${total}</div>
-    <div style="font-size:10pt;color:#94a3b8;margin-right:8px;">/ 100</div>
-    <div class="score-info">
-      <div class="score-grade">${overallGrade}등급 수준</div>
-      <div class="score-sub">학업·진로·공동체 3영역 평균 환산 점수</div>
-    </div>
-  </div>
-
-  <!-- 3영역 카드 -->
-  <div class="section-header">📊 3영역 역량 평가</div>
-  <div class="grp-grid">${grpCardsHtml}</div>
-
-  <!-- 종합의견 -->
-  ${eval_.종합의견 ? `<div class="section-header">💬 종합의견</div>${opinionHtml}` : ''}
-
-  <!-- 강점/보완점 -->
-  ${swotHtml}
-
-  <div class="print-footer">
-    <span>오상고 상담카드 시스템 2026</span>
-    <span>본 평가는 AI 분석 기반 참고 자료입니다.</span>
-  </div>
-  <script>window.onload=()=>{ setTimeout(()=>window.print(), 400); }<\/script>
-</body></html>`);
-  win.document.close();
+  score = Math.max(5, Math.min(95, Math.round(score)));
+  const grade = score >= 72 ? '상' : score >= 48 ? '중' : '하';
+  const summaries = {
+    '상': '합격 가능성 높음 — 적극 지원 권장',
+    '중': '합격 가능권 — 전략적 접근 필요',
+    '하': '도전적 지원 — 보완 후 재검토 권장'
+  };
+  return { score, grade, summary: summaries[grade] };
 }
+
+function buildComments({stuAvg, cutoff, type, alumniResult, majorScore, majorEntry,
+  compScore, compEval, suneungResult, grade, studentIs9, univ, dept, note}){
+
+  const GC_GRADE = {S:'#6366f1',A:'#10b981',B:'#06b6d4',C:'#f59e0b',D:'#ef4444'};
+  const 근거들  = majorEntry ? (Array.isArray(majorEntry[1]?.핵심근거) ? majorEntry[1].핵심근거 : []) : [];
+  const 약점들  = majorEntry ? (Array.isArray(majorEntry[1]?.약점)    ? majorEntry[1].약점    : []) : [];
+
+  // 강점
+  const strengths = [];
+  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg >= 0)
+    strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 50컷(${cutoff.cut50.toFixed(2)}) ${(cutoff.cut50-stuAvg).toFixed(2)}등급 여유`);
+  if(근거들.length) strengths.push(...근거들.slice(0,2));
+  if(alumniResult.passAvg && stuAvg && stuAvg <= alumniResult.passAvg)
+    strengths.push(`우리학교 합격자 내신평균(${alumniResult.passAvg.toFixed(2)}) 대비 우위`);
+  if(compEval?.공동체역량?.grade && ['S','A'].includes(compEval.공동체역량.grade))
+    strengths.push(`공동체역량 ${compEval.공동체역량.grade}등급 — 종합전형 서류 강점`);
+  if(!strengths.length) strengths.push('개인별 비교과 분석 데이터를 추가하면 더 정확한 강점 파악 가능');
+
+  // 보완점
+  const weaknesses = [];
+  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0)
+    weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 50컷(${cutoff.cut50.toFixed(2)})보다 ${(stuAvg-cutoff.cut50).toFixed(2)}등급 부족`);
+  if(약점들.length) weaknesses.push(...약점들.slice(0,2));
+  if(suneungResult.status === '확인필요')
+    weaknesses.push(suneungResult.reason);
+  if(!weaknesses.length) weaknesses.push('현재 데이터 기준 주요 보완점 없음 — 지속적 관리 권장');
+
+  // 전형 분석
+  let typeAnalysis = '';
+  if(type === '교과'){
+    const avg = stuAvg ? stuAvg.toFixed(2) : '-';
+    const c50  = cutoff?.cut50 ? cutoff.cut50.toFixed(2) : '-';
+    const c70  = cutoff?.cut70 ? cutoff.cut70.toFixed(2) : '-';
+    typeAnalysis = `교과전형 — 내신 ${avg}등급 기준. 3개년 50컷 평균 ${c50}등급, 70컷 ${c70}등급. `;
+    typeAnalysis += (alumniResult.pass.length > 0)
+      ? `우리학교 선배 합격 ${alumniResult.pass.length}건(내신평균 ${alumniResult.passAvg?.toFixed(2)||'-'}등급), 불합격 ${alumniResult.fail.length}건.`
+      : '선배 합불 이력 데이터 없음.';
+  } else if(type === '종합'){
+    const compG = compEval ? `종합역량 ${compScore}점` : '종합역량 데이터 없음';
+    const majG  = majorEntry ? `전공적합성 ${majorEntry[1]?.전공적합성}등급` : '비교과 분석 없음';
+    typeAnalysis = `학생부종합 — 서류 중심 평가. ${compG}, ${majG}. `;
+    typeAnalysis += (alumniResult.total > 0)
+      ? `선배 지원 ${alumniResult.total}건 중 합격 ${alumniResult.pass.length}건.`
+      : '선배 합불 이력 없음 — 추가 조사 권장.';
+  } else if(type === '논술'){
+    typeAnalysis = `논술전형 — 논술 성적이 합격에 결정적. 내신 비중 낮음(20~30%). `;
+    typeAnalysis += cutoff?.cut50 ? `내신 커트라인 ${cutoff.cut50.toFixed(2)}등급 참고.` : '';
+  } else {
+    typeAnalysis = `${type} 전형 분석 — `;
+    typeAnalysis += cutoff?.cut50 ? `3개년 평균 50컷 ${cutoff.cut50.toFixed(2)}등급.` : '입결 데이터 없음.';
+  }
+
+  // 추천 전략
+  const strategy = [];
+  if(type==='종합'||type==='종합+교과'){
+    if(!majorEntry) strategy.push(`"비교과 종합 분석"에서 ${dept} 세특 분석 먼저 생성하면 더 정확한 평가 가능`);
+    else strategy.push(`비교과 분석 ${majorEntry[0]} 기반으로 자기소개서/면접 준비`);
+  }
+  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg >= 0.3)
+    strategy.push('내신 여유 있음 — 추가 탐구활동·수상으로 서류 강화 권장');
+  else if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0)
+    strategy.push('내신 부족분을 세특 전공적합성·창체 활동으로 보완 집중');
+  if(alumniResult.total >= 5)
+    strategy.push(`우리학교 선배 ${alumniResult.total}명 지원 경험 — 담임 선생님께 사례 상담 요청`);
+  if(!strategy.length) strategy.push('추가 희망학과 분석을 통해 전략 구체화 권장');
+
+  // 주의사항
+  let caution = '';
+  if(suneungResult.status==='확인필요') caution += suneungResult.reason + ' / ';
+  caution += cutoff ? '' : `${univ} ${dept} 입결 DB 미수록 — 학교 홈페이지에서 직접 확인 필요. `;
+  if(!alumniResult.total) caution += '선배 합불 데이터 없음 — 본 분석은 입결 기반 추정치임. ';
+  caution += '이 분석은 저장된 데이터 기반 참고용이며, 실제 지원 전 담임 선생님과 최종 상담 필수.';
+
+  return {
+    strengths: strengths.join('\n'),
+    weaknesses: weaknesses.join('\n'),
+    typeAnalysis: typeAnalysis.trim(),
+    strategy: strategy.join('\n'),
+    caution: caution.trim()
+  };
+}
+
+function renderApplyResultHTML(obj, resultEl){
+  const GC  = {'상':'#10b981','중':'#f59e0b','하':'#ef4444'};
+  const BGC = {'상':'#dcfce7','중':'#fef9c3','하':'#fee2e2'};
+  const color = GC[obj.적합도]||'#64748b';
+  const bg    = BGC[obj.적합도]||'#f1f5f9';
+
+  // 데이터 근거 표시
+  const meta = obj._meta || {};
+  const metaHtml = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      ${meta.cutoff ? `<span style="background:#eff6ff;color:#2563eb;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">📊 입결 데이터 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">입결 데이터 없음</span>`}
+      ${meta.alumniResult?.total ? `<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">👥 선배 ${meta.alumniResult.total}명 이력 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">선배 이력 없음</span>`}
+      ${meta.majorScore !== null ? `<span style="background:#fdf4ff;color:#9333ea;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">🧬 비교과 분석 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 8px;border-radius:6px;font-size:11px;">비교과 분석 없음</span>`}
+      <span style="background:#fef9c3;color:#92400e;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">⚡ API-free 즉시 분석</span>
+    </div>`;
+
+  resultEl.innerHTML = `
+    <div class="apply-result-card">
+      <div class="apply-result-head">📊 ${obj.univ} ${obj.dept} — ${obj.type}전형 분석 결과</div>
+      ${metaHtml}
+      <div class="apply-possibility" style="background:${bg};">
+        <div class="apply-possibility-grade" style="color:${color};">${obj.적합도}</div>
+        <div class="apply-possibility-label">
+          <div style="font-weight:700;font-size:15px;color:${color};">${obj.한줄평||''}</div>
+          <div style="margin-top:3px;">적합도 점수: <b style="color:${color};">${obj.적합도점수||'-'}점</b> / 100점</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">수능최저: ${obj.수능최저충족}</div>
+        </div>
+      </div>
+      <div class="apply-section"><div class="apply-section-title">✅ 강점</div><div class="apply-section-body">${escapeHtml(obj.강점||'')}</div></div>
+      <div class="apply-section"><div class="apply-section-title">⚠️ 보완점</div><div class="apply-section-body">${escapeHtml(obj.보완점||'')}</div></div>
+      <div class="apply-section"><div class="apply-section-title">📋 전형 분석</div><div class="apply-section-body">${escapeHtml(obj.전형분석||'')}</div></div>
+      <div class="apply-section"><div class="apply-section-title">💡 추천 전략</div><div class="apply-section-body">${escapeHtml(obj.추천전략||'')}</div></div>
+      <div class="apply-section"><div class="apply-section-title">🔴 주의사항</div><div class="apply-section-body">${escapeHtml(obj.주의사항||'')}</div></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button onclick="printApplyResult()" style="padding:7px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;">🖨️ 인쇄</button>
+      </div>
+    </div>`;
+}
+
+async function saveApplyHistoryItem(hak, univ, dept, type, result){
+  const histItem = {
+    id: result.id,
+    univ, dept, type,
+    result: result,
+    date: new Date().toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) + ' ' +
+          new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
+  };
+  applyHistory[hak] = applyHistory[hak] || [];
+  applyHistory[hak].push(histItem);
+  // DB 저장
+  try {
+    const current = evalData[hak] || {};
+    current.모의지원이력 = current.모의지원이력 || [];
+    current.모의지원이력.push(histItem);
+    if(current.모의지원이력.length > 50) current.모의지원이력 = current.모의지원이력.slice(-50);
+    evalData[hak] = current;
+    await fetch(API_URL, {
+      method:'POST',
+      body:JSON.stringify({action:'saveEval', password:currentPassword, hak, evalData:{모의지원이력:current.모의지원이력}})
+    });
+  } catch(e){ console.warn('이력 DB 저장 실패:', e.message); }
+}
+
+// 횟수 관리는 기존 함수 사용 (API-free는 횟수 제한 없음)
+
 
 function showApplyHistory(idx){
   const hak = String(currentStu.hak);
