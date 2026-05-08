@@ -2641,62 +2641,122 @@ function calcCompScore(compEval){
 }
 
 function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult, admCases}){
-  let score = 50; // 기본 50점
+  let score = 50;
 
-  // 내신 vs 커트라인 (최대 ±30점) — cutoff 우선, 없으면 gbCutoff(admCases 유도)
+  const is종합 = type==='종합' || type==='종합+교과';
+  const is교과 = type==='교과';
+  const is논술 = type==='논술';
+
+  // 전국 합격자 데이터 전처리
+  const gbPassGrades = (admCases?.gb||[])
+    .filter(r=>{ const v=String(r.최종결과||''); return v.includes('합격')||v.includes('충원'); })
+    .map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0).sort((a,b)=>a-b);
+  const gbPassMax = gbPassGrades.length ? gbPassGrades[gbPassGrades.length-1] : null;
+  const gbPassMedian = gbPassGrades.length ? gbPassGrades[Math.floor(gbPassGrades.length*0.5)] : null;
+
+  // ── ① 내신 vs 커트라인 ──────────────────────────────
   if(stuAvg && cutoff?.cut50){
-    const diff = cutoff.cut50 - stuAvg;
-    if(diff >= 0.5)      { score += 25; }
-    else if(diff >= 0)   { score += 12; }
-    else if(diff >= -0.3){ score -= 5;  }
-    else if(diff >= -0.7){ score -= 18; }
-    else                 { score -= 28; }
-  } else if(stuAvg && cutoff?.cut70){
-    const diff = cutoff.cut70 - stuAvg;
-    if(diff >= 0)         { score += 10; }
-    else if(diff >= -0.5) { score -= 8;  }
-    else                  { score -= 20; }
+    const diff = cutoff.cut50 - stuAvg; // 양수 = 학생이 커트보다 좋음
+
+    if(is교과){
+      // 교과전형: 내신이 사실상 전부 (±30점)
+      if(diff >= 0.5)       score += 28;
+      else if(diff >= 0.1)  score += 15;
+      else if(diff >= -0.1) score += 5;
+      else if(diff >= -0.5) score -= 15;
+      else if(diff >= -1.0) score -= 25;
+      else                  score -= 35;
+
+    } else if(is종합){
+      // 종합전형: 내신은 참고용, 범위 여부가 핵심 (±20점)
+      if(diff >= 0.5)       score += 18;
+      else if(diff >= 0)    score += 10;
+      else if(diff >= -0.5) score -= 5;
+      else if(diff >= -1.0) score -= 10;
+      else if(diff >= -1.5) score -= 15;
+      else                  score -= 20;
+
+    } else if(is논술){
+      // 논술: 내신 영향 매우 작음 (±10점)
+      if(diff >= 0)   score += 8;
+      else if(diff >= -1.0) score -= 5;
+      else                  score -= 10;
+    } else {
+      // 기타
+      if(diff >= 0.5)  score += 15;
+      else if(diff >= 0) score += 5;
+      else if(diff >= -0.5) score -= 10;
+      else               score -= 20;
+    }
   }
 
-  // 선배 합불 (최대 ±15점) — alumniKb (우리학교) 우선
+  // ── ② 합격자 범위 내 여부 (전국 데이터) ─────────────
+  // 종합전형에서 특히 중요 — 합격자 최고등급보다 낮으면 가능성 있음
+  if(stuAvg && gbPassMax){
+    if(is종합){
+      if(stuAvg <= gbPassMedian)          score += 12; // 합격자 중간 이하 — 유리
+      else if(stuAvg <= gbPassMax)         score += 6;  // 합격자 범위 내 — 가능
+      else if(stuAvg <= gbPassMax + 0.3)   score += 0;  // 범위 아슬
+      else                                score -= 8;  // 범위 밖
+    } else if(is교과){
+      if(stuAvg <= gbPassMedian)           score += 8;
+      else if(stuAvg <= gbPassMax)         score += 3;
+      else                                score -= 8;
+    } else if(is논술){
+      if(stuAvg <= gbPassMax)              score += 5;
+    }
+  }
+
+  // ── ③ 우리학교 선배 합불 ─────────────────────────────
   if(alumniResult.total >= 3){
     const passRate = alumniResult.pass.length / alumniResult.total;
-    if(passRate >= 0.7)      { score += 12; }
-    else if(passRate >= 0.4) { score += 5;  }
-    else if(passRate <= 0.2) { score -= 10; }
+    if(passRate >= 0.7)      score += 10;
+    else if(passRate >= 0.4) score += 4;
+    else if(passRate <= 0.2) score -= 8;
     if(stuAvg && alumniResult.passAvg){
-      if(stuAvg <= alumniResult.passAvg + 0.3)  { score += 8;  }
-      else if(stuAvg > alumniResult.passAvg + 0.8) { score -= 10; }
-    }
-  } else if(admCases?.gb?.length >= 5){
-    // 전국 데이터 보조 활용
-    const passGrades = admCases.gb
-      .filter(r=>{ const res=String(r.최종결과||''); return res.includes('합격')||res.includes('충원'); })
-      .map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0).sort((a,b)=>a-b);
-    if(passGrades.length && stuAvg){
-      const median = passGrades[Math.floor(passGrades.length*0.5)];
-      if(stuAvg <= median)        { score += 8; }
-      else if(stuAvg <= median+0.5){ score += 3; }
-      else if(stuAvg > median+1)   { score -= 10; }
+      if(stuAvg <= alumniResult.passAvg + 0.3)    score += 6;
+      else if(stuAvg > alumniResult.passAvg + 0.8) score -= 8;
     }
   }
 
-  // 비교과 전공적합성 (최대 ±10점, 종합전형에서만)
-  if(majorScore !== null && (type==='종합'||type==='종합+교과')){
-    if(majorScore >= 83)      score += 10;
-    else if(majorScore >= 66) score += 5;
-    else if(majorScore <= 33) score -= 8;
+  // ── ④ 비교과 전공적합성 ───────────────────────────────
+  // 종합전형에서 핵심 평가 요소 (±15점)
+  // 교과전형에서도 세특 반영하는 경우 있으므로 ±5점 반영
+  if(majorScore !== null){
+    if(is종합){
+      if(majorScore >= 100)     score += 15; // S
+      else if(majorScore >= 83) score += 12; // A
+      else if(majorScore >= 66) score += 6;  // B
+      else if(majorScore >= 50) score -= 3;  // C
+      else                      score -= 10; // D
+    } else if(is교과){
+      if(majorScore >= 83) score += 5;
+      else if(majorScore <= 33) score -= 3;
+    } else if(is논술){
+      if(majorScore >= 83) score += 8;
+      else if(majorScore >= 66) score += 3;
+    }
   }
 
-  // 종합역량평가 반영 (최대 ±8점, 종합전형)
-  if(compScore !== null && (type==='종합'||type==='종합+교과')){
-    if(compScore >= 80)      score += 8;
-    else if(compScore >= 60) score += 3;
+  // ── ⑤ 종합역량평가 ───────────────────────────────────
+  // 종합전형에서 서류 강점 반영 (±10점)
+  if(compScore !== null && is종합){
+    if(compScore >= 80)      score += 10;
+    else if(compScore >= 66) score += 5;
+    else if(compScore >= 50) score += 1;
     else if(compScore <= 40) score -= 5;
   }
 
+  // ── ⑥ 수능최저 페널티 ────────────────────────────────
+  if(suneungResult?.status === '확인필요') score -= 5;
+
   score = Math.max(5, Math.min(95, Math.round(score)));
-  const grade = score >= 72 ? '상' : score >= 48 ? '중' : '하';
+
+  // 등급 기준 (전형별로 다르게)
+  let 상기준 = 68, 중기준 = 44;
+  if(is종합){ 상기준 = 65; 중기준 = 42; } // 종합은 불확실성 크므로 기준 약간 낮춤
+
+  const grade = score >= 상기준 ? '상' : score >= 중기준 ? '중' : '하';
   const summaries = {
     '상': '합격 가능성 높음 — 적극 지원 권장',
     '중': '합격 가능권 — 전략적 접근 필요',
