@@ -2307,8 +2307,8 @@ function renderMockApplyTab(el){
         return `<div class="apply-hist-item" onclick="showApplyHistoryById('${h.id}')">
           <div class="apply-hist-grade" style="color:${gc}">${h.result?.적합도||'?'}</div>
           <div class="apply-hist-info">
-            <div class="apply-hist-univ">${h.univ} <span style="font-weight:400;color:#64748b;">${h.dept}</span></div>
-            <div class="apply-hist-dept">${h.type}전형 · ${h.result?.한줄평||''}</div>
+            <div class="apply-hist-univ">${h.univ||h.result?.univ||'?'} <span style="font-weight:400;color:#64748b;">${h.dept||h.result?.dept||''}</span></div>
+            <div class="apply-hist-dept">${h.type||h.result?.type||''}전형 · ${h.result?.한줄평||''}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
             <span class="apply-hist-date">${h.date}</span>
@@ -2747,10 +2747,12 @@ function renderApplyResultHTML(obj, resultEl){
 }
 
 async function saveApplyHistoryItem(hak, univ, dept, type, result){
+  // _meta는 저장 제외 (크기 절약, 재계산 가능)
+  const { _meta, ...resultToSave } = result;
   const histItem = {
     id: result.id,
     univ, dept, type,
-    result: result,
+    result: resultToSave,
     date: new Date().toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) + ' ' +
           new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
   };
@@ -2790,9 +2792,9 @@ function showApplyHistoryById(id){
 }
 
 function showApplyResult(h){
-  document.getElementById('applyUniv').value = h.univ;
-  document.getElementById('applyDept').value = h.dept;
-  document.getElementById('applyType').value = h.type;
+  document.getElementById('applyUniv').value = h.univ || h.result?.univ || '';
+  document.getElementById('applyDept').value = h.dept || h.result?.dept || '';
+  document.getElementById('applyType').value = h.type || h.result?.type || '종합';
   const GC = {'상':'#10b981','중':'#f59e0b','하':'#ef4444'};
   const BGC = {'상':'#dcfce7','중':'#fef9c3','하':'#fee2e2'};
   const obj = h.result; const color = GC[obj.적합도]||'#64748b'; const bg = BGC[obj.적합도]||'#f1f5f9';
