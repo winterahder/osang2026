@@ -384,9 +384,9 @@
   }
 
   /* 모의지원 탭 */
-  .apply-wrap { padding: 20px; max-width: 900px; }
-  .apply-form-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  .apply-form-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .apply-wrap { padding: 20px; max-width: 960px; }
+  .apply-form-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 22px; margin-bottom: 14px; }
+  .apply-form-title { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
   .apply-input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
   .apply-input-group { display: flex; flex-direction: column; gap: 4px; }
   .apply-input-group label { font-size: 12px; font-weight: 600; color: #64748b; }
@@ -396,6 +396,8 @@
   .apply-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .2s; margin-top: 6px; }
   .apply-btn:hover { opacity: .88; }
   .apply-btn:disabled { opacity: .45; cursor: not-allowed; }
+  /* 희망학과 카드 그리드 */
+  .major-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
   .apply-result-card { background: #fff; border: 1.5px solid #6366f1; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
   .apply-result-head { font-size: 14px; font-weight: 700; color: #6366f1; margin-bottom: 12px; }
   .apply-possibility { display: flex; align-items: center; gap: 14px; padding: 14px; background: #f5f3ff; border-radius: 10px; margin-bottom: 14px; }
@@ -1125,7 +1127,10 @@ function renderMain(){
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
   const isStudent = currentRole && currentRole.startsWith('student_');
-  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','수상','독서','종합역량평가','모의지원'];
+  const tabs = ['기본정보','모의고사','내신','세특','창체','행발',
+    // 3학년은 수상·독서 대입 미반영 → 탭 숨김
+    ...(isStudent9Grade(currentStu) ? [] : ['수상','독서']),
+    '종합역량평가','모의지원'];
 
   if(isMobile()){
     // ===== 모바일 레이아웃 =====
@@ -1186,6 +1191,7 @@ function renderTab(){
   else if(currentTab==='세특') renderSewtuk(el);
   else if(currentTab==='창체') renderChangche(el);
   else if(currentTab==='행발') renderHaengbal(el);
+  else if(currentTab==='독서') renderBookTab(el);
   else if(currentTab==='종합역량평가') renderCompEvalTab(el);
   else if(currentTab==='모의지원') renderMockApplyTab(el);
   else el.innerHTML = `<div class="placeholder">${currentTab} 탭 (준비중)</div>`;
@@ -2201,40 +2207,29 @@ function renderMockApplyTab(el){
       </div>
       ${majorList.length === 0
         ? `<div style="color:#94a3b8;font-size:13px;padding:10px 0;">아직 분석된 희망학과가 없습니다. 위 버튼으로 세특 기반 학과 적합성을 분석해보세요.</div>`
-        : `<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+        : `<div class="major-card-grid">
             ${majorList.map(([dept, d]) => {
               const grColor = GC_M[d.전공적합성]||'#94a3b8';
               const 근거들 = Array.isArray(d.핵심근거) ? d.핵심근거 : [];
               const 약점들 = Array.isArray(d.약점) ? d.약점 : [];
-              const 추천들 = Array.isArray(d.추천활동) ? d.추천활동 : [];
               return `
-              <div style="background:#fafbff;border:1.5px solid #e8edf5;border-radius:12px;padding:14px 16px;">
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                  <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                      <span style="font-size:14px;font-weight:800;color:#1e293b;">${escapeHtml(dept)}</span>
-                      <span style="font-size:11px;color:#94a3b8;">${d.분석일||''}</span>
-                    </div>
-                    <div style="font-size:12.5px;color:#475569;margin-bottom:8px;">${escapeHtml(d.한줄평||'')}</div>
-                    ${근거들.length ? `
-                      <div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:3px;">✅ 핵심 근거</div>
-                      <div style="font-size:11.5px;color:#374151;margin-bottom:6px;">${근거들.map(g=>`• ${escapeHtml(String(g))}`).join('<br>')}</div>
-                    ` : ''}
-                    ${약점들.length ? `
-                      <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:3px;">⚠️ 약점</div>
-                      <div style="font-size:11.5px;color:#374151;margin-bottom:6px;">${약점들.map(w=>`• ${escapeHtml(String(w))}`).join('<br>')}</div>
-                    ` : ''}
-                    ${추천들.length ? `
-                      <div style="font-size:11px;font-weight:700;color:#6366f1;margin-bottom:3px;">💡 추천 활동</div>
-                      <div style="font-size:11.5px;color:#374151;">${추천들.map(a=>`• ${escapeHtml(String(a))}`).join('<br>')}</div>
-                    ` : ''}
+              <div style="background:#fafbff;border:1.5px solid #e8edf5;border-radius:12px;padding:14px 16px;position:relative;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#1e293b;">${escapeHtml(dept)}</div>
+                    <div style="font-size:11px;color:#94a3b8;">${d.분석일||''}</div>
                   </div>
                   <div style="text-align:center;flex-shrink:0;">
-                    <div style="font-size:32px;font-weight:900;color:${grColor};line-height:1;">${d.전공적합성||'?'}</div>
-                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전공적합</div>
-                    <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')" style="margin-top:8px;padding:3px 8px;background:#fee2e2;border:none;border-radius:5px;font-size:11px;color:#dc2626;cursor:pointer;">삭제</button>
+                    <div style="font-size:30px;font-weight:900;color:${grColor};line-height:1;">${d.전공적합성||'?'}</div>
+                    <div style="font-size:9px;color:#94a3b8;">전공적합</div>
                   </div>
                 </div>
+                <div style="font-size:12px;color:#475569;margin-bottom:8px;font-style:italic;">"${escapeHtml(d.한줄평||'')}"</div>
+                ${근거들.length ? `<div style="font-size:11px;color:#10b981;font-weight:700;margin-bottom:3px;">✅ 강점</div>
+                  <div style="font-size:11px;color:#374151;margin-bottom:6px;line-height:1.6;">${근거들.slice(0,2).map(g=>`• ${escapeHtml(String(g))}`).join('<br>')}</div>` : ''}
+                ${약점들.length ? `<div style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:3px;">⚠️ 약점</div>
+                  <div style="font-size:11px;color:#374151;margin-bottom:8px;line-height:1.6;">${약점들.slice(0,2).map(w=>`• ${escapeHtml(String(w))}`).join('<br>')}</div>` : ''}
+                <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')" style="position:absolute;bottom:10px;right:10px;padding:3px 8px;background:#fee2e2;border:none;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;">삭제</button>
               </div>`;
             }).join('')}
           </div>`
@@ -3273,14 +3268,69 @@ async function deleteMajorAnalysis(dept){
 
 
 
-// ========== 종합역량평가 탭 ==========
+// ========== 독서 탭 (1·2학년 전용 — 세특에서 독서역량 파악) ==========
+function renderBookTab(el){
+  const hak = String(currentStu.hak);
+  const stuData = sewtuk[hak]
+    || (currentStu.g2_hak ? sewtuk[String(currentStu.g2_hak)] : null)
+    || (currentStu.g1_hak ? sewtuk[String(currentStu.g1_hak)] : null);
+
+  // 세특에서 독서·책 관련 키워드 추출
+  const bookKeywords = ['도서','책','읽','독서','저자','출판','논문','학술지','저서','문헌','자료집','잡지'];
+  const mentions = [];
+  if(stuData?.subjects){
+    stuData.subjects.forEach(s=>{
+      const texts = [s.원문||'', ...(Array.isArray(s.요약)?s.요약:[String(s.요약||'')])].join(' ');
+      const hits = bookKeywords.filter(k=>texts.includes(k));
+      if(hits.length){
+        const snippet = texts.replace(/\n/g,' ').substring(0,120);
+        mentions.push({ 교과: s.교과||'', 과목: s.과목||'', snippet });
+      }
+    });
+  }
+
+  el.innerHTML = `<div class="card" style="padding:16px;">
+    <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;gap:12px;align-items:flex-start;">
+      <span style="font-size:20px;flex-shrink:0;">📌</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px;">독서활동 안내 (1·2학년)</div>
+        <div style="font-size:12.5px;color:#78350f;line-height:1.7;">
+          2024학년도부터 <b>독서활동상황은 대입에 미반영</b>됩니다.<br>
+          대신 세특에 책 제목·저자·독서 내용을 녹여 작성해야 독서역량이 평가됩니다.<br>
+          아래는 세특에서 확인된 독서 관련 언급이에요.
+        </div>
+      </div>
+    </div>
+    ${mentions.length ? `
+      <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px;">📚 세특에서 확인된 독서 관련 활동 (${mentions.length}건)</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${mentions.map(m=>`
+          <div style="background:#f8fafc;border:1px solid #e8edf5;border-radius:10px;padding:12px 14px;">
+            <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:4px;">${escapeHtml(m.교과)} — ${escapeHtml(m.과목)}</div>
+            <div style="font-size:12px;color:#475569;line-height:1.7;">${escapeHtml(m.snippet)}…</div>
+          </div>`).join('')}
+      </div>` : `
+      <div style="color:#94a3b8;text-align:center;padding:30px;font-size:13px;">
+        세특에서 독서 관련 언급을 찾지 못했습니다.<br>
+        <span style="font-size:12px;">세특에 도서명·저자를 명시하면 독서역량으로 평가받을 수 있습니다.</span>
+      </div>`}
+  </div>`;
+}
+
+
 function renderCompEvalTab(el){
   const hak = String(currentStu.hak);
-  let data = sewtuk[hak];
-  if(!data && currentStu.g2_hak) data = sewtuk[String(currentStu.g2_hak)];
-  if(!data && currentStu.g1_hak) data = sewtuk[String(currentStu.g1_hak)];
+  const g2hak = currentStu.g2_hak ? String(currentStu.g2_hak) : null;
+  const g1hak = currentStu.g1_hak ? String(currentStu.g1_hak) : null;
 
-  const eval_ = evalData[hak]?.종합역량평가 || data?.종합역량평가 || null;
+  // evalData는 현재 학번 우선, 없으면 이전 학년 학번에서도 확인
+  const eval_ = evalData[hak]?.종합역량평가
+    || (g2hak ? evalData[g2hak]?.종합역량평가 : null)
+    || (g1hak ? evalData[g1hak]?.종합역량평가 : null)
+    // sewtuk에도 저장되는 구버전 호환
+    || sewtuk[hak]?.종합역량평가
+    || (g2hak ? sewtuk[g2hak]?.종합역량평가 : null)
+    || null;
 
   if(!eval_){
     el.innerHTML = `<div class="no-data">📋 종합 역량 평가 데이터가 없습니다<br>
