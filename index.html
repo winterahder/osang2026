@@ -2254,34 +2254,82 @@ function renderMockApplyTab(el){
   const majorList = Object.entries(majorData);
   const GC_M = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
 
+  // ── 아코디언형 학과분석 카드 ──
+  const GG = {S:'#7c3aed',A:'#047857',B:'#0369a1',C:'#d97706',D:'#dc2626'};
   const majorCardsHtml = majorList.length === 0
-    ? `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">
+    ? `<div style="text-align:center;padding:28px 20px;color:#94a3b8;font-size:13px;line-height:1.8;">
         아직 분석된 희망학과가 없습니다.<br>
-        <span style="font-size:12px;">오른쪽 + 버튼으로 세특·창체·행발 기반 분석을 시작해보세요.</span>
+        <span style="font-size:12px;">오른쪽 <b style="color:#7c3aed;">+ 학과 추가</b> 버튼으로 세특·창체·행발 기반 분석을 시작해보세요.</span>
       </div>`
-    : `<div class="major-card-grid">
-        ${majorList.map(([dept,d])=>{
-          const gc = GC_M[d.전공적합성]||'#94a3b8';
+    : `<div style="display:flex;flex-direction:column;gap:8px;">
+        ${majorList.map(([dept,d], idx)=>{
+          const gc = GG[d.전공적합성]||'#94a3b8';
+          const gbg = {S:'#ede9fe',A:'#d1fae5',B:'#dbeafe',C:'#fef9c3',D:'#fee2e2'}[d.전공적합성]||'#f1f5f9';
           const 근거들 = Array.isArray(d.핵심근거)?d.핵심근거:[];
           const 약점들 = Array.isArray(d.약점)?d.약점:[];
-          return `<div class="major-card">
-            <div class="major-card-top">
-              <div>
-                <div style="font-size:13px;font-weight:800;color:#1e293b;">${escapeHtml(dept)}</div>
-                <div style="font-size:11px;color:#94a3b8;">${d.분석일||''}</div>
+          const 추천들 = Array.isArray(d.추천활동)?d.추천활동:[];
+          const 교과들 = Array.isArray(d.관련교과)?d.관련교과:[];
+          const 키워드들 = Array.isArray(d.면접키워드)?d.면접키워드:[];
+          const uid = 'maj_'+idx+'_'+Date.now();
+          return `
+          <div style="border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff;">
+            <!-- 헤더 (항상 표시) -->
+            <div onclick="toggleMajorCard('${uid}')"
+              style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;background:#fff;transition:background 0.15s;"
+              onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+              <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+                <div style="background:${gbg};width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <span style="font-size:18px;font-weight:900;color:${gc};">${d.전공적합성||'?'}</span>
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:14px;font-weight:800;color:#0f172a;">${escapeHtml(dept)}</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${d.분석일||''} · 클릭해서 상세보기</div>
+                </div>
               </div>
-              <div style="text-align:right;">
-                <div class="major-card-grade" style="color:${gc}">${d.전공적합성||'?'}</div>
-                <div style="font-size:9px;color:#94a3b8;">전공적합</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <span style="font-size:11px;color:${gc};font-weight:700;background:${gbg};padding:3px 8px;border-radius:20px;">${d.전공적합성||'?'}등급</span>
+                <span id="${uid}_arrow" style="color:#94a3b8;font-size:12px;transition:transform 0.2s;">▼</span>
               </div>
             </div>
-            <div style="font-size:12px;color:#475569;font-style:italic;margin-bottom:8px;">"${escapeHtml(d.한줄평||'')}"</div>
-            ${근거들.length?`<div style="font-size:11px;color:#10b981;font-weight:700;margin-bottom:3px;">✅ 강점</div>
-              <div style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:6px;">${근거들.slice(0,2).map(g=>`• ${escapeHtml(String(g))}`).join('<br>')}</div>`:''}
-            ${약점들.length?`<div style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:3px;">⚠️ 약점</div>
-              <div style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:22px;">${약점들.slice(0,2).map(w=>`• ${escapeHtml(String(w))}`).join('<br>')}</div>`:''}
-            <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')"
-              style="position:absolute;bottom:10px;right:10px;padding:3px 8px;background:#fee2e2;border:none;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;">삭제</button>
+            <!-- 펼쳐지는 상세 내용 -->
+            <div id="${uid}" style="display:none;border-top:1px solid #f1f5f9;">
+              <!-- 한줄평 + 종합의견 -->
+              <div style="padding:14px 16px 10px;background:#fafafa;">
+                <div style="font-size:13px;font-style:italic;color:#475569;margin-bottom:6px;">"${escapeHtml(d.한줄평||'')}"</div>
+                ${d.종합의견?`<div style="font-size:12.5px;color:#334155;line-height:1.7;padding:8px 12px;background:#fff;border-radius:8px;border-left:3px solid ${gc};">${escapeHtml(d.종합의견)}</div>`:''}
+              </div>
+              <!-- 강점 -->
+              ${근거들.length?`<div style="padding:10px 16px;border-top:1px solid #f1f5f9;">
+                <div style="font-size:11px;font-weight:800;color:#047857;margin-bottom:6px;letter-spacing:0.3px;">✅ 강점 근거</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  ${근거들.map(g=>`<div style="display:flex;gap:7px;align-items:flex-start;"><span style="color:#10b981;flex-shrink:0;margin-top:2px;">•</span><span style="font-size:12px;color:#1e293b;line-height:1.6;">${escapeHtml(String(g))}</span></div>`).join('')}
+                </div>
+              </div>`:''}
+              <!-- 약점 -->
+              ${약점들.length?`<div style="padding:10px 16px;border-top:1px solid #f1f5f9;">
+                <div style="font-size:11px;font-weight:800;color:#d97706;margin-bottom:6px;letter-spacing:0.3px;">⚠️ 보완 필요</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  ${약점들.map(w=>`<div style="display:flex;gap:7px;align-items:flex-start;"><span style="color:#f59e0b;flex-shrink:0;margin-top:2px;">•</span><span style="font-size:12px;color:#1e293b;line-height:1.6;">${escapeHtml(String(w))}</span></div>`).join('')}
+                </div>
+              </div>`:''}
+              <!-- 추천활동 -->
+              ${추천들.length?`<div style="padding:10px 16px;border-top:1px solid #f1f5f9;">
+                <div style="font-size:11px;font-weight:800;color:#2563eb;margin-bottom:6px;letter-spacing:0.3px;">💡 추천 활동</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  ${추천들.map((a,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;"><span style="background:#2563eb;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;margin-top:2px;">${i+1}</span><span style="font-size:12px;color:#1e293b;line-height:1.6;">${escapeHtml(String(a))}</span></div>`).join('')}
+                </div>
+              </div>`:''}
+              <!-- 관련교과 + 면접키워드 -->
+              ${(교과들.length||키워드들.length)?`<div style="padding:10px 16px;border-top:1px solid #f1f5f9;display:flex;gap:16px;flex-wrap:wrap;">
+                ${교과들.length?`<div><div style="font-size:11px;font-weight:800;color:#475569;margin-bottom:5px;">📚 관련 교과</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${교과들.map(e=>`<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:20px;font-size:11px;">${escapeHtml(String(e))}</span>`).join('')}</div></div>`:''}
+                ${키워드들.length?`<div><div style="font-size:11px;font-weight:800;color:#7c3aed;margin-bottom:5px;">🎤 면접 키워드</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${키워드들.map(k=>`<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">${escapeHtml(String(k))}</span>`).join('')}</div></div>`:''}
+              </div>`:''}
+              <!-- 삭제 버튼 -->
+              <div style="padding:8px 16px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
+                <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')"
+                  style="padding:4px 12px;background:#fee2e2;border:none;border-radius:6px;font-size:11px;color:#dc2626;cursor:pointer;font-weight:600;">🗑 삭제</button>
+              </div>
+            </div>
           </div>`;
         }).join('')}
       </div>`;
@@ -3212,25 +3260,39 @@ async function runMajorAnalysis(){
 
   const ccSummary = String(ccData?.종합의견 || ccData?.창체종합평가?.종합의견 || '');
 
-  const prompt = `다음은 고등학생의 학생부 데이터입니다. 이 학생이 "${dept}"에 지원할 때의 전공 적합성을 분석해주세요.
+  // 내신 평균 계산 (프롬프트용)
+  let stuAvgStr = '';
+  const _gd = getStudentGrades(currentStu);
+  if(_gd?.grades){
+    let tc=0, tw=0;
+    Object.values(_gd.grades).forEach(sd=>{
+      (sd.subjects||[]).forEach(s=>{ if(s.등급&&s.학점){ tc+=s.학점; tw+=s.등급*s.학점; } });
+    });
+    if(tc>0) stuAvgStr = (tw/tc).toFixed(2)+'등급';
+  }
+  const _lastMock = (Array.isArray(mock[hak])?mock[hak]:[]).slice(-1)[0];
+  const mockStr = _lastMock
+    ? '국'+(_lastMock.국어?.등급||'?')+'·수'+(_lastMock.수학?.등급||'?')+'·영'+(_lastMock.영어?.등급||'?')
+    : '미확인';
 
-세특 주요 활동:
-${sewtukSummary||'데이터 없음'}
-
-창체 종합:
-${ccSummary.substring(0,300)||'데이터 없음'}
-
-행발 종합:
-${hbSummary||'데이터 없음'}
-
-아래 JSON 형식으로만 응답하세요 (마크다운 없이):
-{
-  "전공적합성": "A",
-  "한줄평": "이 학생을 20자 이내로 요약",
-  "핵심근거": ["근거1 (20자 이내)", "근거2", "근거3"],
-  "약점": ["약점1 (15자 이내)", "약점2"],
-  "추천활동": ["향후 보완할 활동1", "활동2"]
-}`;
+  const prompt = '다음은 고등학생의 학생부 데이터입니다. 이 학생이 "'+dept+'"에 지원할 때의 전공 적합성을 심층 분석해주세요.\n\n'
+    +'[학생 기본 정보]\n'
+    +'- 내신 평균: '+(stuAvgStr||'미확인')+'\n'
+    +'- 최근 모의고사: '+mockStr+'\n\n'
+    +'[세특 주요 활동]\n'+(sewtukSummary||'데이터 없음')+'\n\n'
+    +'[창체 종합]\n'+(ccSummary.substring(0,400)||'데이터 없음')+'\n\n'
+    +'[행발 종합]\n'+(hbSummary||'데이터 없음')+'\n\n'
+    +'아래 JSON 형식으로만 응답하세요 (마크다운 없이). 실제 학생 데이터에 근거해 구체적으로 작성하세요:\n'
+    +'{\n'
+    +'  "전공적합성": "A",\n'
+    +'  "한줄평": "25자 이내 핵심 특징 요약",\n'
+    +'  "종합의견": "'+dept+' 전공 적합성 종합 평가 (70자 이내)",\n'
+    +'  "핵심근거": ["세특·창체 기반 구체적 강점1 (30자 이내)", "강점2", "강점3", "강점4"],\n'
+    +'  "약점": ["보완 필요 약점1 (25자 이내)", "약점2", "약점3"],\n'
+    +'  "추천활동": ["전공 준비 추천 활동1", "추천활동2", "추천활동3"],\n'
+    +'  "관련교과": ["전공 연관 교과목1", "교과목2", "교과목3"],\n'
+    +'  "면접키워드": ["면접 강조 키워드1", "키워드2", "키워드3"]\n'
+    +'}';
 
   try {
     // AI 호출
@@ -4146,6 +4208,15 @@ function renderChangche(el){
       else { openAccordions.add(key); acc.classList.add('open'); }
     };
   });
+}
+
+function toggleMajorCard(uid){
+  const el = document.getElementById(uid);
+  const arrow = document.getElementById(uid+'_arrow');
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
 function escapeHtml(s){
