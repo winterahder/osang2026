@@ -3133,11 +3133,21 @@ async function runMajorAnalysis(){
   let sewtukSummary = '';
   if(stuData?.subjects){
     stuData.subjects.slice(0,10).forEach(s=>{
-      if(s.요약) sewtukSummary += `[${s.교과}] ${s.요약.substring(0,100)}\n`;
+      if(s.요약) {
+        const yoyakStr = Array.isArray(s.요약) ? s.요약.join(' ') : String(s.요약||'');
+        if(yoyakStr.trim()) sewtukSummary += `[${s.교과}] ${yoyakStr.substring(0,100)}\n`;
+      }
     });
   }
-  const ccSummary = ccData?.종합의견 || ccData?.['창체종합평가']?.종합의견 || '';
-  const hbSummary = hbData?.행발종합평가?.종합의견 || '';
+  const ccSummary = String(ccData?.종합의견 || ccData?.['창체종합평가']?.종합의견 || '');
+  const hbSummary = String(hbData?.행발종합평가?.종합의견 || hbData?.행발종합평가 || '');
+
+  // 세특이 없으면 eval 데이터에서 종합의견 활용
+  if(!sewtukSummary){
+    const evData = evalData[hak];
+    const evOpinion = evData?.종합역량평가?.종합의견 || '';
+    if(evOpinion) sewtukSummary = String(evOpinion).substring(0, 400);
+  }
 
   const prompt = `다음은 고등학생의 학생부 데이터입니다. 이 학생이 "${dept}"에 지원할 때의 전공 적합성을 분석해주세요.
 
