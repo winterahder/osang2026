@@ -2505,7 +2505,9 @@ async function computeApplyResult(hak, univ, dept, type, note){
     || sewtuk[hak]?.종합역량평가
     || sewtuk[hak]?.종합평가
     || null;
-  const compScore = compEval ? calcCompScore(compEval) : null;
+  // 대학별 평가 비중 적용 (없으면 40/40/20 기본값)
+  const univWeights = getUnivWeights(univ, type);
+  const compScore = compEval ? calcCompScore(compEval, univWeights) : null;
 
   // ⑦ 세특 종합의견 (buildComments에서 활용)
   const sewtukOverall = sewtuk[hak]?.종합평가?.종합의견
@@ -2526,7 +2528,8 @@ async function computeApplyResult(hak, univ, dept, type, note){
     majorScore, majorEntry,
     compScore, compEval, sewtukOverall,
     suneungResult, grade, studentIs9,
-    univ, dept, note, gradesData, hak
+    univ, dept, note, gradesData, hak,
+    univWeights
   });
 
   return {
@@ -2542,7 +2545,7 @@ async function computeApplyResult(hak, univ, dept, type, note){
     전형분석: comments.typeAnalysis,
     추천전략: comments.strategy,
     주의사항: comments.caution,
-    _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore }
+    _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore, univWeights }
   };
 }
 
@@ -2634,10 +2637,41 @@ function checkSuneung(univ, dept, type, grade){
   return { status:'확인필요', reason:`수능최저 기준: ${suneungText} — 모의고사 성적 확인 필요` };
 }
 
-function calcCompScore(compEval){
-  const GN = {S:100,A:83,B:66,C:50,D:33};
-  const scores = ['학업역량','진로역량','공동체역량'].map(k=>GN[compEval[k]?.grade]||0);
-  return Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+// 대학별 평가 비중 조회 (없으면 기본값 40/40/20)
+function getUnivWeights(univ, type){
+  if(!univ) return { 학업:40, 진로:40, 공동체:20 };
+  const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
+  const uNorm = norm(univ);
+  // 전형 타입 매칭 우선, 없으면 대학명만으로 탐색
+  const entry = kbUniv.find(r=>{
+    const u = norm(r['대학명']||'');
+    const t = String(r['전형유형']||'');
+    const uMatch = u.includes(uNorm) || uNorm.includes(u);
+    const tMatch = !type || t.includes(type) || type.includes(t);
+    return uMatch && tMatch
+      && r['학업비중'] && r['진로비중'] && r['공동체비중'];
+  }) || kbUniv.find(r=>{
+    const u = norm(r['대학명']||'');
+    return (u.includes(uNorm)||uNorm.includes(u))
+      && r['학업비중'] && r['진로비중'] && r['공동체비중'];
+  });
+  if(entry){
+    const 학업 = parseFloat(entry['학업비중']) || 40;
+    const 진로 = parseFloat(entry['진로비중']) || 40;
+    const 공동체 = parseFloat(entry['공동체비중']) || 20;
+    return { 학업, 진로, 공동체, source: entry['대학명'] };
+  }
+  return { 학업:40, 진로:40, 공동체:20 }; // 기본값
+}
+
+function calcCompScore(compEval, weights){
+  const GN = {S:100, A:83, B:66, C:50, D:33};
+  const w = weights || { 학업:40, 진로:40, 공동체:20 };
+  const 학업 = GN[compEval?.['학업역량']?.grade] || 0;
+  const 진로 = GN[compEval?.['진로역량']?.grade] || 0;
+  const 공동체 = GN[compEval?.['공동체역량']?.grade] || 0;
+  const total = (w.학업 + w.진로 + w.공동체) || 100;
+  return Math.round((학업 * w.학업 + 진로 * w.진로 + 공동체 * w.공동체) / total);
 }
 
 function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult, admCases}){
@@ -3057,11 +3091,16 @@ function buildApplyCardHTML(obj, dateStr, isNew){
 
   // 데이터 뱃지
   const gbCount = meta.admCases?.gb?.length || 0;
+  const uw = meta.univWeights || { 학업:40, 진로:40, 공동체:20 };
+  const weightBadge = uw.source
+    ? `<span style="background:#fef3c7;color:#92400e;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">⚖️ 학업${uw.학업}·진로${uw.진로}·공동체${uw.공동체}</span>`
+    : `<span style="background:#f8fafc;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">⚖️ 기본비중 40·40·20</span>`;
   const badges = [
     meta.cutoff    ? `<span style="background:#dbeafe;color:#1e40af;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">📊 입결DB${meta.cutoff.source==='gb'?' 추정':''}</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">입결없음</span>`,
     meta.alumniResult?.total ? `<span style="background:#d1fae5;color:#065f46;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">👥 선배 ${meta.alumniResult.total}명</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">선배없음</span>`,
     gbCount ? `<span style="background:#e0f2fe;color:#0369a1;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">🗂 전국 ${gbCount}건</span>` : '',
     meta.majorScore != null ? `<span style="background:#ede9fe;color:#5b21b6;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">🧬 비교과 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">비교과 없음</span>`,
+    weightBadge,
     `<span style="background:#fef9c3;color:#92400e;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">⚡ API-free</span>`,
   ].filter(Boolean).join(' ');
 
