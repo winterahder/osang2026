@@ -1477,8 +1477,10 @@ function drawGradeChart(data, semesters){
   const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
   const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
 
-  const mainColor = is9 ? '#9333ea' : '#2563eb';
-  const maxG      = is9 ? 9 : 5;
+  const mainColor = is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb');
+  // 3학년(is9=true): 항상 9등급 기준
+  // 1·2학년(is9=false): 9등급 환산 버튼 눌렀을 때만(gradeScale===9) 9등급 기준, 기본은 5등급
+  const maxG = is9 ? 9 : (gradeScale === 9 ? 9 : 5);
 
   // 포인트 위에 등급 수치를 직접 그리는 인라인 플러그인
   const dataLabelPlugin = {
@@ -1537,8 +1539,8 @@ function drawGradeChart(data, semesters){
         legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
         subtitle:{
           display: true,
-          text: is9 ? '9등급제 (3학년)' : '5등급제 (1·2학년) — 9등급 환산 버튼으로 전환 가능',
-          color: is9 ? '#9333ea' : '#2563eb',
+          text: is9 ? '9등급제 (3학년)' : (gradeScale === 9 ? '5등급제 → 9등급 환산 적용 중' : '5등급제 (1·2학년) — 9등급 환산 버튼으로 전환 가능'),
+          color: is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb'),
           font:{ size:11 }, padding:{ bottom:4 }
         },
         tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2)+'등급' : '-'}` } }
