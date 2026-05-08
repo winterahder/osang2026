@@ -2190,6 +2190,7 @@ function renderMockApplyTab(el){
   // 희망학과 세특분석 섹션
   const majorData = evalData[hak]?.희망학과분석 || majorAnalysisCache[hak] || {};
   const majorList = Object.entries(majorData);
+  const GC_M = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
   const majorHtml = `
     <div class="apply-form-card" style="margin-bottom:12px;">
       <div class="apply-form-title" style="display:flex;align-items:center;justify-content:space-between;">
@@ -2198,20 +2199,42 @@ function renderMockApplyTab(el){
       </div>
       ${majorList.length === 0
         ? `<div style="color:#94a3b8;font-size:13px;padding:10px 0;">아직 분석된 희망학과가 없습니다. 위 버튼으로 세특 기반 학과 적합성을 분석해보세요.</div>`
-        : `<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
-            ${majorList.map(([dept, d]) => `
-              <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fafbff;border:1px solid #e8edf5;border-radius:10px;">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:3px;">${escapeHtml(dept)}</div>
-                  <div style="font-size:11px;color:#64748b;">${escapeHtml(d.한줄평||'')}</div>
-                  <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${d.분석일||''}</div>
+        : `<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+            ${majorList.map(([dept, d]) => {
+              const grColor = GC_M[d.전공적합성]||'#94a3b8';
+              const 근거들 = Array.isArray(d.핵심근거) ? d.핵심근거 : [];
+              const 약점들 = Array.isArray(d.약점) ? d.약점 : [];
+              const 추천들 = Array.isArray(d.추천활동) ? d.추천활동 : [];
+              return `
+              <div style="background:#fafbff;border:1.5px solid #e8edf5;border-radius:12px;padding:14px 16px;">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                      <span style="font-size:14px;font-weight:800;color:#1e293b;">${escapeHtml(dept)}</span>
+                      <span style="font-size:11px;color:#94a3b8;">${d.분석일||''}</span>
+                    </div>
+                    <div style="font-size:12.5px;color:#475569;margin-bottom:8px;">${escapeHtml(d.한줄평||'')}</div>
+                    ${근거들.length ? `
+                      <div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:3px;">✅ 핵심 근거</div>
+                      <div style="font-size:11.5px;color:#374151;margin-bottom:6px;">${근거들.map(g=>`• ${escapeHtml(String(g))}`).join('<br>')}</div>
+                    ` : ''}
+                    ${약점들.length ? `
+                      <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:3px;">⚠️ 약점</div>
+                      <div style="font-size:11.5px;color:#374151;margin-bottom:6px;">${약점들.map(w=>`• ${escapeHtml(String(w))}`).join('<br>')}</div>
+                    ` : ''}
+                    ${추천들.length ? `
+                      <div style="font-size:11px;font-weight:700;color:#6366f1;margin-bottom:3px;">💡 추천 활동</div>
+                      <div style="font-size:11.5px;color:#374151;">${추천들.map(a=>`• ${escapeHtml(String(a))}`).join('<br>')}</div>
+                    ` : ''}
+                  </div>
+                  <div style="text-align:center;flex-shrink:0;">
+                    <div style="font-size:32px;font-weight:900;color:${grColor};line-height:1;">${d.전공적합성||'?'}</div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전공적합</div>
+                    <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')" style="margin-top:8px;padding:3px 8px;background:#fee2e2;border:none;border-radius:5px;font-size:11px;color:#dc2626;cursor:pointer;">삭제</button>
+                  </div>
                 </div>
-                <div style="text-align:center;flex-shrink:0;">
-                  <div style="font-size:28px;font-weight:900;color:${{'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'}[d.전공적합성]||'#94a3b8'};">${d.전공적합성||'?'}</div>
-                  <div style="font-size:10px;color:#94a3b8;">전공적합</div>
-                </div>
-                <button onclick="deleteMajorAnalysis('${escapeHtml(dept)}')" style="padding:4px 8px;background:#fee2e2;border:none;border-radius:6px;font-size:11px;color:#dc2626;cursor:pointer;flex-shrink:0;">삭제</button>
-              </div>`).join('')}
+              </div>`;
+            }).join('')}
           </div>`
       }
     </div>`;
@@ -2593,6 +2616,25 @@ ${refBlock}
 ━━━ 【출력 형식 (JSON만 출력, 마크다운 금지)】 ━━━
 {"적합도":"상|중|하","적합도점수":75,"한줄평":"20자 이내","수능최저충족":"가능|불확실|어려움","수능최저근거":"1~2문장","강점":"3~4가지(음슴체)","보완점":"2~3가지(음슴체)","전형분석":"3~4문장(음슴체,입결수치포함)","추천전략":"2~3가지(음슴체)","주의사항":"주의점(음슴체)"}`;
 
+  // ── 희망학과 세특분석 결과 (저장된 경우 프롬프트에 반영) ──
+  const majorAnalysisAll = evalData[hak]?.희망학과분석 || {};
+  let majorAnalysisSection = '';
+  if(Object.keys(majorAnalysisAll).length > 0){
+    // 지원 학과와 가장 유사한 분석 찾기
+    const deptNorm = dept.replace(/학과|학부|전공|계열/g,'').trim();
+    const matchedEntry = Object.entries(majorAnalysisAll).find(([k])=>
+      k.replace(/학과|학부|전공|계열/g,'').trim().includes(deptNorm) ||
+      deptNorm.includes(k.replace(/학과|학부|전공|계열/g,'').trim())
+    ) || Object.entries(majorAnalysisAll)[0]; // 없으면 첫 번째
+
+    if(matchedEntry){
+      const [mDept, mData] = matchedEntry;
+      const 근거 = Array.isArray(mData.핵심근거) ? mData.핵심근거.join(', ') : '';
+      const 약점 = Array.isArray(mData.약점) ? mData.약점.join(', ') : '';
+      majorAnalysisSection = `\n【희망학과 세특분석 — ${mDept}】\n전공적합성: ${mData.전공적합성||'?'}등급\n핵심근거: ${근거||'없음'}\n약점: ${약점||'없음'}\n한줄평: ${mData.한줄평||''}\n`;
+    }
+  }
+
   const userPrompt = `[분석 요청] ${currentStu.name} (${grade}학년) → ${univ} ${dept} ${type}전형
 ${note ? `추가 요청: ${note}` : ''}
 
@@ -2607,7 +2649,7 @@ ${gradeDetail}
 ${mockSummary}
 
 ${compSummary ? `【종합역량평가】\n${compSummary}` : ''}
-
+${majorAnalysisSection}
 ${sewtukSummary ? `【세특 원본 — ${dept} 관련 (${sewtukToShow.length}과목)】\n${sewtukSummary}` : '【세특】데이터 없음'}
 
 ${changcheSummary ? `【창체 활동 원본】\n${changcheSummary}` : ''}
