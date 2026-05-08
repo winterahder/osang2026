@@ -2856,123 +2856,217 @@ function renderApplyResultHTML(obj, resultEl){
 }
 
 function buildApplyCardHTML(obj, dateStr, isNew){
-  const GC  = {'상':'#059669','중':'#d97706','하':'#dc2626'};
-  const BGC = {'상':'linear-gradient(135deg,#d1fae5,#a7f3d0)','중':'linear-gradient(135deg,#fef9c3,#fde68a)','하':'linear-gradient(135deg,#fee2e2,#fecaca)'};
-  const IC  = {'상':'✅','중':'⚡','하':'⚠️'};
-  const color = GC[obj.적합도]||'#64748b';
-  const bg    = BGC[obj.적합도]||'#f1f5f9';
-  const score = obj.적합도점수 || 0;
-
   const meta = obj._meta || {};
-  const gbCount = meta.admCases?.gb?.length || 0;
+  const score = obj.적합도점수 || 0;
+  const grade = obj.적합도;
+
+  // 등급별 테마
+  const T = {
+    '상': { c:'#047857', bg:'#ecfdf5', ring:'#10b981', border:'#6ee7b7', badge:'#d1fae5', badgeT:'#065f46', icon:'🎯', tagBg:'#047857' },
+    '중': { c:'#92400e', bg:'#fffbeb', ring:'#f59e0b', border:'#fcd34d', badge:'#fef3c7', badgeT:'#78350f', icon:'📌', tagBg:'#b45309' },
+    '하': { c:'#7f1d1d', bg:'#fff1f2', ring:'#f43f5e', border:'#fda4af', badge:'#ffe4e6', badgeT:'#881337', icon:'⚠️', tagBg:'#be123c' },
+  };
+  const t = T[grade] || { c:'#334155', bg:'#f8fafc', ring:'#94a3b8', border:'#cbd5e1', badge:'#f1f5f9', badgeT:'#475569', icon:'📊', tagBg:'#475569' };
+
+  // SVG 원형 게이지 (270° 호)
+  const r = 52, cx = 64, cy = 68;
+  const totalArc = 2 * Math.PI * r * (270/360); // 245.04
+  const scoreArc = (score / 100) * totalArc;
+  const dash = `${scoreArc.toFixed(1)} ${(totalArc - scoreArc + 100).toFixed(1)}`;
+  const dashBg = `${totalArc.toFixed(1)} 100`;
+  // 시작점: -225도 (왼쪽 하단에서 시작)
+  const gauge = `
+    <svg width="132" height="132" viewBox="0 0 132 132" style="display:block;margin:0 auto;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="11"
+        stroke-dasharray="${dashBg}" stroke-linecap="round"
+        transform="rotate(-225 ${cx} ${cy})"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.ring}" stroke-width="11"
+        stroke-dasharray="${dash}" stroke-linecap="round"
+        transform="rotate(-225 ${cx} ${cy})" style="transition:stroke-dasharray 0.8s ease;"/>
+      <text x="${cx}" y="${cy-6}" text-anchor="middle" font-family="'Pretendard',-apple-system,sans-serif"
+        font-size="28" font-weight="900" fill="${t.c}">${score}</text>
+      <text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="'Pretendard',-apple-system,sans-serif"
+        font-size="11" fill="#94a3b8">/ 100점</text>
+      <text x="${cx}" y="${cy+30}" text-anchor="middle" font-family="'Pretendard',-apple-system,sans-serif"
+        font-size="13" font-weight="700" fill="${t.c}">${t.icon} ${grade}</text>
+    </svg>`;
+
+  // 핵심 지표 카드
+  const stuAvg = meta.stuAvg ? meta.stuAvg.toFixed(2) : null;
+  const cut50  = meta.cutoff?.cut50 ? meta.cutoff.cut50.toFixed(2) : null;
+  const gbPass = meta.admCases?.gb?.filter(r=>{ const v=String(r.최종결과||''); return v.includes('합격')||v.includes('충원'); }) || [];
+  const gbPassGrades = gbPass.map(r=>parseFloat(r.환산등급||0)).filter(v=>v>0).sort((a,b)=>a-b);
+  const gbPassAvg = gbPassGrades.length ? (gbPassGrades.reduce((a,b)=>a+b,0)/gbPassGrades.length).toFixed(2) : null;
+  const gbPassMin = gbPassGrades[0]?.toFixed(2) ?? null;
+  const gbPassMax = gbPassGrades[gbPassGrades.length-1]?.toFixed(2) ?? null;
+  const majGrade = meta.majorScore !== null && meta.majorScore !== undefined
+    ? ({100:'S',83:'A',66:'B',50:'C',33:'D'}[meta.majorScore] || (meta.majorScore>=83?'A':meta.majorScore>=66?'B':meta.majorScore>=50?'C':'D'))
+    : null;
+  const majColor = {'S':'#7c3aed','A':'#047857','B':'#0369a1','C':'#d97706','D':'#dc2626'}[majGrade] || '#94a3b8';
+
+  const metricCards = [
+    stuAvg && cut50 ? {
+      label: '내신 vs 50컷',
+      value: (parseFloat(cut50) - parseFloat(stuAvg) >= 0
+        ? `+${(parseFloat(cut50)-parseFloat(stuAvg)).toFixed(2)}`
+        : `${(parseFloat(cut50)-parseFloat(stuAvg)).toFixed(2)}`),
+      sub: `내 ${stuAvg} → 컷 ${cut50}`,
+      color: parseFloat(cut50) - parseFloat(stuAvg) >= 0 ? '#047857' : '#dc2626',
+      icon: '📐'
+    } : null,
+    majGrade ? {
+      label: '전공적합성',
+      value: majGrade + '등급',
+      sub: '비교과 분석 기반',
+      color: majColor,
+      icon: '🧬'
+    } : null,
+    gbPassAvg ? {
+      label: '전국 합격자',
+      value: gbPassAvg + '등급',
+      sub: `범위 ${gbPassMin}~${gbPassMax}`,
+      color: '#0369a1',
+      icon: '📊'
+    } : (meta.alumniResult?.passAvg ? {
+      label: '선배 합격 평균',
+      value: meta.alumniResult.passAvg.toFixed(2) + '등급',
+      sub: `${meta.alumniResult.pass.length}명 합격`,
+      color: '#0369a1',
+      icon: '👥'
+    } : null),
+  ].filter(Boolean);
+
+  const metricsHtml = metricCards.length ? `
+    <div style="display:grid;grid-template-columns:repeat(${metricCards.length},1fr);gap:8px;margin:14px 0;">
+      ${metricCards.map(m=>`
+        <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 8px;text-align:center;">
+          <div style="font-size:16px;margin-bottom:3px;">${m.icon}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;font-weight:600;">${m.label}</div>
+          <div style="font-size:16px;font-weight:800;color:${m.color};line-height:1.2;">${m.value}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${m.sub}</div>
+        </div>`).join('')}
+    </div>` : '';
 
   // 데이터 뱃지
+  const gbCount = meta.admCases?.gb?.length || 0;
   const badges = [
-    meta.cutoff
-      ? `<span class="arc-badge arc-badge-blue">📊 입결DB${meta.cutoff.source==='gb'?' 추정':''}</span>`
-      : `<span class="arc-badge arc-badge-gray">입결 없음</span>`,
-    meta.alumniResult?.total
-      ? `<span class="arc-badge arc-badge-green">👥 선배 ${meta.alumniResult.total}명</span>`
-      : `<span class="arc-badge arc-badge-gray">선배이력 없음</span>`,
-    gbCount ? `<span class="arc-badge arc-badge-sky">🗂 전국 ${gbCount}건</span>` : '',
-    meta.majorScore !== null
-      ? `<span class="arc-badge arc-badge-purple">🧬 비교과 반영</span>`
-      : `<span class="arc-badge arc-badge-gray">비교과 없음</span>`,
-    `<span class="arc-badge arc-badge-amber">⚡ API-free</span>`,
-  ].filter(Boolean).join('');
+    meta.cutoff    ? `<span style="background:#dbeafe;color:#1e40af;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">📊 입결DB${meta.cutoff.source==='gb'?' 추정':''}</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">입결없음</span>`,
+    meta.alumniResult?.total ? `<span style="background:#d1fae5;color:#065f46;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">👥 선배 ${meta.alumniResult.total}명</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">선배없음</span>`,
+    gbCount ? `<span style="background:#e0f2fe;color:#0369a1;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">🗂 전국 ${gbCount}건</span>` : '',
+    meta.majorScore != null ? `<span style="background:#ede9fe;color:#5b21b6;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">🧬 비교과 반영</span>` : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 9px;border-radius:20px;font-size:10.5px;">비교과 없음</span>`,
+    `<span style="background:#fef9c3;color:#92400e;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;">⚡ API-free</span>`,
+  ].filter(Boolean).join(' ');
 
-  // 강점/보완점 bullet 변환
-  const toBullets = (text, color) => (text||'').split('\n').filter(s=>s.trim())
-    .map(s=>`<div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-start;">
-      <span style="color:${color};margin-top:2px;flex-shrink:0;">•</span>
-      <span style="line-height:1.6;">${escapeHtml(s.trim())}</span>
-    </div>`).join('') || `<span style="color:#94a3b8;">데이터 없음</span>`;
+  // 강점 bullet
+  const strengths = (obj.강점||'').split('\n').filter(s=>s.trim());
+  const weaknesses = (obj.보완점||'').split('\n').filter(s=>s.trim());
+  const strategies = (obj.추천전략||'').split('\n').filter(s=>s.trim());
 
-  // 전형분석: 줄바꿈 처리
-  const fmtAnalysis = escapeHtml(obj.전형분석||'').replace(/\. /g,'.<br>');
+  const bulletHTML = (items, color, bg) => items.map(s=>`
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:9px 12px;background:${bg};border-radius:8px;margin-bottom:6px;">
+      <span style="color:${color};font-size:12px;margin-top:1px;flex-shrink:0;">●</span>
+      <span style="font-size:13px;color:#1e293b;line-height:1.6;">${escapeHtml(s.trim())}</span>
+    </div>`).join('');
 
-  // 추천전략 bullet
-  const stratBullets = toBullets(obj.추천전략, '#2563eb');
+  const stratHTML = strategies.map((s,i)=>`
+    <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border-left:3px solid #2563eb;">
+      <span style="background:#2563eb;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${i+1}</span>
+      <span style="font-size:13px;color:#1e293b;line-height:1.6;">${escapeHtml(s.trim())}</span>
+    </div>`).join('');
+
+  // 전형분석 — 줄바꿈 처리
+  const analysisLines = (obj.전형분석||'').split(/\.(?:\s|\n)/).filter(s=>s.trim()).map(s=>s.trim()+'.');
 
   // 수능최저 뱃지
-  const suneungBadge = obj.수능최저충족 === '해당없음'
-    ? `<span style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;">수능최저 없음</span>`
-    : obj.수능최저충족 === '확인필요'
-    ? `<span style="background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;">⚠️ 수능최저 확인</span>`
-    : `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:5px;font-size:11px;">${obj.수능최저충족||'-'}</span>`;
+  const suneungTag = obj.수능최저충족 === '해당없음'
+    ? `<span style="background:#d1fae5;color:#065f46;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">수능최저 없음</span>`
+    : obj.수능최저충족 === '확인필요' || obj.수능최저충족 === '어려움'
+    ? `<span style="background:#fef3c7;color:#78350f;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">⚠️ 수능최저 확인</span>`
+    : `<span style="background:#f1f5f9;color:#64748b;border-radius:6px;padding:2px 8px;font-size:11px;">${obj.수능최저충족||''}</span>`;
+
+  const sectionTitle = (icon, text, color='#1e293b') =>
+    `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:7px;border-bottom:1.5px solid #f1f5f9;">
+       <span style="font-size:15px;">${icon}</span>
+       <span style="font-size:13px;font-weight:800;color:${color};letter-spacing:0.5px;">${text}</span>
+     </div>`;
 
   return `
-  <style>
-    .arc-card { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; font-size:13px; }
-    .arc-header { padding:14px 18px 12px; border-bottom:1px solid #f1f5f9; }
-    .arc-title { font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; }
-    .arc-date { color:#94a3b8; font-size:11px; font-weight:400; }
-    .arc-badge-row { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
-    .arc-badge { padding:2px 8px; border-radius:5px; font-size:10.5px; font-weight:600; }
-    .arc-badge-blue   { background:#eff6ff; color:#2563eb; }
-    .arc-badge-green  { background:#f0fdf4; color:#16a34a; }
-    .arc-badge-sky    { background:#f0f9ff; color:#0369a1; }
-    .arc-badge-purple { background:#fdf4ff; color:#9333ea; }
-    .arc-badge-amber  { background:#fffbeb; color:#92400e; }
-    .arc-badge-gray   { background:#f8fafc; color:#94a3b8; }
-    .arc-score-band { padding:16px 18px; background:${bg}; display:flex; align-items:center; gap:16px; }
-    .arc-grade-circle { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,0.7); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:${color}; flex-shrink:0; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-    .arc-score-info { flex:1; min-width:0; }
-    .arc-headline { font-size:15px; font-weight:800; color:${color}; line-height:1.3; }
-    .arc-score-bar-wrap { margin-top:6px; background:rgba(255,255,255,0.5); border-radius:6px; height:6px; overflow:hidden; }
-    .arc-score-bar { height:100%; background:${color}; border-radius:6px; width:${score}%; transition:width 0.6s ease; }
-    .arc-score-num { font-size:11px; color:${color}; margin-top:3px; font-weight:600; }
-    .arc-body { padding:0 18px 16px; }
-    .arc-section { padding:12px 0; border-bottom:1px solid #f1f5f9; }
-    .arc-section:last-child { border-bottom:none; }
-    .arc-section-title { font-size:12px; font-weight:700; color:#475569; margin-bottom:8px; display:flex; align-items:center; gap:5px; letter-spacing:0.3px; }
-    .arc-section-body { color:#334155; line-height:1.7; }
-    .arc-analysis-block { background:#f8fafc; border-radius:8px; padding:10px 12px; color:#475569; line-height:1.8; font-size:12.5px; }
-    .arc-caution-block { background:#fff7ed; border-radius:8px; padding:10px 12px; color:#92400e; font-size:12px; line-height:1.7; border-left:3px solid #f97316; }
-  </style>
-  <div class="arc-card">
-    <div class="arc-header">
-      <div class="arc-title">
-        📊 ${escapeHtml(obj.univ)} ${escapeHtml(obj.dept)}
-        <span style="background:#eff6ff;color:#2563eb;padding:2px 7px;border-radius:5px;font-size:11px;">${escapeHtml(obj.type)}전형</span>
-        ${suneungBadge}
-        ${dateStr ? `<span class="arc-date">${dateStr}</span>` : ''}
-      </div>
-      <div class="arc-badge-row">${badges}</div>
-    </div>
-    <div class="arc-score-band">
-      <div class="arc-grade-circle">${IC[obj.적합도]||obj.적합도}</div>
-      <div class="arc-score-info">
-        <div class="arc-headline">${escapeHtml(obj.한줄평||obj.적합도)}</div>
-        <div class="arc-score-bar-wrap"><div class="arc-score-bar"></div></div>
-        <div class="arc-score-num">종합 점수 ${score}점 / 100점</div>
-      </div>
-    </div>
-    <div class="arc-body">
-      <div class="arc-section">
-        <div class="arc-section-title">✅ 강 점</div>
-        <div class="arc-section-body">${toBullets(obj.강점,'#059669')}</div>
-      </div>
-      <div class="arc-section">
-        <div class="arc-section-title">⚠️ 보 완 점</div>
-        <div class="arc-section-body">${toBullets(obj.보완점,'#d97706')}</div>
-      </div>
-      <div class="arc-section">
-        <div class="arc-section-title">📋 전 형 분 석</div>
-        <div class="arc-analysis-block">${fmtAnalysis}</div>
-      </div>
-      <div class="arc-section">
-        <div class="arc-section-title">💡 추 천 전 략</div>
-        <div class="arc-section-body">${stratBullets}</div>
-      </div>
-      <div class="arc-section">
-        <div class="arc-section-title">🔴 주 의 사 항</div>
-        <div class="arc-caution-block">${escapeHtml(obj.주의사항||'').replace(/\.\n/g,'.<br>')}</div>
-      </div>
-    </div>
-  </div>`;
-}
+<div style="font-family:'Pretendard',-apple-system,'Noto Sans KR',sans-serif;max-width:680px;">
 
+  <!-- 헤더 -->
+  <div style="background:#fff;border-radius:16px 16px 0 0;border:1.5px solid #e5e7eb;border-bottom:none;padding:16px 20px 12px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:5px;">
+          ${escapeHtml(obj.univ)} <span style="color:#64748b;font-weight:500;">·</span> ${escapeHtml(obj.dept)}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="background:${t.tagBg};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.type)}전형</span>
+          ${suneungTag}
+          ${dateStr ? `<span style="color:#94a3b8;font-size:11px;">${dateStr}</span>` : ''}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;">${badges}</div>
+  </div>
+
+  <!-- 점수 히어로 -->
+  <div style="background:${t.bg};border:1.5px solid ${t.border};border-top:none;border-bottom:none;padding:20px 20px 16px;">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div style="flex-shrink:0;">${gauge}</div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:19px;font-weight:900;color:${t.c};line-height:1.3;margin-bottom:8px;">${escapeHtml(obj.한줄평||'')}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">※ 저장된 데이터 기반 참고용 분석</div>
+        ${metricsHtml ? '' : ''}
+      </div>
+    </div>
+    ${metricsHtml}
+  </div>
+
+  <!-- 본문 -->
+  <div style="background:#fff;border:1.5px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;overflow:hidden;">
+
+    <!-- 강점 -->
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
+      ${sectionTitle('✅','강 점','#047857')}
+      ${bulletHTML(strengths,'#047857','#f0fdf4')}
+    </div>
+
+    <!-- 보완점 -->
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
+      ${sectionTitle('⚠️','보 완 점','#b45309')}
+      ${bulletHTML(weaknesses,'#d97706','#fffbeb')}
+    </div>
+
+    <!-- 전형 분석 -->
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
+      ${sectionTitle('📋','전 형 분 석')}
+      <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-left:4px solid #94a3b8;">
+        ${analysisLines.map(l=>`<div style="font-size:13px;color:#475569;line-height:1.8;">${escapeHtml(l)}</div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 추천 전략 -->
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
+      ${sectionTitle('💡','추 천 전 략','#1d4ed8')}
+      ${stratHTML || `<div style="color:#94a3b8;font-size:13px;">비교과 분석 후 전략이 구체화됩니다.</div>`}
+    </div>
+
+    <!-- 주의사항 -->
+    <div style="padding:16px 20px;">
+      ${sectionTitle('🔴','주 의 사 항','#be123c')}
+      <div style="background:#fff1f2;border-radius:10px;padding:12px 14px;border-left:4px solid #f43f5e;">
+        ${(obj.주의사항||'').split('\n').filter(s=>s.trim()).map(s=>`
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;last-child:margin-bottom:0;">
+            <span style="color:#f43f5e;flex-shrink:0;margin-top:2px;">!</span>
+            <span style="font-size:12.5px;color:#9f1239;line-height:1.7;">${escapeHtml(s.trim())}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+  </div>
+</div>`;
+}
 async function saveApplyHistoryItem(hak, univ, dept, type, result){
   const { _meta, ...resultToSave } = result;
   const histItem = {
