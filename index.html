@@ -2425,7 +2425,7 @@ function renderMockApplyTab(el){
               </div>
             </div>
             <!-- 오른쪽: 날짜 + 삭제 -->
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px;">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:auto;padding-left:12px;">
               <span style="font-size:10px;color:#94a3b8;white-space:nowrap;">${h.date}</span>
               <button onclick="event.stopPropagation();deleteApplyHistory('${h.id}')"
                  style="padding:3px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;font-weight:700;">삭제</button>
@@ -3123,180 +3123,183 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const grade = obj.적합도;
 
   const T = {
-    '상': { c:'#047857', bg:'#f0fdf4', accent:'#10b981', border:'#bbf7d0', tagBg:'#047857', label:'합격 가능성 높음' },
-    '중': { c:'#92400e', bg:'#fffbeb', accent:'#f59e0b', border:'#fde68a', tagBg:'#b45309', label:'전략적 접근 필요' },
-    '하': { c:'#991b1b', bg:'#fff1f2', accent:'#f43f5e', border:'#fecaca', tagBg:'#be123c', label:'도전적 지원' },
+    '상': { c:'#065f46', bg:'#ecfdf5', accent:'#10b981', border:'#6ee7b7', tagBg:'#059669', barBg:'#d1fae5' },
+    '중': { c:'#78350f', bg:'#fffbeb', accent:'#f59e0b', border:'#fcd34d', tagBg:'#d97706', barBg:'#fef3c7' },
+    '하': { c:'#7f1d1d', bg:'#fef2f2', accent:'#ef4444', border:'#fca5a5', tagBg:'#dc2626', barBg:'#fee2e2' },
   };
-  const t = T[grade] || { c:'#334155', bg:'#f8fafc', accent:'#94a3b8', border:'#e2e8f0', tagBg:'#475569', label:'분석 완료' };
+  const t = T[grade] || { c:'#1e293b', bg:'#f8fafc', accent:'#64748b', border:'#e2e8f0', tagBg:'#475569', barBg:'#f1f5f9' };
+  const gradeLabel = {'상':'합격 가능성 높음','중':'전략적 접근 필요','하':'도전적 지원'}[grade]||'분석 완료';
 
-  // 게이지
-  const r=40, cx=50, cy=50, circ=2*Math.PI*r;
-  const dash=(circ*score/100).toFixed(1);
-
-  const stuAvg = meta.stuAvg ? meta.stuAvg.toFixed(2) : null;
-  const cut50  = meta.cutoff?.cut50 ? meta.cutoff.cut50.toFixed(2) : null;
-  const gbPass = meta.admCases?.gb?.filter(r=>{ const v=String(r.최종결과||''); return v.includes('합격')||v.includes('충원'); }) || [];
-  const gbPassGrades = gbPass.map(r=>parseFloat(r.환산등급||0)).filter(v=>v>0).sort((a,b)=>a-b);
-  const gbPassAvg = gbPassGrades.length ? (gbPassGrades.reduce((a,b)=>a+b,0)/gbPassGrades.length).toFixed(2) : null;
-  const gbPassMin = gbPassGrades[0]?.toFixed(2) ?? null;
-  const gbPassMax = gbPassGrades[gbPassGrades.length-1]?.toFixed(2) ?? null;
-  const majGrade = meta.majorScore != null
-    ? ({100:'S',83:'A',66:'B',50:'C',33:'D'}[meta.majorScore] || (meta.majorScore>=83?'A':meta.majorScore>=66?'B':meta.majorScore>=50?'C':'D'))
-    : null;
-  const majColor = {'S':'#7c3aed','A':'#047857','B':'#0369a1','C':'#d97706','D':'#dc2626'}[majGrade]||'#94a3b8';
-  const gbCount = meta.admCases?.gb?.length || 0;
-  const uw = meta.univWeights || { 학업:40, 진로:40, 공동체:20 };
-
-  // 수능최저 뱃지
-  const suneungTag = obj.수능최저충족==='해당없음'
-    ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">수능최저 없음</span>`
-    : obj.수능최저충족==='확인필요'
-    ? `<span style="background:#fef3c7;color:#78350f;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">⚠️ 수능최저 확인</span>`
-    : '';
-
-  // 데이터 출처 뱃지
-  const srcBadges = [
-    meta.cutoff && meta.cutoff.source!=='gb' ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;">📊 입결DB</span>` : '',
-    meta.cutoff?.source==='gb' ? `<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;">📊 전국추정</span>` : '',
-    gbCount ? `<span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;">🗂 전국 ${gbCount}건</span>` : '',
-    meta.alumniResult?.total ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;">👥 선배 ${meta.alumniResult.total}명</span>` : '',
-    meta.majorScore!=null ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;">🧬 비교과 반영</span>` : '',
-    uw.source ? `<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:5px;font-size:10px;">⚖️ ${uw.학업}·${uw.진로}·${uw.공동체}</span>` : '',
-  ].filter(Boolean).join(' ');
-
-  // 핵심 지표
-  const metrics = [
-    stuAvg && cut50 ? {
-      icon:'📐', label:'내신 vs 50컷',
-      value: parseFloat(cut50)-parseFloat(stuAvg) >= 0
-        ? `+${(parseFloat(cut50)-parseFloat(stuAvg)).toFixed(2)}`
-        : `${(parseFloat(cut50)-parseFloat(stuAvg)).toFixed(2)}`,
-      sub:`내 ${stuAvg} → 컷 ${cut50}`,
-      color: parseFloat(cut50)-parseFloat(stuAvg)>=0 ? '#047857' : '#dc2626'
-    } : null,
-    majGrade ? { icon:'🧬', label:'전공적합성', value:`${majGrade}등급`, sub:'비교과 분석', color:majColor } : null,
-    gbPassAvg ? { icon:'📊', label:'전국 합격자', value:`${gbPassAvg}등급`, sub:`${gbPassMin}~${gbPassMax}`, color:'#0369a1' }
-    : meta.alumniResult?.passAvg ? { icon:'👥', label:'선배 합격 평균', value:`${meta.alumniResult.passAvg.toFixed(2)}등급`, sub:`${meta.alumniResult.pass.length}명`, color:'#0369a1' } : null,
-  ].filter(Boolean);
-
-  // 섹션 렌더러
-  const section = (icon, title, color, content) => `
-    <div style="padding:18px 22px;border-bottom:1px solid #f1f5f9;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:16px;">${icon}</span>
-        <span style="font-size:13px;font-weight:800;color:${color};letter-spacing:0.3px;">${title}</span>
+  // 게이지 SVG
+  const r=42, cx=50, cy=50, circ=(2*Math.PI*r);
+  const filled = (circ * score/100).toFixed(1);
+  const gauge = `
+    <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
+      <svg viewBox="0 0 100 100" width="110" height="110">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.barBg}" stroke-width="9"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.accent}" stroke-width="9"
+          stroke-linecap="round"
+          stroke-dasharray="${circ.toFixed(1)}"
+          stroke-dashoffset="${(circ - filled).toFixed(1)}"
+          transform="rotate(-90 ${cx} ${cy})"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
+        <span style="font-size:26px;font-weight:900;color:${t.c};line-height:1;letter-spacing:-1px;">${score}</span>
+        <span style="font-size:10px;color:#94a3b8;font-weight:600;">/100점</span>
       </div>
-      ${content}
     </div>`;
 
-  const bulletList = (items, dotColor) => items.map(s=>`
-    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;">
-      <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:6px;"></span>
-      <span style="font-size:13px;color:#334155;line-height:1.6;">${escapeHtml(s.trim())}</span>
+  // 메타 지표 카드
+  const stuAvg = meta.stuAvg ? meta.stuAvg.toFixed(2) : null;
+  const cut50  = meta.cutoff?.cut50 ? meta.cutoff.cut50.toFixed(2) : null;
+  const gbPass = (meta.admCases?.gb||[]).filter(r=>{ const v=String(r.최종결과||''); return v.includes('합격')||v.includes('충원'); });
+  const gbPassGrades = gbPass.map(r=>parseFloat(r.환산등급||0)).filter(v=>v>0).sort((a,b)=>a-b);
+  const gbPassAvg = gbPassGrades.length ? (gbPassGrades.reduce((a,b)=>a+b,0)/gbPassGrades.length).toFixed(2) : null;
+  const gbPassMin = gbPassGrades[0]?.toFixed(2)??null;
+  const gbPassMax = gbPassGrades[gbPassGrades.length-1]?.toFixed(2)??null;
+  const majGrade = meta.majorScore!=null
+    ? (meta.majorScore>=83?'A':meta.majorScore>=66?'B':meta.majorScore>=50?'C':'D')
+    : null;
+  const majColor = {'S':'#7c3aed','A':'#059669','B':'#0369a1','C':'#d97706','D':'#dc2626'}[majGrade]||'#94a3b8';
+
+  // 수능최저 뱃지
+  const suneungBadge = obj.수능최저충족==='해당없음'
+    ? `<span style="background:#d1fae5;color:#065f46;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;">수능최저 없음</span>`
+    : obj.수능최저충족==='확인필요'
+    ? `<span style="background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;">⚠ 수능최저 확인 필요</span>`
+    : '';
+
+  // 데이터 소스 뱃지
+  const gbCount = meta.admCases?.gb?.length||0;
+  const uw = meta.univWeights||{학업:40,진로:40,공동체:20};
+  const srcBadges = [
+    meta.cutoff && meta.cutoff.source!=='gb' ? '📊 입결DB' : '',
+    meta.cutoff?.source==='gb'               ? '📊 전국추정' : '',
+    gbCount                                  ? `🗂 전국 ${gbCount}건` : '',
+    meta.alumniResult?.total                 ? `👥 선배 ${meta.alumniResult.total}명` : '',
+    meta.majorScore!=null                    ? '🧬 비교과 반영' : '',
+    uw.source                                ? `⚖ ${uw.학업}·${uw.진로}·${uw.공동체}` : '',
+  ].filter(Boolean).map(t=>`<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;">${t}</span>`).join(' ');
+
+  // 핵심 지표 3칸
+  const metricItems = [
+    stuAvg && cut50 ? {
+      label:'내신 vs 50컷', icon:'📐',
+      val: (parseFloat(cut50)-parseFloat(stuAvg)>=0?'+':'')+(parseFloat(cut50)-parseFloat(stuAvg)).toFixed(2),
+      sub:`내 ${stuAvg} → 컷 ${cut50}`,
+      color: parseFloat(cut50)-parseFloat(stuAvg)>=0?'#059669':'#dc2626'
+    } : null,
+    majGrade ? { label:'전공적합성', icon:'🧬', val:`${majGrade}등급`, sub:'비교과 분석', color:majColor } : null,
+    gbPassAvg
+      ? { label:'전국 합격자', icon:'📊', val:`${gbPassAvg}`, sub:`범위 ${gbPassMin}~${gbPassMax}`, color:'#0369a1' }
+      : (meta.alumniResult?.passAvg
+          ? { label:'선배 합격 평균', icon:'👥', val:`${meta.alumniResult.passAvg.toFixed(2)}등급`, sub:`${meta.alumniResult.pass.length}명`, color:'#0369a1' }
+          : null),
+  ].filter(Boolean);
+
+  // 섹션 헬퍼 — 좌측 컬러 라인 + 배경 구분
+  const SEC = (emoji, title, titleColor, bgColor, borderColor, body) => `
+    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:16px 18px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:15px;line-height:1;">${emoji}</span>
+        <span style="font-size:13px;font-weight:800;color:${titleColor};letter-spacing:.4px;">${title}</span>
+      </div>
+      ${body}
+    </div>`;
+
+  // 불릿 리스트
+  const BULLETS = (items, dotColor) => items.map(s=>`
+    <div style="display:flex;gap:9px;align-items:flex-start;padding:7px 10px;background:rgba(255,255,255,.7);border-radius:8px;margin-bottom:5px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:6px;"></span>
+      <span style="font-size:13px;color:#1e293b;line-height:1.65;">${escapeHtml(s.trim())}</span>
     </div>`).join('');
 
-  const numberedList = (items) => items.map((s,i)=>`
-    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:#f8fafc;border-left:3px solid #6366f1;border-radius:0 8px 8px 0;margin-bottom:6px;">
-      <span style="background:#6366f1;color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${i+1}</span>
-      <span style="font-size:13px;color:#334155;line-height:1.6;">${escapeHtml(s.trim())}</span>
+  // 번호 리스트
+  const NUMBERS = (items) => items.map((s,i)=>`
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(255,255,255,.75);border-radius:8px;margin-bottom:5px;">
+      <span style="background:#4f46e5;color:#fff;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${i+1}</span>
+      <span style="font-size:13px;color:#1e293b;line-height:1.65;">${escapeHtml(s.trim())}</span>
     </div>`).join('');
+
+  // 텍스트 블록
+  const TEXTBLOCK = (lines, lineColor) => `
+    <div style="background:rgba(255,255,255,.65);border-radius:8px;padding:12px 14px;">
+      ${lines.map(l=>`<div style="font-size:13px;color:${lineColor};line-height:1.85;padding:1px 0;">${escapeHtml(l)}</div>`).join('')}
+    </div>`;
 
   const strengths  = (obj.강점||'').split('\n').filter(s=>s.trim());
   const weaknesses = (obj.보완점||'').split('\n').filter(s=>s.trim());
   const strategies = (obj.추천전략||'').split('\n').filter(s=>s.trim());
-  const analysisLines = (obj.전형분석||'').split(/\.(?:\s|\n)/).filter(s=>s.trim()).map(s=>s.trim()+'.');
-  const cautions = (obj.주의사항||'').split('\n').filter(s=>s.trim());
+  const analysis   = (obj.전형분석||'').split(/\.(?:\s|\n)/).map(s=>s.trim()).filter(s=>s.length>2).map(s=>s+'.');
+  const cautions   = (obj.주의사항||'').split('\n').filter(s=>s.trim());
 
   return `
-<div style="font-family:'Pretendard',-apple-system,'Noto Sans KR',sans-serif;background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid ${t.border};box-shadow:0 4px 24px rgba(0,0,0,.06);">
+<div style="font-family:'Pretendard',-apple-system,'Noto Sans KR',sans-serif;background:#f8fafc;border-radius:16px;overflow:hidden;border:1.5px solid ${t.border};box-shadow:0 6px 28px rgba(0,0,0,.07);">
 
-  <!-- ① 헤더 -->
-  <div style="background:${t.bg};padding:18px 22px;border-bottom:1.5px solid ${t.border};">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <!-- ① 헤더 바 -->
+  <div style="background:${t.bg};border-bottom:2px solid ${t.border};padding:16px 20px 14px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <div>
-        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:6px;">
-          ${escapeHtml(obj.univ)} <span style="color:#94a3b8;font-weight:400;">·</span> ${escapeHtml(obj.dept)}
+        <div style="font-size:18px;font-weight:900;color:#0f172a;letter-spacing:-.3px;margin-bottom:6px;">
+          ${escapeHtml(obj.univ)} <span style="color:#94a3b8;font-weight:300;">|</span> <span style="color:#1e40af;">${escapeHtml(obj.dept)}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="background:${t.tagBg};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.type)}전형</span>
-          ${obj.subType ? `<span style="background:#eff6ff;color:#2563eb;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.subType)}</span>` : ''}
-          ${suneungTag}
-          ${dateStr ? `<span style="color:#94a3b8;font-size:11px;">${dateStr}</span>` : ''}
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+          <span style="background:${t.tagBg};color:#fff;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.type)}전형</span>
+          ${obj.subType?`<span style="background:#dbeafe;color:#1d4ed8;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.subType)}</span>`:''}
+          ${suneungBadge}
+          ${dateStr?`<span style="color:#94a3b8;font-size:11px;margin-left:2px;">${dateStr}</span>`:''}
         </div>
       </div>
     </div>
-    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;">${srcBadges}</div>
+    ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
   </div>
 
   <!-- ② 점수 히어로 -->
-  <div style="padding:20px 22px;border-bottom:1.5px solid ${t.border};display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-    <!-- 게이지 -->
-    <div style="position:relative;width:100px;height:100px;flex-shrink:0;">
-      <svg viewBox="0 0 100 100" width="100" height="100">
-        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f1f5f9" stroke-width="8"/>
-        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.accent}" stroke-width="8"
-          stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}"
-          stroke-dashoffset="${(circ-dash).toFixed(1)}"
-          transform="rotate(-90 ${cx} ${cy})"/>
-      </svg>
-      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <span style="font-size:22px;font-weight:900;color:${t.c};line-height:1;">${score}</span>
-        <span style="font-size:9px;color:#94a3b8;font-weight:600;">/ 100</span>
-      </div>
-    </div>
-    <!-- 점수 설명 -->
-    <div style="flex:1;min-width:160px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-        <span style="background:${t.tagBg};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800;">${grade} 등급</span>
-        <span style="font-size:14px;font-weight:700;color:${t.c};">${t.label}</span>
-      </div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:10px;">${escapeHtml(obj.한줄평||'')}</div>
-      <!-- 핵심 지표 -->
-      ${metrics.length ? `<div style="display:grid;grid-template-columns:repeat(${metrics.length},1fr);gap:8px;">
-        ${metrics.map(m=>`
-          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;text-align:center;">
-            <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">${m.icon} ${m.label}</div>
-            <div style="font-size:15px;font-weight:800;color:${m.color};">${m.value}</div>
-            <div style="font-size:10px;color:#94a3b8;">${m.sub}</div>
+  <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:18px 20px;">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      ${gauge}
+      <div style="flex:1;min-width:160px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+          <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${grade} 등급</span>
+          <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
+        </div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:12px;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
+        ${metricItems.length ? `
+        <div style="display:grid;grid-template-columns:repeat(${metricItems.length},1fr);gap:7px;">
+          ${metricItems.map(m=>`
+          <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 8px;text-align:center;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:2px;">${m.icon} ${m.label}</div>
+            <div style="font-size:16px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${m.sub}</div>
           </div>`).join('')}
-      </div>` : ''}
+        </div>` : ''}
+      </div>
     </div>
   </div>
 
-  <!-- ③ 강점 -->
-  ${section('✅', '강점', '#047857',
-    strengths.length ? bulletList(strengths, '#10b981') : '<div style="color:#94a3b8;font-size:13px;">데이터 없음</div>'
-  )}
+  <!-- ③~⑦ 본문 섹션들 -->
+  <div style="padding:14px 16px 6px;">
 
-  <!-- ④ 보완점 -->
-  ${section('⚠️', '보완점', '#b45309',
-    weaknesses.length ? bulletList(weaknesses, '#f59e0b') : '<div style="color:#94a3b8;font-size:13px;">데이터 없음</div>'
-  )}
+    ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
+      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
+    )}
 
-  <!-- ⑤ 전형 분석 -->
-  ${section('📋', '전형 분석', '#475569',
-    `<div style="background:#f8fafc;border-left:4px solid #cbd5e1;border-radius:0 8px 8px 0;padding:12px 16px;">
-      ${analysisLines.map(l=>`<div style="font-size:13px;color:#475569;line-height:1.8;">${escapeHtml(l)}</div>`).join('')}
-    </div>`
-  )}
+    ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
+      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
+    )}
 
-  <!-- ⑥ 추천 전략 -->
-  ${section('💡', '추천 전략', '#1d4ed8',
-    strategies.length ? numberedList(strategies) : '<div style="color:#94a3b8;font-size:13px;">비교과 분석 후 전략이 구체화됩니다.</div>'
-  )}
+    ${SEC('📋','전형 분석','#334155','#f1f5f9','#e2e8f0',
+      TEXTBLOCK(analysis,'#475569')
+    )}
 
-  <!-- ⑦ 주의사항 -->
-  <div style="padding:18px 22px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-      <span style="font-size:16px;">🔴</span>
-      <span style="font-size:13px;font-weight:800;color:#be123c;letter-spacing:0.3px;">주의사항</span>
-    </div>
-    <div style="background:#fff1f2;border-left:4px solid #f43f5e;border-radius:0 8px 8px 0;padding:12px 16px;">
-      ${cautions.map(s=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;">
-        <span style="color:#f43f5e;flex-shrink:0;font-size:12px;margin-top:2px;">!</span>
-        <span style="font-size:12px;color:#9f1239;line-height:1.7;">${escapeHtml(s.trim())}</span>
-      </div>`).join('')}
-    </div>
+    ${SEC('💡','추천 전략','#1d4ed8','#eff6ff','#bfdbfe',
+      strategies.length ? NUMBERS(strategies) : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">비교과 분석 후 전략이 구체화됩니다.</div>'
+    )}
+
+    ${SEC('🔴','주의사항','#9f1239','#fff1f2','#fecaca',
+      cautions.length ? BULLETS(cautions,'#f43f5e') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">없음</div>'
+    )}
+
   </div>
 
 </div>`;
