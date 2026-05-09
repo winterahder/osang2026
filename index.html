@@ -1930,7 +1930,7 @@ async function fetchCutoffData(univ, dept, subType){
   try{
     const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000));
     const data = await Promise.race([
-      apiGet({action:'getCutoffData', password:currentPassword, univ, dept}),
+      apiGet({action:'getCutoffData', password: currentPassword, univ, dept, subType: subType||}),
       timeout
     ]);
     return data || [];
@@ -2545,7 +2545,7 @@ async function computeApplyResult(hak, univ, dept, type, note, subType=''){
 
   // ② 커트라인 — GAS API(cutoff_db) 실제 데이터 fetch
   let cutoffRows = [];
-  try { cutoffRows = await fetchCutoffData(univ, dept); } catch(e){}
+  try { cutoffRows = await fetchCutoffData(univ, dept, subType); } catch(e){}
   const cutoff = parseCutoff(cutoffRows, type);
 
   // ③ 합불 이력 — 전국(admissions_all.json) + 우리학교(alumniKb)
@@ -2586,7 +2586,7 @@ async function computeApplyResult(hak, univ, dept, type, note, subType=''){
   const effectiveCutoff = cutoff || gbCutoff;
   const score = calcFinalScore({
     stuAvg, cutoff: effectiveCutoff, type, alumniResult, majorScore, compScore, suneungResult,
-    admCases
+    admCases, subType
   });
 
   // ⑨ 코멘트 생성
@@ -2760,8 +2760,22 @@ function calcCompScore(compEval, weights){
   return Math.round((학업 * w.학업 + 진로 * w.진로 + 공동체 * w.공동체) / total);
 }
 
-function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult, admCases}){
+// 세부전형명으로 전형 성격 판단
+function getSubTypeProfile(subType){
+  const s = String(subType||'').replace(/\s/g,'').toLowerCase();
+  if(s.includes('지역균형')||s.includes('지역인재')&&s.includes('추천')||s.includes('교사추천')||s.includes('추천형'))
+    return 'local'; // 내신 중심, 수능최저 있음
+  if(s.includes('논술')) return 'essay';
+  if(s.includes('기회')||s.includes('농어촌')||s.includes('사회배려'))
+    return 'opportunity';
+  return 'general'; // 일반 종합 (비교과 중심)
+}
+ function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compScore, suneungResult, admCases, subType}){
   let score = 50;
+  const subProfile = getSubTypeProfile(subType);
+// 지역균형: 내신 비중 높음(교과전형에 가까움)
+const 내신가중 = (is종합 && subProfile==='local') ? 1.4 : 1.0;
+const 비교과가중 = (is종합 && subProfile==='local') ? 0.5 : 1.0;
 
   const is종합 = type==='종합' || type==='종합+교과';
   const is교과 = type==='교과';
@@ -2788,13 +2802,12 @@ function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compSco
       else                  score -= 35;
 
     } else if(is종합){
-      // 종합전형: 내신은 참고용, 범위 여부가 핵심 (±20점)
-      if(diff >= 0.5)       score += 18;
-      else if(diff >= 0)    score += 10;
-      else if(diff >= -0.5) score -= 5;
-      else if(diff >= -1.0) score -= 10;
-      else if(diff >= -1.5) score -= 15;
-      else                  score -= 20;
+      if(diff >= 0.5)       score += Math.round(18 * 내신가중);
+      else if(diff >= 0)    score += Math.round(10 * 내신가중);
+      else if(diff >= -0.5) score -= Math.round(5  * 내신가중);
+      else if(diff >= -1.0) score -= Math.round(10 * 내신가중);
+      else if(diff >= -1.5) score -= Math.round(15 * 내신가중);
+      else                  score -= Math.round(20 * 내신가중);
 
     } else if(is논술){
       // 논술: 내신 영향 매우 작음 (±10점)
@@ -2844,11 +2857,11 @@ function calcFinalScore({stuAvg, cutoff, type, alumniResult, majorScore, compSco
   // 교과전형에서도 세특 반영하는 경우 있으므로 ±5점 반영
   if(majorScore !== null){
     if(is종합){
-      if(majorScore >= 100)     score += 15; // S
-      else if(majorScore >= 83) score += 12; // A
-      else if(majorScore >= 66) score += 6;  // B
-      else if(majorScore >= 50) score -= 3;  // C
-      else                      score -= 10; // D
+      if(majorScore >= 100)     score += Math.round(15 * 비교과가중);
+      else if(majorScore >= 83) score += Math.round(12 * 비교과가중);
+      else if(majorScore >= 66) score += Math.round(6  * 비교과가중);
+      else if(majorScore >= 50) score -= 3;
+      else                      score -= 10;
     } else if(is교과){
       if(majorScore >= 83) score += 5;
       else if(majorScore <= 33) score -= 3;
