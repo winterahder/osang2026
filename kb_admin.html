@@ -1668,7 +1668,7 @@ async function handleCutoffFile(input) {
     let done = 0;
     for(let i = 0; i < entries.length; i += CHUNK) {
       const chunk = entries.slice(i, i + CHUNK);
-      await apiPost({ action:'saveBatchCutoffDb', password:currentPw, entries: chunk });
+      await apiPost({ action:'saveBatchCutoffDb', password:currentPw, entries: chunk }, 90000);
       done += chunk.length;
       const pct = Math.round(done / entries.length * 100);
       barEl.style.width = pct + '%';
@@ -1697,11 +1697,11 @@ async function handleKbUnivFile(input) {
     statusEl.innerHTML = `총 <b>${entries.length}</b>건 업로드 시작...`;
     progEl.style.display = 'block';
 
-    const CHUNK = 100;
+    const CHUNK = 600; // 533건 한 번에 처리
     let done = 0;
     for(let i = 0; i < entries.length; i += CHUNK) {
       const chunk = entries.slice(i, i + CHUNK);
-      await apiPost({ action:'saveBatchKbUniv', password:currentPw, entries: chunk });
+      await apiPost({ action:'saveBatchKbUniv', password:currentPw, entries: chunk }, 90000);
       done += chunk.length;
       const pct = Math.round(done / entries.length * 100);
       barEl.style.width = pct + '%';
