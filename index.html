@@ -2779,8 +2779,6 @@ function getSubTypeProfile(subType){
   // 지역균형: 내신 비중 높음(교과전형에 가까움)
   const 내신가중 = (is종합 && subProfile==='local') ? 1.4 : 1.0;
   const 비교과가중 = (is종합 && subProfile==='local') ? 0.5 : 1.0;
-  const is교과 = type==='교과';
-  const is논술 = type==='논술';
 
   // 전국 합격자 데이터 전처리
   const gbPassGrades = (admCases?.gb||[])
