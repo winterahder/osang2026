@@ -1796,18 +1796,73 @@ function toggleAllReason(pid){
 }
 
 // ========== 모의지원 자동완성 ==========
+// ── 세부전형명 자동완성 ──────────────────────────────
+function onSubTypeInput(){
+  const univ  = document.getElementById('applyUniv').value.trim().toLowerCase();
+  const type  = document.getElementById('applyType').value;
+  const q     = document.getElementById('applySubType').value.trim().toLowerCase();
+  const drop  = document.getElementById('subTypeDrop');
+  const norm  = s => String(s||'').toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/, '');
+  const univNorm = norm(univ);
+
+  const seen = new Set();
+  const candidates = kbUniv.filter(r => {
+    const u   = norm(r['대학명']||'');
+    const t   = String(r['전형유형']||'');
+    const sub = String(r['세부전형명']||'').trim();
+    if(!sub || seen.has(sub)) return false;
+    const uMatch = !univ || u.includes(univNorm) || univNorm.includes(u);
+    const tMatch = !type || t.includes(type) || type.includes(t);
+    const qMatch = !q || sub.toLowerCase().includes(q);
+    if(uMatch && tMatch && qMatch){ seen.add(sub); return true; }
+    return false;
+  }).slice(0,10);
+
+  if(!candidates.length){ drop.style.display='none'; return; }
+
+  drop.innerHTML = candidates.map(r => {
+    const sub  = String(r['세부전형명']||'').trim();
+    const type = String(r['전형유형']||'').trim();
+    const w    = (r['학업비중']&&r['진로비중']&&r['공동체비중'])
+      ? `<span style="background:#fef9c3;color:#92400e;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;">${r['학업비중']}·${r['진로비중']}·${r['공동체비중']}</span>` : '';
+    return `<div class="drop-item" data-val="${escapeHtml(sub)}" data-type="${escapeHtml(type)}"
+      style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;"
+      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+      <span><b>${escapeHtml(sub)}</b> <span style="color:#94a3b8;font-size:11px;">${type?'· '+type:''}</span></span>
+      ${w}
+    </div>`;
+  }).join('');
+
+  drop.querySelectorAll('.drop-item').forEach(el => {
+    el.addEventListener('click', () => selectSubType(el.dataset.val, el.dataset.type));
+  });
+  drop.style.display = 'block';
+}
+
+function selectSubType(sub, type){
+  document.getElementById('applySubType').value = sub;
+  document.getElementById('subTypeDrop').style.display = 'none';
+  if(type){
+    const sel = document.getElementById('applyType');
+    const opt = Array.from(sel.options).find(o => o.value === type || type.includes(o.value));
+    if(opt) sel.value = opt.value;
+  }
+}
+
 function onUnivInput(){
-  const q = document.getElementById('applyUniv').value.trim().toLowerCase();
+  const q    = document.getElementById('applyUniv').value.trim().toLowerCase();
   const drop = document.getElementById('univDrop');
-  if(!q || !Object.keys(cutoffIndex).length){ drop.style.display='none'; return; }
+  if(!q){ drop.style.display='none'; return; }
   const matches = Object.keys(cutoffIndex).filter(u => u.toLowerCase().includes(q)).slice(0,10);
   if(!matches.length){ drop.style.display='none'; return; }
   drop.innerHTML = matches.map(u =>
-    `<div class="drop-item" data-val="${escapeHtml(u)}" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(u)}</div>`
+    `<div class="drop-item" data-val="${escapeHtml(u)}"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;"
+      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(u)}</div>`
   ).join('');
-  drop.querySelectorAll('.drop-item').forEach(el => {
-    el.addEventListener('click', () => selectUniv(el.dataset.val));
-  });
+  drop.querySelectorAll('.drop-item').forEach(el =>
+    el.addEventListener('click', () => selectUniv(el.dataset.val))
+  );
   drop.style.display = 'block';
 }
 
@@ -1816,24 +1871,28 @@ function selectUniv(univ){
   document.getElementById('univDrop').style.display = 'none';
   document.getElementById('applyDept').value = '';
   document.getElementById('applyDept').placeholder = '학과 입력 또는 선택';
-  // 전형 자동 초기화
+  document.getElementById('applySubType').value = '';
   updateTypeSelect('');
+  onSubTypeInput(); // 대학 선택 시 세부전형 힌트 갱신
 }
 
 function onDeptInput(){
   const univ = document.getElementById('applyUniv').value.trim();
   const q    = document.getElementById('applyDept').value.trim().toLowerCase();
   const drop = document.getElementById('deptDrop');
-  const univKey = Object.keys(cutoffIndex).find(u => u === univ || u.toLowerCase().includes(univ.toLowerCase()));
-  const depts = univKey ? Object.keys(cutoffIndex[univKey]) : Object.keys(cutoffIndex).flatMap(u => Object.keys(cutoffIndex[u]));
+  const univKey = Object.keys(cutoffIndex).find(u => u===univ || u.toLowerCase().includes(univ.toLowerCase()));
+  const depts = univKey ? Object.keys(cutoffIndex[univKey])
+    : Object.keys(cutoffIndex).flatMap(u => Object.keys(cutoffIndex[u]));
   const matches = [...new Set(depts)].filter(d => !q || d.toLowerCase().includes(q)).slice(0,12);
   if(!matches.length){ drop.style.display='none'; return; }
   drop.innerHTML = matches.map(d =>
-    `<div class="drop-item" data-val="${escapeHtml(d)}" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(d)}</div>`
+    `<div class="drop-item" data-val="${escapeHtml(d)}"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;"
+      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${escapeHtml(d)}</div>`
   ).join('');
-  drop.querySelectorAll('.drop-item').forEach(el => {
-    el.addEventListener('click', () => selectDept(el.dataset.val));
-  });
+  drop.querySelectorAll('.drop-item').forEach(el =>
+    el.addEventListener('click', () => selectDept(el.dataset.val))
+  );
   drop.style.display = 'block';
 }
 
@@ -1841,15 +1900,13 @@ function selectDept(dept){
   const univ = document.getElementById('applyUniv').value.trim();
   document.getElementById('applyDept').value = dept;
   document.getElementById('deptDrop').style.display = 'none';
-  // 해당 대학+학과의 전형 자동 세팅
-  const univKey = Object.keys(cutoffIndex).find(u => u === univ || u.toLowerCase().includes(univ.toLowerCase()));
+  const univKey = Object.keys(cutoffIndex).find(u => u===univ || u.toLowerCase().includes(univ.toLowerCase()));
   const types = univKey && cutoffIndex[univKey][dept] ? cutoffIndex[univKey][dept] : [];
   updateTypeSelect(types);
 }
 
 function updateTypeSelect(types){
   const sel = document.getElementById('applyType');
-  // 기본 옵션 유지 + DB 전형 추가
   const defaults = [
     {v:'종합', t:'학생부 종합 전형'},
     {v:'교과', t:'학생부 교과 전형'},
@@ -1860,8 +1917,9 @@ function updateTypeSelect(types){
     sel.innerHTML = defaults.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
     return;
   }
-  const dbOpts = types.map(t => `<option value="${t}">📊 ${t}</option>`).join('');
-  sel.innerHTML = dbOpts + '<option disabled>──────</option>' + defaults.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
+  const dbOpts = types.map(t=>`<option value="${t}">📊 ${t}</option>`).join('');
+  sel.innerHTML = dbOpts + '<option disabled>──────</option>'
+    + defaults.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
 }
 
 function hideDropdown(id){ document.getElementById(id).style.display='none'; }
@@ -2402,12 +2460,21 @@ function renderMockApplyTab(el){
           </div>
           <div class="apply-input-group" style="margin-bottom:10px;">
             <label>전형 유형</label>
-            <select id="applyType">
+            <select id="applyType" onchange="onSubTypeInput()">
               <option value="종합">학생부 종합 전형</option>
               <option value="교과">학생부 교과 전형</option>
               <option value="논술">논술 전형</option>
               <option value="종합+교과">종합 + 교과 비교</option>
             </select>
+          </div>
+          <div class="apply-input-group" style="margin-bottom:10px;position:relative;">
+            <label style="display:flex;align-items:center;gap:5px;">
+              세부 전형명
+              <span style="font-size:10px;color:#94a3b8;font-weight:400;">(선택 — 예: 지역균형, 일반전형)</span>
+            </label>
+            <input id="applySubType" placeholder="직접 입력하거나 목록에서 선택" autocomplete="off"
+              oninput="onSubTypeInput()" onblur="setTimeout(()=>hideDropdown('subTypeDrop'),200)">
+            <div id="subTypeDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #6366f1;border-radius:8px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12);"></div>
           </div>
           <div class="apply-input-group" style="margin-bottom:10px;">
             <label>추가 요청사항 (선택)</label>
@@ -2426,10 +2493,11 @@ function renderMockApplyTab(el){
 // ========== API-FREE 모의지원 엔진 ==========
 async function runApplyAnalysis(){
   const hak  = String(currentStu.hak);
-  const univ = document.getElementById('applyUniv').value.trim();
-  const dept = document.getElementById('applyDept').value.trim();
-  const type = document.getElementById('applyType').value;
-  const note = document.getElementById('applyNote').value.trim();
+  const univ    = document.getElementById('applyUniv').value.trim();
+  const dept    = document.getElementById('applyDept').value.trim();
+  const type    = document.getElementById('applyType').value;
+  const subType = document.getElementById('applySubType')?.value.trim() || '';
+  const note    = document.getElementById('applyNote').value.trim();
 
   if(!univ || !dept){ alert('대학교와 학과를 입력해주세요.'); return; }
 
@@ -2440,7 +2508,7 @@ async function runApplyAnalysis(){
   resultEl.innerHTML = '<div style="color:#64748b;padding:16px;text-align:center;">📡 입결·합불 데이터 조회 중...</div>';
 
   try {
-    const result = await computeApplyResult(hak, univ, dept, type, note);
+    const result = await computeApplyResult(hak, univ, dept, type, note, subType);
     renderApplyResultHTML(result, resultEl);
     saveApplyHistoryItem(hak, univ, dept, type, result);
     const el = document.getElementById('tabContent');
@@ -2453,7 +2521,7 @@ async function runApplyAnalysis(){
 }
 
 // ── 핵심 계산 엔진 (async) ──
-async function computeApplyResult(hak, univ, dept, type, note){
+async function computeApplyResult(hak, univ, dept, type, note, subType=''){
   const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
   const studentIs9 = isStudent9Grade(currentStu);
 
@@ -2505,8 +2573,8 @@ async function computeApplyResult(hak, univ, dept, type, note){
     || sewtuk[hak]?.종합역량평가
     || sewtuk[hak]?.종합평가
     || null;
-  // 대학별 평가 비중 적용 (없으면 40/40/20 기본값)
-  const univWeights = getUnivWeights(univ, type);
+  // 대학별 평가 비중 적용 (세부전형명 우선 매칭, 없으면 40/40/20 기본값)
+  const univWeights = getUnivWeights(univ, type, subType);
   const compScore = compEval ? calcCompScore(compEval, univWeights) : null;
 
   // ⑦ 세특 종합의견 (buildComments에서 활용)
@@ -2534,7 +2602,7 @@ async function computeApplyResult(hak, univ, dept, type, note){
 
   return {
     id: `AH_${Date.now()}`,
-    univ, dept, type,
+    univ, dept, type, subType,
     적합도: score.grade,
     적합도점수: score.score,
     한줄평: score.summary,
@@ -2637,30 +2705,48 @@ function checkSuneung(univ, dept, type, grade){
   return { status:'확인필요', reason:`수능최저 기준: ${suneungText} — 모의고사 성적 확인 필요` };
 }
 
-// 대학별 평가 비중 조회 (없으면 기본값 40/40/20)
-function getUnivWeights(univ, type){
+// 대학별 평가 비중 조회 (세부전형명 > 전형유형 > 기본값 40/40/20 순)
+function getUnivWeights(univ, type, subType){
   if(!univ) return { 학업:40, 진로:40, 공동체:20 };
   const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/대학교$|대학$/,'');
   const uNorm = norm(univ);
-  // 전형 타입 매칭 우선, 없으면 대학명만으로 탐색
-  const entry = kbUniv.find(r=>{
+  const hasWeight = r => r['학업비중'] && r['진로비중'] && r['공동체비중'];
+
+  // 1순위: 대학명 + 세부전형명 정확 매칭
+  if(subType){
+    const sNorm = norm(subType);
+    const exact = kbUniv.find(r => {
+      const u = norm(r['대학명']||'');
+      const s = norm(r['세부전형명']||'');
+      return (u.includes(uNorm)||uNorm.includes(u)) && s.includes(sNorm) && hasWeight(r);
+    });
+    if(exact) return {
+      학업: parseFloat(exact['학업비중']), 진로: parseFloat(exact['진로비중']),
+      공동체: parseFloat(exact['공동체비중']), source: exact['대학명'], subType: exact['세부전형명']
+    };
+  }
+
+  // 2순위: 대학명 + 전형유형 매칭
+  const byType = kbUniv.find(r => {
     const u = norm(r['대학명']||'');
     const t = String(r['전형유형']||'');
-    const uMatch = u.includes(uNorm) || uNorm.includes(u);
-    const tMatch = !type || t.includes(type) || type.includes(t);
-    return uMatch && tMatch
-      && r['학업비중'] && r['진로비중'] && r['공동체비중'];
-  }) || kbUniv.find(r=>{
-    const u = norm(r['대학명']||'');
-    return (u.includes(uNorm)||uNorm.includes(u))
-      && r['학업비중'] && r['진로비중'] && r['공동체비중'];
+    return (u.includes(uNorm)||uNorm.includes(u)) && (!type||t.includes(type)||type.includes(t)) && hasWeight(r);
   });
-  if(entry){
-    const 학업 = parseFloat(entry['학업비중']) || 40;
-    const 진로 = parseFloat(entry['진로비중']) || 40;
-    const 공동체 = parseFloat(entry['공동체비중']) || 20;
-    return { 학업, 진로, 공동체, source: entry['대학명'] };
-  }
+  if(byType) return {
+    학업: parseFloat(byType['학업비중']), 진로: parseFloat(byType['진로비중']),
+    공동체: parseFloat(byType['공동체비중']), source: byType['대학명']
+  };
+
+  // 3순위: 대학명만 매칭
+  const byUniv = kbUniv.find(r => {
+    const u = norm(r['대학명']||'');
+    return (u.includes(uNorm)||uNorm.includes(u)) && hasWeight(r);
+  });
+  if(byUniv) return {
+    학업: parseFloat(byUniv['학업비중']), 진로: parseFloat(byUniv['진로비중']),
+    공동체: parseFloat(byUniv['공동체비중']), source: byUniv['대학명']
+  };
+
   return { 학업:40, 진로:40, 공동체:20 }; // 기본값
 }
 
@@ -3149,6 +3235,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="background:${t.tagBg};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.type)}전형</span>
+          ${obj.subType ? `<span style="background:#eff6ff;color:#2563eb;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${escapeHtml(obj.subType)}</span>` : ''}
           ${suneungTag}
           ${dateStr ? `<span style="color:#94a3b8;font-size:11px;">${dateStr}</span>` : ''}
         </div>
