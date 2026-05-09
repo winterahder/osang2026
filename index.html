@@ -2942,55 +2942,60 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
   const coreAvg = coreSubjects.length
     ? (coreSubjects.reduce((a,b)=>a+b.등급,0)/coreSubjects.length).toFixed(2) : null;
 
-  // ─── 강점 ───
+ // ─── 강점 ───
   const strengths = [];
-
-  // 내신 vs 커트라인
-  if(stuAvg && cutoff?.cut50){
+  // 내신 vs 커트라인 (입결DB → 전국추정 → 전국평균 순)
+  if(stuAvg && cutoff?.cut50 && cutoff.source !== 'gb'){
+    // 1순위: 입결DB 실제 데이터
     const diff = cutoff.cut50 - stuAvg;
-    if(diff >= 0){
-      const src = cutoff.source==='gb' ? '전국 합격자' : '입결DB';
-      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 50컷(${cutoff.cut50.toFixed(2)}, ${src}) 대비 ${diff.toFixed(2)}등급 여유`);
-    }
+    if(diff >= 0)
+      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 50컷(${cutoff.cut50.toFixed(2)}, 입결DB) 대비 ${diff.toFixed(2)}등급 여유`);
+  } else if(stuAvg && gbCutoff?.cut50){
+    // 2순위: 전국 합불 데이터 추정 50컷
+    const diff = gbCutoff.cut50 - stuAvg;
+    if(diff >= 0)
+      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 전국표본) 대비 ${diff.toFixed(2)}등급 여유`);
   } else if(stuAvg && gbPassAvg && stuAvg <= parseFloat(gbPassAvg)){
+    // 3순위: 전국 합격자 평균
     strengths.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 우위 (학생: ${stuAvg.toFixed(2)}등급)`);
   }
-
   // 비교과 핵심근거
   if(근거들.length) strengths.push(...근거들.slice(0,3));
-
   // 우리학교 선배 합격
   if(alumniResult.pass.length > 0 && stuAvg && alumniResult.passAvg){
     if(stuAvg <= alumniResult.passAvg + 0.3)
       strengths.push(`우리학교 선배 합격자 내신평균(${alumniResult.passAvg.toFixed(2)}) 대비 경쟁력 있음`);
   }
-
   // 종합역량 강점
   if(compAg && ['S','A'].includes(compAg)) strengths.push(`학업역량 ${compAg}등급 — ${compA?.근거?.slice(0,50)||'탐구력·학습태도 우수'}...`);
   if(compJg && ['S','A'].includes(compJg)) strengths.push(`진로역량 ${compJg}등급 — ${compJ?.근거?.slice(0,50)||'전공 연계 탐구 일관'}...`);
   if(compCg && ['S','A'].includes(compCg)) strengths.push(`공동체역량 ${compCg}등급 — 협업·소통·리더십 종합전형 서류 강점`);
-
-  // 세특 종합의견 핵심 문장 (첫 2문장)
+  // 세특 종합의견 핵심 문장
   if(sewtukOverall){
     const sentences = sewtukOverall.replace(/\n/g,' ').split('.').filter(s=>s.trim().length>10);
     if(sentences.length) strengths.push(sentences[0].trim().slice(0,80)+'...');
   }
-
   if(!strengths.length) strengths.push('비교과 종합 분석을 먼저 생성하면 더 정확한 강점 파악 가능');
 
   // ─── 보완점 ───
   const weaknesses = [];
-
-  if(stuAvg && cutoff?.cut50 && cutoff.cut50 - stuAvg < 0){
+  // 내신 vs 커트라인 (입결DB → 전국추정 → 전국평균 순)
+  if(stuAvg && cutoff?.cut50 && cutoff.source !== 'gb'){
+    // 1순위: 입결DB 실제 데이터
     const diff = stuAvg - cutoff.cut50;
-    const src = cutoff.source==='gb' ? '전국 합격자 기준' : '입결DB';
-    weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 50컷(${cutoff.cut50.toFixed(2)}, ${src})보다 ${diff.toFixed(2)}등급 부족`);
+    if(diff > 0)
+      weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 50컷(${cutoff.cut50.toFixed(2)}, 입결DB)보다 ${diff.toFixed(2)}등급 부족`);
+  } else if(stuAvg && gbCutoff?.cut50){
+    // 2순위: 전국 합불 데이터 추정 50컷
+    const diff = stuAvg - gbCutoff.cut50;
+    if(diff > 0)
+      weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 전국표본)보다 ${diff.toFixed(2)}등급 부족`);
   } else if(stuAvg && gbPassAvg && stuAvg > parseFloat(gbPassAvg)+0.3){
+    // 3순위: 전국 합격자 평균
     weaknesses.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 부족 (학생: ${stuAvg.toFixed(2)}등급)`);
   }
-
   if(약점들.length) weaknesses.push(...약점들.slice(0,2));
-
+ 
   // 종합역량 취약점
   if(compJg && ['C','D'].includes(compJg)) weaknesses.push(`진로역량 ${compJg}등급 — 전공 연계 활동 강화 필요`);
   if(compAg && ['C','D'].includes(compAg)) weaknesses.push(`학업역량 ${compAg}등급 — 교과 성취도 제고 필요`);
