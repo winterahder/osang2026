@@ -1930,7 +1930,7 @@ async function fetchCutoffData(univ, dept, subType){
   try{
     const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000));
     const data = await Promise.race([
-      apiGet({action:'getCutoffData', password: currentPassword, univ, dept, subType: subType||}),
+      apiGet({action:'getCutoffData', password: currentPassword, univ, dept, subType: subType||''}),
       timeout
     ]);
     return data || [];
