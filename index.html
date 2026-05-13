@@ -3558,6 +3558,12 @@ function renderCompEvalTab(el){
     return;
   }
 
+  // 활동분해·추천 데이터
+  const decompData = evalData[hak]?.활동분해종합
+    || (g2hak ? evalData[g2hak]?.활동분해종합 : null) || null;
+  const recData = evalData[hak]?.맞춤활동추천
+    || (g2hak ? evalData[g2hak]?.맞춤활동추천 : null) || null;
+
   el.innerHTML = `<div class="card" style="padding:16px;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
       <button onclick="printCompEval()" class="print-no" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
@@ -3570,6 +3576,8 @@ function renderCompEvalTab(el){
     <div id="evalGradeTrendArea"></div>
     <div id="evalSwotArea"></div>
     ${renderCompEvalPanel(eval_)}
+    ${decompData ? renderIndexDecompSection(decompData) : ''}
+    ${recData ? renderIndexRecSection(recData) : ''}
   </div>`;
 
   requestAnimationFrame(() => {
@@ -4379,6 +4387,111 @@ function renderDecompBlock(분해, compact=false){
     <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">🔍 활동 분해</div>
     ${rows}
   </div>`;
+}
+
+
+/* ========== 🔍 활동 분해 종합 (학생 열람용) ========== */
+let idxCurrentRecTab = '안정형';
+
+function renderIndexDecompSection(data){
+  if(!data || typeof data !== 'object') return '';
+  const CATS = [
+    {key:'핵심주제', icon:'🎯', color:'#4f46e5', bg:'rgba(79,70,229,.08)', border:'rgba(79,70,229,.2)'},
+    {key:'활동유형', icon:'⚙️', color:'#0891b2', bg:'rgba(8,145,178,.08)', border:'rgba(8,145,178,.2)'},
+    {key:'교과연계', icon:'📚', color:'#059669', bg:'rgba(5,150,105,.08)', border:'rgba(5,150,105,.2)'},
+    {key:'사고수준', icon:'💡', color:'#d97706', bg:'rgba(217,119,6,.08)', border:'rgba(217,119,6,.2)'},
+  ];
+  const tagRows = CATS.map(c => {
+    const tags = data[c.key] || [];
+    if(!tags.length) return '';
+    const pills = tags.map(t =>
+      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:3px 11px;font-size:12px;font-weight:600;">${escapeHtml(t)}</span>`
+    ).join('');
+    return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+      <span style="font-size:12px;color:#94a3b8;font-weight:700;min-width:58px;padding-top:3px;">${c.icon} ${c.key}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">${pills}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  const 사고흐름 = data.사고흐름 || '';
+  const 사회적맥락 = data.사회적맥락 || '';
+  if(!tagRows && !사고흐름 && !사회적맥락) return '';
+
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-top:14px;">
+    <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+      🔍 <span>활동 분해</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${(사고흐름||사회적맥락)?'14px':'0'};">
+      ${tagRows}
+    </div>
+    ${사고흐름 ? `<div style="font-size:13px;color:#334155;line-height:1.8;padding:12px 14px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
+    ${사회적맥락 ? `<div style="font-size:12px;color:#64748b;line-height:1.8;padding:10px 14px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:11px;font-weight:700;color:#d97706;display:block;margin-bottom:4px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
+  </div>`;
+}
+
+/* ========== 🎯 맞춤형 활동 추천 (학생 열람용) ========== */
+const IDX_REC_TYPES = [
+  {key:'안정형', icon:'⚓', color:'#2563eb', bg:'#eff6ff'},
+  {key:'심화형', icon:'🔬', color:'#7c3aed', bg:'#f5f3ff'},
+  {key:'차별화형', icon:'💡', color:'#d97706', bg:'#fffbeb'},
+  {key:'실천형', icon:'🏃', color:'#059669', bg:'#f0fdf4'},
+];
+
+function renderIndexRecSection(data){
+  if(!data || typeof data !== 'object') return '';
+  const active = IDX_REC_TYPES.find(t=>t.key===idxCurrentRecTab) || IDX_REC_TYPES[0];
+  const d = data[idxCurrentRecTab] || {};
+  if(!Object.keys(d).length) return '';
+
+  const tabBtns = IDX_REC_TYPES.map(t => {
+    const isActive = t.key === idxCurrentRecTab;
+    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:10px 16px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:13px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
+  }).join('');
+
+  const section = (label, text) => text
+    ? `<div style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${label}</div>
+        <div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(text)}</div>
+      </div>` : '';
+
+  const twoCol = (l1,t1,l2,t2) => (t1||t2) ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      ${t1?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t1)}</div></div>`:''}
+      ${t2?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t2)}</div></div>`:''}
+    </div>` : '';
+
+  const qBlock = Array.isArray(d.탐구질문) && d.탐구질문.length
+    ? `<div style="margin-top:6px;padding:12px 14px;background:#f8fafc;border-radius:10px;">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:8px;">❓ 탐구 질문</div>
+        ${d.탐구질문.map((q,i)=>`<div style="font-size:13px;color:#334155;margin-bottom:6px;"><b style="color:${active.color};margin-right:6px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
+      </div>` : '';
+
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;overflow:hidden;">
+    <div style="padding:16px 20px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
+    </div>
+    <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
+    <div style="padding:16px 20px;">
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+        <div style="font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
+        ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
+      </div>
+      ${section('선정 이유', d.선정이유)}
+      ${twoCol('기존 활동 연결', d.기존활동연결, '진로 관련성', d.진로관련성)}
+      ${section('학종 평가 포인트', d.학종평가포인트)}
+      ${section('실행 방법', d.실행방법)}
+      ${d.후속확장?`<div style="font-size:12px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:8px 12px;margin-bottom:10px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
+      ${qBlock}
+    </div>
+  </div>`;
+}
+
+function idxSwitchRecTab(key){
+  idxCurrentRecTab = key;
+  // 현재 탭 콘텐츠 다시 렌더링
+  const el = document.getElementById('tabContent');
+  if(el) renderTab();
 }
 
 function escapeHtml(s){
