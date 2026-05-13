@@ -2339,7 +2339,7 @@ ${활동요약}
 
 안정형: 기존 활동 자연스러운 확장 / 심화형: 이론·데이터 심화 탐구 / 차별화형: 독창적 관점 / 실천형: 현장 실측 중심`;
 
-    const recText = await callAPI(null, [{role:'user', content:recPrompt}], 3000);
+    const recText = await callAPI('', [{role:'user', content:recPrompt}], 3000);
     let recObj;
     try{ recObj = JSON.parse(recText.replace(/```json|```/g,'').trim()); }
     catch{ throw new Error('JSON 파싱 실패'); }
@@ -2680,17 +2680,22 @@ ${hbText||'없음'}
   "사회적맥락": "학생 활동의 사회적 의미를 2~3문장으로 서술. 개인 탐구가 사회 문제와 어떻게 연결되는지."
 }`;
 
-      const decompText = await callAPI(null, [{role:'user', content:decompPrompt}], 1200);
+      const decompText = await callAPI('', [{role:'user', content:decompPrompt}], 1200);
       let decompObj;
       try { decompObj = JSON.parse(decompText.replace(/```json|```/g,'').trim()); }
       catch { decompObj = null; }
       if(decompObj) {
         evalData[hak].활동분해종합 = decompObj;
+        // 활동분해 즉시 중간 저장
+        try {
+          await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
+        } catch(e) { console.warn('활동분해 중간저장 실패:', e); }
         addMsg('assistant','✅ 활동 분해 분석 완료');
       } else {
         addMsg('assistant','⚠️ 활동 분해 JSON 파싱 실패');
       }
     } catch(decompErr) {
+      console.error('활동분해 실패:', decompErr);
       addMsg('assistant',`⚠️ 활동 분해 분석 실패: ${decompErr.message}`);
     }
 
@@ -2756,7 +2761,7 @@ ${decompCtx||'없음'}
 - 차별화형(💡): 타 지원자와 구별되는 독창적 관점
 - 실천형(🏃): 현장·인터뷰·실측 중심`;
 
-      const recText = await callAPI(null, [{role:'user', content:recPrompt}], 3000);
+      const recText = await callAPI('', [{role:'user', content:recPrompt}], 3000);
       let recObj;
       try {
         let clean = recText.replace(/```json|```/g,'').trim();
