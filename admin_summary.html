@@ -58,10 +58,10 @@
   .progress-label{font-size:11px;color:var(--muted);margin-top:3px;}
   .stu-count{padding:6px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;}
   .stu-list{flex:1;overflow-y:auto;}
-  .stu-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(46,51,77,.4);transition:background .1s;}
+  .stu-item{display:flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(46,51,77,.4);transition:background .1s;}
   .stu-item:hover{background:var(--surface2);}
   .stu-item.active{background:rgba(99,102,241,.15);border-right:2px solid var(--accent);}
-  .stu-hak{font-size:11px;color:var(--muted2);width:46px;flex-shrink:0;}
+  .stu-hak{font-size:10px;color:var(--muted2);flex-shrink:0;}
   .stu-name{font-size:13px;font-weight:500;flex:1;}
   .stu-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
   .stu-dot.done{background:var(--green);}
@@ -798,14 +798,30 @@ function renderList(){
     if(filterMode==='done'&&st!=='done') return false;
     return true;
   });
+  // 10단계 등급 컬러맵
+  const GC_LIST = {
+    'A+':'#4f46e5','A0':'#10b981','A-':'#34d399',
+    'B+':'#06b6d4','B0':'#0891b2','B-':'#0e7490',
+    'C+':'#f59e0b','C0':'#d97706','C-':'#b45309',
+    'D':'#ef4444'
+  };
   document.getElementById('stuCount').textContent=`${list.length}명`;
   document.getElementById('stuList').innerHTML=list.map(s=>{
-    const st=getStuStatus(s.hak);
+    const hk=String(s.hak);
+    const st=getStuStatus(hk);
     const dot=st==='done'?'done':st==='partial'?'partial':'none';
+    const ev = evalData[hk]?.종합역량평가;
+    const grade = ev?.종합등급||null;
+    const score = ev?.종합점수??null;
+    const gc = GC_LIST[grade]||null;
+    const gradeBadge = grade
+      ? `<span style="font-size:10px;font-weight:800;color:${gc};background:${gc}18;border:1px solid ${gc}44;border-radius:8px;padding:1px 6px;margin-left:auto;white-space:nowrap;">${grade}${score!=null?' '+score:''}점</span>`
+      : '';
     return `<div class="stu-item ${currentStu&&currentStu.hak===s.hak?'active':''}" onclick="selectStu('${s.hak}')">
-      <span class="stu-hak">${s.hak}</span>
-      <span class="stu-name">${s.name}</span>
       <span class="stu-dot ${dot}"></span>
+      <span class="stu-name" style="flex:1;">${s.name}</span>
+      <span style="font-size:10px;color:var(--muted2);margin-right:4px;">${hk[0]}학년</span>
+      ${gradeBadge}
     </div>`;
   }).join('');
 }
@@ -846,12 +862,11 @@ function renderMain(){
       <div class="header-btns">
         <!-- 세특 전용 버튼 -->
         <button class="btn-all tab-btn-sewtuk" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
-        <button class="btn-all tab-btn-sewtuk" id="btnEvalAll" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="evaluateAll()">📊 전체 평가 생성</button>
-        <button class="btn-overall tab-btn-sewtuk" id="btnOverall" onclick="generateAllOverall()">🎯 종합 및 교과역량 평가</button>
         <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
         <!-- 창체 전용 버튼 -->
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
-        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#06b6d4,#0891b2);display:none;" onclick="generateAllCcEval()">📊 전체 평가 생성</button>
+        <!-- 행발 전용 버튼 -->
+        <button class="btn-all tab-btn-haengbal" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywords('haengbal')">🏷 키워드 추출</button>
         <!-- 공통 버튼 -->
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
@@ -869,7 +884,6 @@ function renderMain(){
     </div>
     <div class="main-tab-panel active" id="tabSewtuk">
       <div class="sewtuk-panel" id="sewtukPanel">
-        <div id="overallSection"></div>
         <div id="subjectList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       <div class="chat-panel">
@@ -913,7 +927,7 @@ function renderMain(){
       <div class="comp-panel" id="compPanel"></div>
     </div>
   `;
-  renderPanel(); renderChatBody(); renderOverallSection();
+  renderPanel(); renderChatBody();
   // 탭 상태 유지 (학생 전환 시 이전 탭 그대로)
   const tabToRestore = currentMainTab || 'sewtuk';
   currentMainTab = tabToRestore;
@@ -922,6 +936,7 @@ function renderMain(){
     const isHaengbal = tabToRestore === 'haengbal';
     const isComp     = tabToRestore === 'comp';
     document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=isChangche?'':'none');
+    document.querySelectorAll('.tab-btn-haengbal').forEach(b=>b.style.display=isHaengbal?'':'none');
     document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display=(!isChangche&&!isHaengbal&&!isComp)?'':'none');
     document.querySelectorAll('.tab-btn-comp').forEach(b=>b.style.display=isComp?'':'none');
   },0);
@@ -948,39 +963,16 @@ function buildSubjectItemHTML(s, i, hak, labels){
     const arr=pend||saved||[];
     const hasSummary=arr.length>0;
 
-    // 평가 데이터
-    const evalPend=pendingEval[hak]?.[k];
-    const evalSaved=s.평가&&typeof s.평가==='object'?s.평가:null;
-    const evalData=evalPend||evalSaved||null;
-    const EVAL_FIELDS=[
-      {key:'학업성취도',label:'학업성취도'},
-      {key:'학업태도',label:'학업태도'},
-      {key:'탐구력',label:'탐구력'},
-      {key:'전공적합성',label:'전공 적합성'},
-      {key:'진로탐색',label:'진로 탐색'},
-      {key:'협업소통',label:'협업·소통'},
-      {key:'나눔배려',label:'나눔·배려'},
-      {key:'성실성',label:'성실성·규칙'},
-      {key:'리더십',label:'리더십'},
-    ];
-    const GRADE_PCT={S:100,A:80,B:60,C:40,D:20};
-    const evalBlock=evalData
-      ?`<div class="eval-area">
-          <div class="eval-label">${evalPend?'🔄 평가됨 (미저장)':'✅ 저장된 평가'}</div>
-          ${EVAL_FIELDS.map(f=>{
-            const d=evalData[f.key]||{grade:'C',comment:''};
-            const pct=GRADE_PCT[d.grade]||40;
-            return `<div class="eval-row">
-              <span class="eval-name">${f.label}</span>
-              <div class="eval-bar-bg"><div class="eval-bar-fill grade-${d.grade}" style="width:${pct}%"></div></div>
-              <span class="eval-grade grade-${d.grade}">${d.grade}</span>
-            </div>
-            <div class="eval-comment">${esc(d.comment||'')}</div>`;
-          }).join('')}
+    // 키워드 데이터
+    const kwSaved = s.키워드 || null;
+    const kwBlock = kwSaved && kwSaved.length
+      ? `<div style="padding:8px 12px 10px;border-top:1px solid var(--border);">
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;">🏷 핵심 키워드</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">
+            ${kwSaved.map(kw=>`<span style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${esc(kw)}</span>`).join('')}
+          </div>
         </div>`
-      :`<div class="eval-area"><div style="font-size:12px;color:var(--muted);font-style:italic;">평가 없음 — 아래 버튼으로 AI 평가 생성</div></div>`;
-    const evalBtnCls=evalPend?'eval-pending':'';
-    const evalBtnLabel=evalPend?'🔄 평가 재생성':(evalSaved?'🔄 평가 재생성':'📊 AI 평가 생성');
+      : '';
 
     let itemCls='',btnCls='',btnLabel='';
     let sumBadge='';
@@ -994,10 +986,8 @@ function buildSubjectItemHTML(s, i, hak, labels){
       sumBadge=`<span class="ibadge-pending">요약 미완료</span>`;
       btnLabel='✨ AI 요약 생성';
     }
-    const evalBadge=(evalPend||evalSaved)
-      ?`<span class="ibadge-eval-done">✓ 평가</span>`
-      :`<span class="ibadge-eval-none">평가 미완료</span>`;
-    const badgeHtml=`<div class="badge-group">${sumBadge}${evalBadge}</div>`;
+    const kwBadge = kwSaved ? `<span style="font-size:10px;color:#7c3aed;font-weight:600;">🏷 키워드</span>` : '';
+    const badgeHtml=`<div class="badge-group">${sumBadge}${kwBadge}</div>`;
 
     const summaryBlock=hasSummary
       ?`<div class="summary-area">
@@ -1022,54 +1012,15 @@ function buildSubjectItemHTML(s, i, hak, labels){
           <button class="toggle-btn-small" onclick="toggleContent(${i});event.stopPropagation()">▼ 전문 보기</button>
         </div>
         ${summaryBlock}
-        ${evalBlock}
+        ${kwBlock}
         <div style="display:flex;gap:6px;margin:0 12px 11px;">
           <button class="gen-btn ${btnCls}" style="margin:0;flex:1;" id="gb-${i}" onclick="generateOne(${i});event.stopPropagation()">${btnLabel}</button>
-          <button class="eval-gen-btn ${evalBtnCls}" style="margin:0;flex:1;" id="eb-${i}" onclick="evaluateOne(${i});event.stopPropagation()">${evalBtnLabel}</button>
         </div>
       </div>
     </div>`;
 }
 
-function renderSubjOverallSection(cat, catSubs, hak){
-  const saved=sewtuk[hak]?.교과별평가?.[cat];
-  const pend=pendingSubjOverall[hak]?.[cat];
-  const data=pend||saved||null;
-  const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
-  const catEsc=cat.replace(/'/g,"\\'");
-
-  let bodyHtml='';
-  if(data){
-    const isPend=!!pend;
-    bodyHtml=`<div class="subj-overall-body">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 생성됨 (미저장)':'✅ 저장된 교과 평가'}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
-        ${['학업역량','진로역량','공동체역량'].map(key=>{
-          const d=data[key]; if(!d) return '';
-          return `<div class="overall-card">
-            <div class="overall-card-label">${key}</div>
-            <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade}</div>
-            <div class="overall-card-subs" style="font-size:10px;">${esc(d.근거||'')}</div>
-          </div>`;
-        }).join('')}
-      </div>
-      ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 ${esc(cat)} 종합 의견</div>${esc(data.종합의견)}</div>`:''}
-    </div>`;
-  }
-
-  const statusBadge=data
-    ?(pend?'<span style="font-size:10px;color:var(--yellow);">미저장</span>':'<span style="font-size:10px;color:var(--green);">저장됨</span>')
-    :'<span style="font-size:10px;color:var(--muted);">미생성</span>';
-  const btnLabel=data?'🔄 재생성':'✨ AI 교과 종합평가';
-
-  return `<div class="subj-overall-section" id="so-${encodeURIComponent(cat)}">
-    <div class="subj-overall-head">
-      <div class="subj-overall-title">📖 ${esc(cat)} 교과 종합평가 ${statusBadge}</div>
-      <button class="btn-subj-overall" onclick="generateSubjOverall('${catEsc}')">${btnLabel}</button>
-    </div>
-    ${bodyHtml}
-  </div>`;
-}
+/* renderSubjOverallSection 제거됨 — 키워드 시스템으로 대체 */
 
 function renderPanel(){
   const panel=document.getElementById('subjectList'); if(!panel) return;
@@ -1091,10 +1042,6 @@ function renderPanel(){
     const idxList=groups[cat];
     for(const i of idxList){
       html+=buildSubjectItemHTML(subs[i],i,hak,labels);
-    }
-    // 모든 교과(1개 이상)에 교과별 종합평가 섹션 추가
-    if(idxList.length>=1){
-      html+=renderSubjOverallSection(cat, idxList.map(i=>subs[i]), hak);
     }
   }
   panel.innerHTML=html;
@@ -1227,68 +1174,7 @@ async function generateOne(idx){
   }
 }
 
-/* ========== AI 평가 생성 ========== */
-async function evaluateOne(idx){
-  const hak=String(currentStu.hak);
-  const subs=sewtuk[hak]?.subjects||[];
-  const s=subs[idx]; if(!s) return;
-  const btn=document.getElementById('eb-'+idx);
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-dark"></span> 평가 중...';}
-
-  try{
-    const text=await callAPI(
-      `당신은 대입 전형 전문가입니다. 학생의 세부능력특기사항을 읽고 9개 세부 지표와 3개 대분류 역량을 평가하세요.
-
-반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업성취도":{"grade":"A","comment":"코멘트"},"학업태도":{"grade":"B","comment":"코멘트"},"탐구력":{"grade":"A","comment":"코멘트"},"전공적합성":{"grade":"B","comment":"코멘트"},"진로탐색":{"grade":"A","comment":"코멘트"},"협업소통":{"grade":"B","comment":"코멘트"},"나눔배려":{"grade":"C","comment":"코멘트"},"성실성":{"grade":"A","comment":"코멘트"},"리더십":{"grade":"B","comment":"코멘트"},"학업역량":{"grade":"A","근거":"이 과목에서 드러난 학업역량 종합 근거 30자이내"},"진로역량":{"grade":"B","근거":"진로역량 종합 근거 30자이내"},"공동체역량":{"grade":"A","근거":"공동체역량 종합 근거 30자이내"}}
-
-등급 기준:
-- S: 매우 탁월 (상위 5%, 명시적 근거 있을 때만)
-- A: 우수 (구체적 활동과 성취가 뚜렷함)
-- B: 양호 (일반적 수준의 활동 확인)
-- C: 보통 (언급은 있으나 구체성 부족)
-- D: 미흡 (해당 영역 내용 거의 없음)
-
-세부 지표:
-[학업역량] 학업성취도:교과이해·심화수준 / 학업태도:자기주도노력·열정 / 탐구력:지적호기심·문제해결
-[진로역량] 전공적합성:전공관련지식적용 / 진로탐색:전공지식확장경험
-[공동체역량] 협업소통:협력·소통능력 / 나눔배려:동료성장기여 / 성실성:책임감·규칙준수 / 리더십:공동목표주도
-
-3개 대분류(학업역량/진로역량/공동체역량)는 해당 세부지표들을 종합한 이 과목에서의 역량 수준.
-코멘트는 15자 이내 간결하게. 근거는 20자 이내. 세특에 근거 없는 영역은 D.`,
-      [{role:'user',content:`학생:${currentStu.name}
-과목:${s.교과}-${s.과목}
-
-세특:
-${s.내용}`}],
-      1500
-    );
-    let evalObj;
-    try{
-      const cleaned = text.replace(/```json|```/g,'').trim();
-      // JSON이 잘렸을 경우 복구 시도
-      let jsonStr = cleaned;
-      if(!jsonStr.endsWith('}')) jsonStr = jsonStr + '}';
-      evalObj=JSON.parse(jsonStr);
-    }catch{throw new Error('평가 JSON 파싱 실패: '+text.substring(0,150));}
-
-    pendingEval[hak]=pendingEval[hak]||{};
-    pendingEval[hak][sKey(s)]=evalObj;
-    renderPanel();
-    addMsg('assistant',
-      `📊 **${s.과목}** 평가 완료!
-
-[학업] 성취도 ${evalObj.학업성취도?.grade} · 태도 ${evalObj.학업태도?.grade} · 탐구 ${evalObj.탐구력?.grade}
-[진로] 전공 ${evalObj.전공적합성?.grade} · 탐색 ${evalObj.진로탐색?.grade}
-[공동체] 협업 ${evalObj.협업소통?.grade} · 나눔 ${evalObj.나눔배려?.grade} · 성실 ${evalObj.성실성?.grade} · 리더 ${evalObj.리더십?.grade}`,
-      [{label:'🔄 다시 평가',action:`evaluateOne(${idx})`}]
-    );
-    await autoSave(hak);
-  }catch(e){
-    addMsg('assistant',`❌ **${s.과목}** 평가 실패: ${e.message}`);
-    if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
-  }
-}
+/* evaluateOne 제거됨 — 키워드 시스템으로 대체 */
 
 /* ========== 다음 미완료 1개만 생성 ========== */
 async function generateNext(){
@@ -1340,104 +1226,9 @@ async function generateAll(){
   );
 }
 
-/* ========== 전체 평가 일괄 생성 ========== */
-async function evaluateAll(){
-  if(isGenAll) return;
-  const hak=String(currentStu.hak);
-  const subs=sewtuk[hak]?.subjects||[];
-  const targets=subs.filter(s=>!pendingEval[hak]?.[sKey(s)]&&!(s.평가&&typeof s.평가==='object'));
-  if(!targets.length){addMsg('assistant','✅ 모든 과목 평가가 이미 완료되어 있습니다.');return;}
+/* evaluateAll 제거됨 — 키워드 시스템으로 대체 */
 
-  isGenAll=true;
-  const btn=document.getElementById('btnEvalAll');
-  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 평가 중...`;}
-  const fill=document.getElementById('allProgFill');
-  const lbl=document.getElementById('allProgLabel');
-  const progBar=document.getElementById('allProg');
-  if(progBar) progBar.classList.add('show');
-
-  addMsg('assistant',`📊 미평가 **${targets.length}개** 과목을 순서대로 평가합니다...`);
-
-  let done=0;
-  for(const s of targets){
-    if(fill) fill.style.width=Math.round(done/targets.length*100)+'%';
-    if(lbl) lbl.textContent=`${done}/${targets.length}`;
-    await evaluateOne(subs.indexOf(s));
-    done++;
-    await new Promise(r=>setTimeout(r,300));
-  }
-  if(fill) fill.style.width='100%';
-  if(lbl) lbl.textContent=`${done}/${targets.length} 완료`;
-
-  isGenAll=false;
-  if(btn){btn.disabled=false;btn.innerHTML='📊 전체 평가 생성';}
-  addMsg('assistant',
-    `🎉 전체 평가 완료! **${done}개** 과목 평가가 준비되었습니다.`,
-    []
-  );
-}
-
-/* ========== 교과별 종합평가 생성 ========== */
-async function generateSubjOverall(cat, silent=false){
-  const hak=String(currentStu.hak);
-  const subs=sewtuk[hak]?.subjects||[];
-  const catSubs=subs.filter(s=>s.교과===cat);
-  if(!catSubs.length){addMsg('assistant',`${cat} 교과 세특 데이터가 없습니다.`);return;}
-
-  const secId='so-'+encodeURIComponent(cat);
-  const secEl=document.getElementById(secId);
-  const btn=secEl?.querySelector('.btn-subj-overall');
-  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 분석 중...`;}
-
-  const shortText=catSubs.map(s=>`[${s.과목} ${s.학년}학년 ${s.학기==='both'?'전체':s.학기+'학기'}]\n${(s.내용||'').substring(0,350)}`).join('\n\n');
-
-  const systemPrompt=`당신은 고등학교 학생부 기재 전문가이자 대입 전형 입학사정관입니다. 학생의 ${cat} 교과 전체 세부능력특기사항을 종합 분석하여 역량을 평가하세요.
-
-반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","근거":"300바이트 분량 구체적 근거"},"진로역량":{"grade":"B","근거":"300바이트 분량 구체적 근거"},"공동체역량":{"grade":"A","근거":"300바이트 분량 구체적 근거"},"종합의견":"세특 서술 5~7문장"}
-
-【근거 작성 규칙】
-- 반드시 세특 원문에 등장하는 구체적 활동명·탐구 주제·행동 키워드를 포함할 것
-- "우수함", "뛰어남", "보임" 같은 추상적 평가어만 쓰지 말 것
-- 예시: "비트코인·이윤함수 등 경제 주제를 통계 자료로 심층 분석, 반복적 자기주도 탐구 확인됨"
-- 예시: "모둠장·조장 역할 반복 수행, 협력적 토론 진행 및 팀원 의견 조율 주도함"
-- 40~60자 분량으로 구체적 근거 서술 (너무 짧으면 안 됨)
-- 반드시 300바이트(한글 약 100자) 분량으로 충분히 서술할 것
-
-【종합의견 필수 작성 규칙】
-- 반드시 학생부 세부능력특기사항 서술 방식(음슴체)으로 작성: "~함", "~임", "~됨", "~보임" 등으로 마무리
-- "~다", "~습니다" 등 일반 서술체 절대 금지
-- 구체적 활동명·탐구 주제·성취 내용을 세특 원문 키워드를 살려 5~7문장 서술
-
-등급: S=반복탁월(명시적 근거 필수) A=대부분우수 B=일부양호 C=제한적 D=거의없음`;
-
-  try{
-    const text=await callAPI(systemPrompt,
-      [{role:'user',content:`학생: ${currentStu.name}\n교과: ${cat}\n\n${cat} 교과 세특 (${catSubs.length}과목):\n${shortText}`}],
-      1400
-    );
-    let obj;
-    try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{throw new Error('JSON 파싱 실패: '+text.substring(0,120));}
-
-    pendingSubjOverall[hak]=pendingSubjOverall[hak]||{};
-    pendingSubjOverall[hak][cat]=obj;
-    renderPanel();
-
-    if(!silent){
-      addMsg('assistant',
-        `📖 **${cat}** 교과 종합평가 완료!\n\n`+
-        `📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**\n\n`+
-        `💬 ${obj.종합의견||''}`,
-        [{label:'🔄 다시 생성',action:`generateSubjOverall('${cat.replace(/'/g,"\\'")}')`}]
-      );
-      await autoSave(hak);
-    }
-  }catch(e){
-    addMsg('assistant',`❌ ${cat} 교과 종합평가 실패: ${e.message}`);
-    if(btn){btn.disabled=false;btn.innerHTML='⚠ 다시 시도';}
-  }
-}
+/* generateSubjOverall / generateAllOverall / generateOverallEval / renderOverallSection 제거됨 */
 
 /* ========== 메인 탭 전환 ========== */
 let currentMainTab = 'sewtuk';
@@ -1460,23 +1251,42 @@ function switchMainTab(tab, btn){
   // 탭별 버튼 show/hide
   document.querySelectorAll('.tab-btn-sewtuk').forEach(b=>b.style.display=(tab==='sewtuk'?'':'none'));
   document.querySelectorAll('.tab-btn-changche').forEach(b=>b.style.display=(tab==='changche'?'':'none'));
+  document.querySelectorAll('.tab-btn-haengbal').forEach(b=>b.style.display=(tab==='haengbal'?'':'none'));
   document.querySelectorAll('.tab-btn-comp').forEach(b=>b.style.display=(tab==='comp'?'':'none'));
   if(tab==='changche') renderChangchePanel();
   if(tab==='haengbal') renderHaengbalPanel();
   if(tab==='comp') renderCompPanel();
 }
 
-/* ========== 🏆 종합역량 패널 렌더링 ========== */
+/* ========== 🏆 종합역량 패널 렌더링 (새 등급 체계) ========== */
 function renderCompPanel(){
   const panel = document.getElementById('compPanel');
   if(!panel) return;
   if(!currentStu){ panel.innerHTML='<div class="comp-panel-empty">👈 왼쪽에서 학생을 선택하세요</div>'; return; }
 
   const hak = String(currentStu.hak);
-  const GC = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
-  const BGC= {'S':'rgba(99,102,241,.08)','A':'rgba(16,185,129,.08)','B':'rgba(6,182,212,.08)','C':'rgba(245,158,11,.08)','D':'rgba(239,68,68,.08)'};
-  const BORDER={'S':'rgba(99,102,241,.3)','A':'rgba(16,185,129,.3)','B':'rgba(6,182,212,.3)','C':'rgba(245,158,11,.3)','D':'rgba(239,68,68,.3)'};
+
+  // 새 10단계 등급 컬러
+  const GC = {
+    'A+':'#4f46e5','A0':'#10b981','A-':'#34d399',
+    'B+':'#06b6d4','B0':'#0891b2','B-':'#0e7490',
+    'C+':'#f59e0b','C0':'#d97706','C-':'#b45309',
+    'D':'#ef4444'
+  };
+  const BGC = {
+    'A+':'rgba(79,70,229,.08)','A0':'rgba(16,185,129,.08)','A-':'rgba(52,211,153,.06)',
+    'B+':'rgba(6,182,212,.08)','B0':'rgba(8,145,178,.08)','B-':'rgba(14,116,144,.06)',
+    'C+':'rgba(245,158,11,.08)','C0':'rgba(217,119,6,.08)','C-':'rgba(180,83,9,.06)',
+    'D':'rgba(239,68,68,.08)'
+  };
+  const BORDER = {
+    'A+':'rgba(79,70,229,.3)','A0':'rgba(16,185,129,.3)','A-':'rgba(52,211,153,.2)',
+    'B+':'rgba(6,182,212,.3)','B0':'rgba(8,145,178,.3)','B-':'rgba(14,116,144,.2)',
+    'C+':'rgba(245,158,11,.3)','C0':'rgba(217,119,6,.3)','C-':'rgba(180,83,9,.2)',
+    'D':'rgba(239,68,68,.3)'
+  };
   const gc = g => `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${g||'?'}</span>`;
+  const gs = (g, s) => s!=null ? `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${g||'?'}</span><span style="font-size:10px;color:#94a3b8;">(${s}점)</span>` : gc(g);
 
   const eval_ = evalData[hak]?.종합역량평가 || null;
   const swot  = evalData[hak]?.강점보완점  || null;
@@ -1501,6 +1311,17 @@ function renderCompPanel(){
     return;
   }
 
+  // ── 종합점수 배너 ──
+  const totalScore = eval_.종합점수||null;
+  const totalGrade = eval_.종합등급||null;
+  const scoreBanner = (totalScore||totalGrade) ? `
+    <div style="background:${BGC[totalGrade]||'#f8fafc'};border:1.5px solid ${BORDER[totalGrade]||'#e2e8f0'};border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:16px;margin-bottom:4px;">
+      <div style="font-size:13px;color:var(--muted);font-weight:600;">🎯 종합</div>
+      <div style="font-size:32px;font-weight:900;color:${GC[totalGrade]||'#94a3b8'};line-height:1;">${totalGrade||'?'}</div>
+      ${totalScore!=null?`<div style="font-size:24px;font-weight:700;color:${GC[totalGrade]||'#94a3b8'};">${totalScore}점</div>`:''}
+      <div style="font-size:11px;color:var(--muted);margin-left:auto;">100점 만점 기준</div>
+    </div>` : '';
+
   // ── 3영역 카드 ──
   const grpCards = ['학업역량','진로역량','공동체역량'].map(grp => {
     const d = eval_[grp]; if(!d) return '';
@@ -1508,22 +1329,24 @@ function renderCompPanel(){
     const icons = {'학업역량':'📚','진로역량':'🎯','공동체역량':'🤝'};
     const subDefs = {
       '학업역량': [['성취도','학업성취도'],['태도','학업태도'],['탐구력','탐구력']],
-      '진로역량': [['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']],
-      '공동체역량': [['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]
+      '진로역량': [['교과이수','전공관련교과이수'],['성취도','전공관련교과성취도'],['진로탐색','진로탐색활동']],
+      '공동체역량': [['협업','협업소통'],['나눔','나눔배려'],['성실','성실규칙준수'],['리더십','리더십']]
     };
     const subsHtml = (subDefs[grp]||[]).map(([lbl,key])=>{
-      const sd = d[key]; const sg = sd?.grade||sd||null;
-      return sg ? `${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b>  ` : '';
+      const sd = d[key];
+      const sg = sd?.grade||null;
+      const ss = sd?.score||null;
+      if(!sg) return '';
+      return `<span style="margin-right:8px;">${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b>${ss!=null?`<span style="font-size:9px;color:#94a3b8;">(${ss})</span>`:''}</span>`;
     }).join('');
     const rid = `cr-${grp}`;
-    const hasReason = !!d.근거;
     return `<div class="comp-score-card" style="background:${BGC[g]||'#f8fafc'};border-color:${BORDER[g]||'#e2e8f0'};">
       <div class="comp-score-card-label">${icons[grp]||''} ${grp}</div>
-      <div class="comp-score-card-grade" style="color:${GC[g]||'#94a3b8'}">${g}</div>
+      <div style="display:flex;align-items:baseline;gap:6px;">
+        <div class="comp-score-card-grade" style="color:${GC[g]||'#94a3b8'}">${g}</div>
+        ${d.score!=null?`<div style="font-size:16px;font-weight:700;color:${GC[g]||'#94a3b8'};">${d.score}점</div>`:''}
+      </div>
       <div class="comp-score-card-subs">${subsHtml}</div>
-      ${hasReason ? `
-        <button class="comp-reason-toggle" onclick="toggleCompReason('${rid}')" style="margin-top:8px;">근거 보기 ▾</button>
-        <div class="comp-reason-body" id="${rid}">${escapeHtml(d.근거)}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -1562,8 +1385,39 @@ function renderCompPanel(){
       <div class="comp-opinion">${escapeHtml(eval_.종합의견)}</div>
     </div>` : '';
 
+  // ── 세부 comment 섹션 ──
+  const detailHtml = `
+    <div class="comp-score-wrap">
+      <div class="comp-score-header">
+        <div class="comp-score-title">📋 세부 항목 평가 근거</div>
+      </div>
+      ${['학업역량','진로역량','공동체역량'].map(grp=>{
+        const d = eval_[grp]; if(!d) return '';
+        const subDefs = {
+          '학업역량': [['학업성취도','학업성취도'],['학업태도','학업태도'],['탐구력','탐구력']],
+          '진로역량': [['전공관련교과이수','전공관련교과이수'],['전공관련교과성취도','전공관련교과성취도'],['진로탐색활동','진로탐색활동']],
+          '공동체역량': [['협업소통','협업소통'],['나눔배려','나눔배려'],['성실규칙준수','성실규칙준수'],['리더십','리더십']]
+        };
+        const rows = (subDefs[grp]||[]).map(([lbl,key])=>{
+          const sd = d[key]; if(!sd||!sd.grade) return '';
+          return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:12px;color:var(--muted);min-width:90px;">${lbl}</span>
+              <span style="color:${GC[sd.grade]||'#94a3b8'};font-weight:800;">${sd.grade}</span>
+              ${sd.score!=null?`<span style="font-size:11px;color:${GC[sd.grade]||'#94a3b8'};">${sd.score}점</span>`:''}
+            </div>
+            ${sd.comment?`<div style="font-size:11px;color:var(--muted2);line-height:1.6;padding-left:98px;">${escapeHtml(sd.comment)}</div>`:''}</div>`;
+        }).join('');
+        return rows ? `<div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--surface2);border-radius:6px;">${grp}</div>
+          ${rows}
+        </div>` : '';
+      }).join('')}
+    </div>`;
+
   panel.innerHTML = `
     ${actionRow}
+    ${scoreBanner}
     <div class="comp-score-wrap">
       <div class="comp-score-header">
         <div class="comp-score-title">🏆 3영역 역량 평가</div>
@@ -1574,7 +1428,8 @@ function renderCompPanel(){
       <div class="comp-score-header"><div class="comp-score-title">💡 강점 · 보완점</div></div>
       <button class="comp-gen-btn secondary" style="width:100%;justify-content:center;" onclick="regenSwot('${hak}')">✨ 강점·보완점 생성</button>
     </div>`}
-    ${opinionHtml}`;
+    ${opinionHtml}
+    ${detailHtml}`;
 }
 
 function toggleCompReason(id){
@@ -1592,12 +1447,15 @@ async function regenSwot(hak){
 
   try{
     const eval_ = evalData[hak]?.종합역량평가 || {};
+    // 새 등급 체계(A+~D + 점수) 기반 요약
     const grpSummary = ['학업역량','진로역량','공동체역량'].map(grp=>{
       const d=eval_[grp]; if(!d) return '';
-      return `${grp}(${d.grade||'?'})`;
+      const scoreText = d.score ? ` ${d.score}점` : '';
+      return `${grp}(${d.grade||'?'}${scoreText})`;
     }).filter(Boolean).join(' / ');
 
     const swotPrompt = `고등학생 종합역량 평가 결과를 바탕으로 대학입시 관점의 강점·보완점을 분석하세요.
+종합: ${eval_.종합등급||'?'} ${eval_.종합점수||'?'}점
 역량: ${grpSummary}
 ${eval_.종합의견?`종합의견: ${eval_.종합의견.substring(0,500)}`:''}
 
@@ -1640,51 +1498,23 @@ async function renderChangchePanel(){
   const sw = sewtuk[hak] || {};
   if(!sw.창체요약) sw.창체요약 = {};
 
-  // ★ FIX 1: changche 우선, sewtuk 폴백 (changche가 자율/동아리/진로 포함 최신 형식)
-  const overallSaved = evalData[hak]?.창체종합평가 || ccData?.창체종합평가 || null;
-  let overallHtml = `
-    <div class="cc-overall-section">
-      <div class="cc-overall-head" id="ccOverallHead" onclick="toggleCcOverall()">
-        <div class="cc-overall-title">🎭 창체 종합 평가 <span id="ccOverallArrow" style="margin-left:4px;">▲</span></div>
-        <button class="btn-cc-overall" id="btnCcOverall" onclick="event.stopPropagation();generateCcOverall()">✨ AI 종합 평가 생성</button>
-      </div>
-      <div class="cc-overall-body open" id="ccOverallBody">
-        <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
-      </div>
-    </div>`;
-
-  // ★ FIX 2: 개별 활동 평가 렌더링 추가
-  const EVAL_COLOR = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
   const cats = {'자율':'🏫','동아리':'🎸','진로':'🎯'};
   const actCards = acts.map((a,i)=>{
     const icon = cats[a.분류] || '📌';
-    // 요약: sewtuk 캐시 → activities[i].요약 순으로 폴백
     const saved = ccData?.창체요약?.[i] || (Array.isArray(a.요약) && a.요약.length ? a.요약 : null);
-    // 평가: activities[i].평가 → changche 창체활동평가[i] 순으로 폴백
-    const evalData = a.평가 || ccData?.창체활동평가?.[String(i)] || null;
-
-    const evalBlock = evalData ? `
-      <div style="padding:8px 14px 12px;border-top:1px solid var(--border);">
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:8px;">📊 역량 평가</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
-          ${['학업역량','진로역량','공동체역량'].map(k=>{
-            const d=evalData[k]; if(!d) return '';
-            const subHtml=Object.entries(d.세부||{}).map(([sk,sv])=>
-              `<span style="color:${EVAL_COLOR[sv]||'#94a3b8'};font-weight:700;">${sv}</span>&nbsp;${sk}`
-            ).join('<br>');
-            return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 9px;text-align:center;">
-              <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
-              <div style="font-size:20px;font-weight:900;color:${EVAL_COLOR[d.grade]||'#64748b'};line-height:1.2;">${d.grade||'?'}</div>
-              <div style="font-size:10px;color:var(--muted2);margin-top:3px;line-height:1.7;">${subHtml}</div>
-            </div>`;
-          }).join('')}
-        </div>
-        ${evalData.근거?`<div style="font-size:11px;color:var(--muted2);line-height:1.6;padding:6px 10px;background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent);">${evalData.근거}</div>`:''}
-      </div>` : '';
+    const kwSaved = a.키워드 || null;
 
     const summaryBlock = saved ? `
       <div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
         ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : saved}
+      </div>` : '';
+
+    const kwBlock = kwSaved && kwSaved.length ? `
+      <div style="padding:8px 12px 10px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;">🏷 핵심 키워드</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${kwSaved.map(kw=>`<span style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${escapeHtml(kw)}</span>`).join('')}
+        </div>
       </div>` : '';
 
     return `
@@ -1696,27 +1526,22 @@ async function renderChangchePanel(){
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             ${saved?'<span style="font-size:10px;color:var(--green);font-weight:600;">✓ 요약</span>':'<span style="font-size:10px;color:var(--muted);">미완료</span>'}
-            ${evalData?'<span style="font-size:10px;color:#06b6d4;font-weight:600;">✓ 평가</span>':''}
+            ${kwSaved?'<span style="font-size:10px;color:#7c3aed;font-weight:600;">🏷 키워드</span>':''}
             <span style="font-size:11px;color:var(--muted);">▼</span>
           </div>
         </div>
         <div class="cc-item-body" id="ccItem${i}">
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
           ${summaryBlock}
-          ${evalBlock}
+          ${kwBlock}
           <div style="display:flex;gap:6px;margin-top:6px;">
             <button class="btn-subj-overall" style="flex:1;" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
-            <button class="eval-gen-btn ${evalData?'gb-done':''}" style="margin:0;flex:1;" onclick="generateCcItemEval(${i})" id="btnCcEval${i}">📊 ${evalData?'평가 재생성':'AI 평가 생성'}</button>
           </div>
         </div>
       </div>`;
   }).join('');
 
-  panel.innerHTML = overallHtml + actCards;
-  // 저장된 종합평가 렌더링
-  if(overallSaved && typeof overallSaved === 'object') {
-    setTimeout(()=>renderCcOverallSection(overallSaved, false), 0);
-  }
+  panel.innerHTML = actCards;
 }
 
 function toggleCcItem(i){
@@ -1755,33 +1580,7 @@ async function generateAllCcSummary(){
   addMsgToChat('chatBodyCc','assistant','✅ 창체 전체 요약 완료!');
 }
 
-async function generateAllCcEval(){
-  const hak = String(currentStu.hak);
-  const ccData = changche[hak];
-  if(!ccData?.activities?.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
-
-  const btn = document.querySelector('.tab-btn-changche[onclick="generateAllCcEval()"]');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> 평가 중...'; }
-
-  const targets = ccData.activities.map((a,i)=>i).filter(i=>{
-    const a = ccData.activities[i];
-    return !(a.평가 || ccData?.창체활동평가?.[String(i)]);
-  });
-
-  if(!targets.length){
-    addMsgToChat('chatBodyCc','assistant','✅ 모든 활동 평가가 이미 완료되어 있습니다.');
-    if(btn){ btn.disabled=false; btn.innerHTML='📊 전체 평가 생성'; }
-    return;
-  }
-
-  addMsgToChat('chatBodyCc','assistant',`📊 미평가 **${targets.length}개** 활동을 순서대로 평가합니다...`);
-  for(const i of targets){
-    await generateCcItemEval(i);
-    await new Promise(r=>setTimeout(r,300));
-  }
-  addMsgToChat('chatBodyCc','assistant',`🎉 창체 전체 평가 완료! **${targets.length}개** 활동 평가가 저장되었습니다.`);
-  if(btn){ btn.disabled=false; btn.innerHTML='📊 전체 평가 생성'; }
-}
+/* generateAllCcEval 제거됨 */
 
 
 async function generateCcItemSummary(idx){
@@ -1833,125 +1632,7 @@ ${arr.map((t,i)=>`${['①','②','③'][i]||i+1} ${t}`).join('\n')}`);
   }
 }
 
-async function generateCcItemEval(idx){
-  const hak = String(currentStu.hak);
-  const ccData = changche[hak];
-  const acts = ccData?.activities || [];
-  const a = acts[idx];
-  if(!a) return;
-
-  const btn = document.getElementById('btnCcEval'+idx);
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 평가 중...'; }
-
-  try{
-    const text = await callAPI(
-      `당신은 대입 전형 전문가입니다. 학생의 창의적 체험활동을 읽고 3개 대분류 역량과 세부 지표를 평가하세요.
-
-반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","세부":{"학업성취도":"A","학업태도":"A","탐구력":"A"}},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"}},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"B","성실성":"A","리더십":"B"}},"근거":"이 활동에서 드러난 역량 핵심 근거 40자 이내"}
-
-등급: S=매우탁월(명시근거필수) A=우수 B=양호 C=보통(언급부족) D=미흡(내용없음)
-세부는 활동 원문에 근거 없는 항목은 반드시 C 이하로 평가.`,
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n활동: ${a.학년}학년 ${a.분류} - ${a.활동명}\n내용:\n${a.내용}`}],
-      800
-    );
-    let obj;
-    try{
-      const cleaned = text.replace(/```json|```/g,'').trim();
-      obj = JSON.parse(cleaned);
-    }catch{ throw new Error('평가 JSON 파싱 실패'); }
-
-    // changche 인메모리에 저장
-    if(!changche[hak].창체활동평가) changche[hak].창체활동평가 = {};
-    changche[hak].창체활동평가[String(idx)] = obj;
-    // activities[idx].평가에도 반영
-    if(changche[hak].activities[idx]) changche[hak].activities[idx].평가 = obj;
-
-    await saveChangcheToSheet(hak);
-    renderChangchePanel();
-    document.getElementById('ccItem'+idx)?.classList.add('open');
-
-    addMsgToChat('chatBodyCc','assistant',
-      `📊 **${a.활동명}** 평가 완료!\n학업역량 **${obj.학업역량?.grade}** · 진로역량 **${obj.진로역량?.grade}** · 공동체역량 **${obj.공동체역량?.grade}**`
-    );
-  }catch(e){
-    addMsgToChat('chatBodyCc','assistant','❌ 평가 오류: '+e.message);
-  }finally{
-    if(btn){ btn.disabled=false; btn.innerHTML='📊 평가 재생성'; }
-  }
-}
-
-
-async function generateCcOverall(){
-  const hak = String(currentStu.hak);
-  const btn = document.getElementById('btnCcOverall');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
-  try{
-    const acts = changche[hak]?.activities || [];
-    if(!acts.length) throw new Error('창체 데이터 없음');
-    const summary = acts.map(a=>`[${a.학년}학년 ${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,300)}`).join('\n');
-
-    const text = await callAPI(
-      `당신은 대입 전형 전문 입학사정관입니다. 학생의 창의적 체험활동 전체를 분석하여 3개 역량과 세부 지표를 평가하세요.
-
-반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","근거":"창체에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","근거":"공동체역량 근거 30자이내"},"자율활동":{"grade":"A","comment":"자율활동 평가 20자이내"},"동아리활동":{"grade":"B","comment":"동아리활동 평가 20자이내"},"진로활동":{"grade":"A","comment":"진로활동 평가 20자이내"},"종합의견":"창체 전체를 종합한 5~7문장 평가. 음슴체 사용."}
-
-등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n\n창체 활동 전체:\n${summary}`}],
-      1500
-    );
-
-    let obj;
-    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
-    catch{ throw new Error('JSON 파싱 실패'); }
-
-    // eval 시트에 저장
-    if(!evalData[hak]) evalData[hak]={};
-    evalData[hak].창체종합평가 = obj;
-    if(!changche[hak]) changche[hak]={};
-    changche[hak].창체종합평가 = obj;
-    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
-    renderCcOverallSection(obj, false);
-    addMsgToChat('chatBodyCc','assistant',
-      `✅ 창체 종합 평가 완료!\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
-  }catch(e){
-    addMsgToChat('chatBodyCc','assistant','❌ 오류: '+e.message);
-  }finally{
-    if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
-  }
-}
-
-function renderCcOverallSection(data, isPend){
-  const el = document.getElementById('ccOverallBody');
-  if(!el) return;
-  if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
-  const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
-  el.innerHTML=`
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      ${['학업역량','진로역량','공동체역량'].map(k=>{
-        const d=data[k]; if(!d) return '';
-        return `<div class="overall-card">
-          <div class="overall-card-label">${k}</div>
-          <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-          <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-      ${['자율활동','동아리활동','진로활동'].map(k=>{
-        const d=data[k]; if(!d) return '';
-        return `<div style="background:var(--surface2);border-radius:6px;padding:7px 9px;text-align:center;">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
-          <div style="font-size:18px;font-weight:800;color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-          <div style="font-size:10px;color:var(--muted2)">${d.comment||''}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 창체 종합 의견</div>${data.종합의견}</div>`:''}
-  `;
-}
+/* generateCcItemEval / generateCcOverall / renderCcOverallSection 제거됨 */
 
 /* ========== 행발 패널 ========== */
 function renderHaengbalPanel(){
@@ -1968,25 +1649,23 @@ function renderHaengbalPanel(){
 
   const gradeLabels = {'1':'1학년','2':'2학년','3':'3학년'};
   const hbSummaries = evalData[hak]?.행발요약 || {};
-  const hbOverall = evalData[hak]?.행발종합평가 || null;
+  const hbKeywords  = evalData[hak]?.행발키워드 || {};
 
-  // 종합평가 섹션
-  let html = `
-    <div class="cc-overall-section">
-      <div class="cc-overall-head" id="hbOverallHead" onclick="toggleHbOverall()">
-        <div class="cc-overall-title">📋 행발 종합 평가 <span id="hbOverallArrow" style="margin-left:4px;">▲</span></div>
-        <button class="btn-cc-overall" id="btnHbOverall" onclick="event.stopPropagation();generateHbOverall()">✨ AI 종합 평가 생성</button>
-      </div>
-      <div class="cc-overall-body open" id="hbOverallBody">
-        <span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>
-      </div>
-    </div>`;
-
-  // 학년별 카드
+  let html = '';
   ['1','2','3'].forEach(g=>{
     const hbText = hbData.원문?.[g] || hbData[g] || '';
     if(!hbText) return;
     const saved = hbSummaries[g];
+    const kws   = hbKeywords[g] || null;
+
+    const kwBlock = kws && kws.length ? `
+      <div style="padding:8px 0 4px;">
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;">🏷 핵심 키워드</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${kws.map(kw=>`<span style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${escapeHtml(kw)}</span>`).join('')}
+        </div>
+      </div>` : '';
+
     html += `
       <div class="hb-item">
         <div class="hb-grade-title">${gradeLabels[g]} 행동특성 및 종합의견</div>
@@ -1994,15 +1673,12 @@ function renderHaengbalPanel(){
         ${saved ? `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;">
           ${Array.isArray(saved) ? saved.map((t,j)=>`${['①','②','③'][j]||j+1} ${t}`).join('<br>') : `<strong style="color:var(--green);">✓ 요약:</strong> ${saved}`}
         </div>` : ''}
+        ${kwBlock}
         <button class="btn-subj-overall" onclick="generateHbSummary('${g}')" id="btnHb${g}">✨ ${g}학년 요약 생성</button>
       </div>`;
   });
 
-  panel.innerHTML = html;
-  // 저장된 종합평가 렌더링
-  if(hbOverall && typeof hbOverall === 'object') {
-    setTimeout(()=>renderHbOverallSection(hbOverall, false), 0);
-  }
+  panel.innerHTML = html || '<div style="color:var(--muted);padding:20px;">행발 데이터가 없습니다.</div>';
 }
 
 async function generateHbSummary(grade){
@@ -2047,81 +1723,7 @@ async function generateHbSummary(grade){
   }
 }
 
-async function generateHbOverall(){
-  const hak = String(currentStu.hak);
-  const btn = document.getElementById('btnHbOverall');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin-dark"></span> 생성 중...'; }
-  try{
-    const hw = haengbal[hak]?.원문 || haengbal[hak] || {};
-    if(!Object.keys(hw).length) throw new Error('행발 데이터 없음');
-    const summary = ['1','2','3'].filter(g=>hw[g]).map(g=>`[${g}학년] ${hw[g]}`).join('\n\n');
-
-    const text = await callAPI(
-      `당신은 대입 전형 전문 입학사정관입니다. 학생의 학년별 행동특성 및 종합의견을 분석하여 3개 역량과 세부 지표를 평가하세요.
-
-반드시 아래 JSON 형식만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","세부":{"학업성취도":"A","학업태도":"A","탐구력":"B"},"근거":"행발에서 드러난 학업역량 근거 30자이내"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"A"},"근거":"진로역량 근거 30자이내"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"공동체역량 근거 30자이내"},"종합의견":"학년별 성장 과정을 포함한 5~7문장 종합 평가. 음슴체 사용."}
-
-세부지표 매핑:
-[학업역량] 학업성취도:자기주도학습·성취수준 / 학업태도:수업참여·노력 / 탐구력:지적호기심·문제해결
-[진로역량] 전공적합성:진로관련지식·관심 / 진로탐색:구체적진로계획·경험
-[공동체역량] 협업소통:협력·의사소통 / 나눔배려:배려·봉사 / 성실성:꾸준함·책임감 / 리더십:주도적역할·영향력
-
-등급: S(매우탁월), A(우수), B(양호), C(보통), D(미흡), E(해당없음)`,
-      [{role:'user', content:`학생: ${currentStu.name}(${hak})\n\n${summary}`}],
-      1500
-    );
-
-    let obj;
-    try{ obj=JSON.parse(text.replace(/```json|```/g,'').trim()); }
-    catch{ throw new Error('JSON 파싱 실패'); }
-
-    if(!evalData[hak]) evalData[hak]={};
-    evalData[hak].행발종합평가 = obj;
-    addMsgToChat('chatBodyHb','assistant','💾 구글 시트(eval)에 저장 중...');
-    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
-    renderHbOverallSection(obj, false);
-    addMsgToChat('chatBodyHb','assistant',
-      `✅ 행발 종합 평가 완료! (구글 시트 저장됨)\n\n📚 학업역량 **${obj.학업역량?.grade||'?'}** · 🎯 진로역량 **${obj.진로역량?.grade||'?'}** · 🤝 공동체역량 **${obj.공동체역량?.grade||'?'}**`);
-  }catch(e){
-    addMsgToChat('chatBodyHb','assistant','❌ 오류: '+e.message);
-  }finally{
-    if(btn){ btn.disabled=false; btn.textContent='✨ AI 종합 평가 생성'; }
-  }
-}
-
-function renderHbOverallSection(data, isPend){
-  const el = document.getElementById('hbOverallBody');
-  if(!el) return;
-  if(!data){ el.innerHTML='<span style="color:var(--muted);">상단 버튼으로 AI 종합 평가를 생성하세요</span>'; return; }
-  const colorMap={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#64748b'};
-  const subLabels={
-    '학업역량':['학업성취도','학업태도','탐구력'],
-    '진로역량':['전공적합성','진로탐색'],
-    '공동체역량':['협업소통','나눔배려','성실성','리더십']
-  };
-  el.innerHTML=`
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${isPend?'🔄 미저장':'✅ 저장된 평가'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      ${['학업역량','진로역량','공동체역량'].map(k=>{
-        const d=data[k]; if(!d) return '';
-        const subs = subLabels[k]||[];
-        const subHtml = subs.map(s=>{
-          const g = d.세부?.[s]||'';
-          return `<span style="font-size:10px;color:var(--muted2);">${s} <strong style="color:${colorMap[g]||'#64748b'}">${g||'-'}</strong></span>`;
-        }).join(' · ');
-        return `<div class="overall-card">
-          <div class="overall-card-label">${k}</div>
-          <div class="overall-card-grade" style="color:${colorMap[d.grade]||'#64748b'}">${d.grade||'?'}</div>
-          <div style="margin:4px 0;line-height:1.8;">${subHtml}</div>
-          <div class="overall-card-subs" style="font-size:10px;">${d.근거||''}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 행발 종합 의견</div>${data.종합의견}</div>`:''}
-  `;
-}
-
+/* generateHbOverall / renderHbOverallSection 제거됨 */
 
 // 창체/행발 채팅 헬퍼
 function addMsgToChat(chatBodyId, role, text){
@@ -2156,6 +1758,124 @@ function sendChatHb(){
   callAPI('당신은 학생부 행발 전문 분석가입니다.', chatHistoryHb, 800)
     .then(t=>{ chatHistoryHb.push({role:'assistant',content:t}); addMsgToChat('chatBodyHb','assistant',t); })
     .catch(e=>addMsgToChat('chatBodyHb','assistant','❌ '+e.message));
+}
+
+
+
+/* ========== 🏷 키워드 일괄 추출 ========== */
+async function generateAllKeywords(type){
+  if(!currentStu){ addMsg('assistant','학생을 먼저 선택해주세요.'); return; }
+  const hak = String(currentStu.hak);
+
+  if(type === 'sewtuk'){
+    const subs = sewtuk[hak]?.subjects || [];
+    if(!subs.length){ addMsg('assistant','세특 데이터가 없습니다.'); return; }
+    addMsg('assistant', `🏷 세특 **${subs.length}개** 과목의 핵심 키워드를 추출합니다...`);
+
+    const fill = document.getElementById('allProgFill');
+    const lbl  = document.getElementById('allProgLabel');
+    const progBar = document.getElementById('allProg');
+    if(progBar) progBar.classList.add('show');
+
+    let done = 0;
+    for(const s of subs){
+      if(fill) fill.style.width = Math.round(done/subs.length*100)+'%';
+      if(lbl)  lbl.textContent  = `${done}/${subs.length}`;
+      try{
+        const text = await callAPI(
+          `당신은 학생부 전문가입니다. 세부능력특기사항에서 이 학생을 대표하는 핵심 역량·탐구주제·활동 키워드를 추출하세요.
+반드시 아래 JSON 배열만 출력 (마크다운·다른텍스트 절대 금지):
+["키워드1","키워드2","키워드3","키워드4","키워드5"]
+규칙:
+- 5~8개 이내, 각 10자 이내
+- 탐구주제·역량명·핵심활동명 위주 (예: "게임이론", "통계적추론", "자기주도탐구", "협업리더십")
+- 일반적인 단어(공부, 활동, 참여) 금지`,
+          [{role:'user', content:`과목: ${s.교과}-${s.과목} ${s.학년}학년
+세특:
+${(s.내용||'').substring(0,600)}`}],
+          300
+        );
+        let arr;
+        try{ arr = JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
+        catch{ arr = []; }
+        if(arr.length) s.키워드 = arr;
+      }catch(e){ /* 개별 실패 무시 */ }
+      done++;
+      await new Promise(r=>setTimeout(r,200));
+    }
+    if(fill) fill.style.width = '100%';
+    if(lbl)  lbl.textContent  = `${done}/${subs.length} 완료`;
+    await saveToSheet(hak);
+    renderPanel();
+    addMsg('assistant', `✅ 세특 키워드 추출 완료! **${done}개** 과목에 키워드가 표시됩니다.`);
+
+  } else if(type === 'changche'){
+    const acts = changche[hak]?.activities || [];
+    if(!acts.length){ addMsgToChat('chatBodyCc','assistant','창체 데이터가 없습니다.'); return; }
+    addMsgToChat('chatBodyCc','assistant', `🏷 창체 **${acts.length}개** 활동의 핵심 키워드를 추출합니다...`);
+
+    let done = 0;
+    for(const a of acts){
+      try{
+        const text = await callAPI(
+          `당신은 학생부 전문가입니다. 창의적 체험활동에서 핵심 키워드를 추출하세요.
+반드시 아래 JSON 배열만 출력 (마크다운 금지):
+["키워드1","키워드2","키워드3","키워드4"]
+규칙:
+- 3~5개 이내, 각 10자 이내
+- 활동명·역량·주요테마 위주 (예: "환경탐구", "리더십", "진로설계")
+- 일반단어(활동, 참여) 금지`,
+          [{role:'user', content:`활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
+내용:
+${(a.내용||'').substring(0,500)}`}],
+          200
+        );
+        let arr;
+        try{ arr = JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
+        catch{ arr = []; }
+        if(arr.length) a.키워드 = arr;
+      }catch(e){}
+      done++;
+      await new Promise(r=>setTimeout(r,200));
+    }
+    await saveChangcheToSheet(hak);
+    renderChangchePanel();
+    addMsgToChat('chatBodyCc','assistant', `✅ 창체 키워드 추출 완료! **${done}개** 활동에 키워드가 표시됩니다.`);
+
+  } else if(type === 'haengbal'){
+    const hbData = haengbal[hak]?.원문 || haengbal[hak] || {};
+    const grades = ['1','2','3'].filter(g => hbData[g]);
+    if(!grades.length){ addMsgToChat('chatBodyHb','assistant','행발 데이터가 없습니다.'); return; }
+    addMsgToChat('chatBodyHb','assistant', `🏷 행발 **${grades.length}개** 학년의 핵심 키워드를 추출합니다...`);
+
+    if(!evalData[hak]) evalData[hak] = {};
+    if(!evalData[hak].행발키워드) evalData[hak].행발키워드 = {};
+
+    for(const g of grades){
+      try{
+        const text = await callAPI(
+          `당신은 학생부 전문가입니다. 행동특성 및 종합의견에서 핵심 키워드를 추출하세요.
+반드시 아래 JSON 배열만 출력 (마크다운 금지):
+["키워드1","키워드2","키워드3","키워드4","키워드5"]
+규칙:
+- 3~6개 이내, 각 10자 이내
+- 인성·역량·특징 키워드 위주 (예: "공감능력", "책임감", "자기성찰", "리더십")
+- 일반단어 금지`,
+          [{role:'user', content:`${g}학년 행발:
+${(hbData[g]||'').substring(0,600)}`}],
+          200
+        );
+        let arr;
+        try{ arr = JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
+        catch{ arr = []; }
+        if(arr.length) evalData[hak].행발키워드[g] = arr;
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,200));
+    }
+    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
+    renderHaengbalPanel();
+    addMsgToChat('chatBodyHb','assistant', `✅ 행발 키워드 추출 완료!`);
+  }
 }
 
 /* ========== 종합 역량 평가 (내신 + 세특 + 창체 + 행발) ========== */
@@ -2249,45 +1969,116 @@ async function generateComprehensiveEval(){
     ? `추정 진로 방향: ${[...new Set(careerHints)].slice(0,5).join(', ')}`
     : '진로 방향 미확인';
 
-  // ⑤ 시스템 프롬프트: Claude 기본 지식 활용 지시 + 데이터 출처 안내
+  // ⑤ 시스템 프롬프트: 새 루브릭 기준 (A+~D 10단계 + 100점 만점)
   const systemPrompt=`당신은 한국 대입 학생부종합전형 전문 입학사정관입니다.
-학생의 내신·세특·창체·행발 데이터를 종합 분석하여 3개 역량, 7개 세부 평가항목을 평가하세요.
+학생의 내신·세특·창체·행발 데이터를 종합 분석하여 3개 역량 10개 세부항목을 평가하세요.
 
-※ 아래 데이터 외에도 한국 대입 학생부종합전형의 일반적인 평가 기준(학업역량·진로역량·공동체역량)과
-귀하가 보유한 각 대학·계열별 인재상 지식을 활용하여 평가하세요.
-※ 세특 AI평가 등급과 창체 AI종합평가는 사전 분석된 보조 참고값입니다. 원문 근거와 함께 종합 판단하세요.
+【등급 체계 — 반드시 이 10단계만 사용】
+A+(95~100) A0(88~94) A-(82~87) B+(76~81) B0(70~75) B-(64~69) C+(58~63) C0(52~57) C-(46~51) D(45이하)
 
-반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
+【평가 원칙】
+1. 각 항목마다 grade(등급)와 score(점수, 해당 등급 범위 내 정수)를 반드시 함께 산출
+2. 세특·창체·행발 텍스트에서 근거 표현을 직접 인용하여 comment 작성
+3. 텍스트에 없는 내용은 절대 추측 금지 — 근거 없으면 해당 항목 B0 이하
+4. 수월성(집단 내 탁월성) 근거 없이 A+ 판정 불가
+5. 동기·과정 서술 없이 탐구력 A0 이상 판정 불가
+
+【학업역량 — 가중치 40%】
+▶ 학업성취도 (내신 데이터 기반, 목표대학 50%컷·70%컷 비교)
+  - 50%컷보다 0.5↑여유: A+ / 0.3↑여유: A0 / ±0.3이내: A-
+  - 50%컷초과~70%컷: B+~B- / 70%컷초과~+0.5: C+~C0 / +0.5초과: C-~D
+  - 학년별 상승추이 +5점, 하락추이 -5점 보정
+▶ 학업태도 (세특+창체+행발 통합)
+  - A+: 자기주도·수월성·내면화·환경활용·지속성 모두 + 3개출처 반복
+  - A0: 자기주도·수월성·내면화 + 2개출처
+  - A-: 자기주도·내면화 + 2개출처
+  - B+: 자기주도 + 1개출처, 능동적 의지 명확
+  - B0이하: 성실참여 수준, 자기주도 표현 약함
+▶ 탐구력 (세특+창체 통합)
+  - A+: 탐구전과정(동기→가설→실험→분석→결론)+수월성+실패재시도+교과간융합
+  - A0: 탐구전과정+수월성+사고구체성
+  - A-: 탐구전과정+동기명확+사고과정일부
+  - B+: 심화내용추가+결과를다른개념과연결
+  - B0이하: 교사제시탐구참여, 결과만서술
+
+【진로역량 — 가중치 35%】
+▶ 전공관련교과이수 (내신 이수과목 기반)
+  - A+: 핵심권장과목전부+권장2개이상+세특심화탐구반복
+  - A0: 핵심권장전부+권장1개이상+세특연계탐구
+  - A-: 핵심권장전부 또는 미개설대체+연계탐구충분
+  - B+이하: 핵심권장일부이수 또는 세특연계미흡
+  ※ 학교미개설과목 미이수는 감점없음
+▶ 전공관련교과성취도 (전공과목 내신 기반)
+  - 학업성취도와 동일 판정로직, 전공관련과목만 필터링
+  - 핵심권장 0.6 + 권장 0.4 가중평균
+▶ 진로탐색활동 (세특+창체+행발 통합)
+  - A+: 3개년동일진로+학년별심화+3개출처모두+다양한탐색방식
+  - A0: 진로일관성+2개출처+학년별성장흐름
+  - A-: 진로일관성+2개출처, 심화흐름일부
+  - B+이하: 1개출처 또는 일관성부족
+  ※ 진로변경시 이유서술있으면 감점없음
+
+【공동체역량 — 가중치 25%】
+▶ 협업소통 (세특+창체+행발)
+  - A+: 갈등조율+팀의사결정주도+3개출처반복+수월성
+  - A0: 갈등조율+팀주도+2개출처
+  - B+이하: 참여기록있으나주도성미흡
+▶ 나눔배려 (세특+창체+행발)
+  - A+: 자발적동료지원구체사례+다양성존중일관+3개출처
+  - A0: 자발적지원+2개출처
+  - B+이하: "친구도움"수준언급
+▶ 성실규칙준수 (세특+행발+출결)
+  - A+: 무결석무지각+행발성실반복+역할완수구체서술
+  - A0: 출결양호+성실3회이상+역할완수
+  - B+이하: 성실표현1~2회 또는 출결일부불량
+  ※ 결석0→+3점, 결석3~5→-3점, 6이상→-5점
+▶ 리더십 (세특+창체+행발)
+  - A+: 학급동아리임원+성과서술구체+3개출처반복
+  - A0: 임원또는프로젝트리더+성과+2개출처
+  - B+이하: 팀내역할수행, 주도성미흡
+
+【역량별 종합점수 계산】
+학업역량점수 = 학업성취도×0.4 + 학업태도×0.3 + 탐구력×0.3
+진로역량점수 = 전공이수×0.2 + 전공성취도×0.3 + 진로탐색×0.5
+공동체역량점수 = 협업소통×0.35 + 나눔배려×0.20 + 성실규칙×0.25 + 리더십×0.20
+종합점수 = 학업역량점수×0.40 + 진로역량점수×0.35 + 공동체역량점수×0.25
+
+【예외규칙】
+- 학업태도D → 학업역량최대C0
+- 진로탐색D → 진로역량최대C0
+- 성실규칙D → 공동체역량최대C0
+- 리더십A+ → 공동체역량+2점
+
+반드시 아래 JSON만 출력 (다른 텍스트·마크다운 절대 금지):
 {
   "학업역량": {
-    "grade": "B",
-    "학업성취도": {"grade":"B","comment":"150바이트 — 내신 수치 반드시 인용"},
-    "학업태도": {"grade":"A","comment":"150바이트 — 세특 근거"},
-    "탐구력": {"grade":"A","comment":"150바이트 — 세특 근거"}
+    "grade": "B+", "score": 78,
+    "학업성취도": {"grade":"B+","score":78,"comment":"150바이트 — 내신수치반드시인용"},
+    "학업태도":   {"grade":"A0","score":91,"comment":"150바이트 — 세특근거인용"},
+    "탐구력":     {"grade":"A-","score":84,"comment":"150바이트 — 탐구과정근거"}
   },
   "진로역량": {
-    "grade": "B",
-    "전공관련교과이수": {"grade":"B","comment":"150바이트 — 과목 선택 근거"},
-    "전공관련교과성취도": {"grade":"B","comment":"150바이트 — 내신 수치 인용"},
-    "진로탐색활동": {"grade":"A","comment":"150바이트 — 세특·창체 근거"}
+    "grade": "A-", "score": 83,
+    "전공관련교과이수":    {"grade":"A0","score":90,"comment":"150바이트 — 이수과목근거"},
+    "전공관련교과성취도":  {"grade":"B+","score":77,"comment":"150바이트 — 전공과목성취근거"},
+    "진로탐색활동":        {"grade":"A-","score":85,"comment":"150바이트 — 세특창체근거"}
   },
   "공동체역량": {
-    "grade": "A",
-    "협업소통": {"grade":"A","comment":"150바이트 — 세특·창체 근거"},
-    "나눔배려": {"grade":"A","comment":"150바이트 — 창체·행발 근거"},
-    "성실성규칙준수": {"grade":"A","comment":"150바이트 — 행발·세특 근거"},
-    "리더십": {"grade":"B","comment":"150바이트 — 창체·행발 근거"}
+    "grade": "A0", "score": 89,
+    "협업소통":     {"grade":"A0","score":91,"comment":"150바이트 — 협업사례근거"},
+    "나눔배려":     {"grade":"A-","score":84,"comment":"150바이트 — 나눔사례근거"},
+    "성실규칙준수": {"grade":"A+","score":96,"comment":"150바이트 — 출결성실근거"},
+    "리더십":       {"grade":"B+","score":79,"comment":"150바이트 — 리더사례근거"}
   },
-  "종합의견": "음슴체 6~8문장 — 진로 방향과 연계한 강점 서술 포함"
+  "종합점수": 82,
+  "종합등급": "A-",
+  "종합의견": "음슴체 6~8문장 — 진로방향연계강점포함"
 }
 
-【평가 기준】
-- 학업성취도: 내신 석차등급·원점수·과목평균·성취도 수치를 반드시 근거로 사용
-  (1~2등급→A~S 가능 / 3~4등급→최대B / 5등급 이하→최대C)
-- 진로역량: 추정 진로 방향과 세특·창체의 연계성을 중심으로 판단
-- 공동체역량: 창체 활동·행발의 구체적 협력·리더십 사례 반드시 참조
-- 종합의견: 음슴체("~함","~됨","~보임") 사용, "~다","~습니다" 절대 금지
-- 등급: S=반복탁월(명시적 근거 필수) A=우수 B=양호 C=제한적 D=거의없음`;
+【종합의견 규칙】
+- 음슴체("~함","~됨","~보임","~드러남") 사용, "~다","~습니다" 절대금지
+- 전교과 핵심강점을 구체적 활동·키워드 살려 6~8문장 서술
+- 진로방향과 연계한 강점 반드시 포함`;
 
   try{
     const text=await callAPI(systemPrompt,[{
@@ -2318,11 +2109,14 @@ async function generateComprehensiveEval(){
     // ★ 강점/보완점 자동 생성 (종합역량평가와 함께 저장)
     addMsg('assistant','⏳ 강점·보완점 분석 중...');
     try {
+      // 새 등급 체계(A+~D) 기반 요약 생성
       const grpSummary = ['학업역량','진로역량','공동체역량'].map(grp=>{
         const d=obj[grp]; if(!d) return '';
-        const subs = Object.entries(d).filter(([k,v])=>k!=='grade'&&k!=='근거'&&typeof v==='object'&&v.grade)
-          .map(([k,v])=>`${k}:${v.grade}`).join(' ');
-        return `${grp}(${d.grade||'?'}) — ${subs}`;
+        const scoreText = d.score ? ` ${d.score}점` : '';
+        const subs = Object.entries(d)
+          .filter(([k,v])=>!['grade','score','comment'].includes(k)&&typeof v==='object'&&v.grade)
+          .map(([k,v])=>`${k}:${v.grade}(${v.score||'?'}점)`).join(' ');
+        return `${grp}(${d.grade||'?'}${scoreText}) — ${subs}`;
       }).filter(Boolean).join(' / ');
 
       const avgText = (() => {
@@ -2339,6 +2133,7 @@ async function generateComprehensiveEval(){
 
 학생: ${currentStu.name} / ${hak[0]}학년
 ${avgText}
+종합점수: ${obj.종합점수||'?'}점 (${obj.종합등급||'?'})
 역량평가: ${grpSummary}
 ${obj.종합의견?`종합의견: ${obj.종합의견.substring(0,500)}`:''}
 
@@ -2371,6 +2166,8 @@ ${obj.종합의견?`종합의견: ${obj.종합의견.substring(0,500)}`:''}
     renderCompEvalMsg(obj, false);
     // 종합역량 탭이 열려 있으면 패널 자동 갱신
     if(currentMainTab === 'comp') renderCompPanel();
+    // 학생 목록 등급 뱃지 갱신
+    renderList();
   }catch(e){
     addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
   }finally{
@@ -2378,170 +2175,7 @@ ${obj.종합의견?`종합의견: ${obj.종합의견.substring(0,500)}`:''}
   }
 }
 
-/* ========== 종합 + 교과별 역량 평가 통합 실행 ========== */
-async function generateAllOverall(){
-  const hak=String(currentStu.hak);
-  const subs=sewtuk[hak]?.subjects||[];
-  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
-
-  const btn=document.getElementById('btnOverall');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 분석 중...';}
-
-  // 교과별 그룹핑 — 2개 이상인 교과만 추출
-  const groups={};
-  subs.forEach(s=>{
-    if(!groups[s.교과]) groups[s.교과]=[];
-    groups[s.교과].push(s);
-  });
-  // 모든 교과 추출 (1개 이상)
-  const multiCats=Object.keys(groups);
-
-  const total = 1 + multiCats.length; // 종합평가 1 + 교과별
-  let done = 0;
-
-  const fill=document.getElementById('allProgFill');
-  const lbl=document.getElementById('allProgLabel');
-  const progBar=document.getElementById('allProg');
-  if(progBar) progBar.classList.add('show');
-
-  const updateBar=()=>{
-    done++;
-    if(fill) fill.style.width=Math.round(done/total*100)+'%';
-    if(lbl) lbl.textContent=`${done}/${total}`;
-  };
-
-  addMsg('assistant',`🎯 종합 역량 평가 + 교과별 역량 평가 **${multiCats.length}개** 교과를 순서대로 생성합니다...`);
-
-  // 1. 종합 역량 평가
-  await generateOverallEval(true);
-  updateBar();
-  await new Promise(r=>setTimeout(r,300));
-
-  // 2. 교과별 종합평가 순차 실행
-  for(const cat of multiCats){
-    await generateSubjOverall(cat, true);
-    updateBar();
-    await new Promise(r=>setTimeout(r,300));
-  }
-
-  if(fill) fill.style.width='100%';
-  if(lbl) lbl.textContent=`${total}/${total} 완료`;
-  if(btn){btn.disabled=false;btn.innerHTML='🎯 종합 및 교과역량 평가';}
-
-  await autoSave(hak);
-  addMsg('assistant',
-    `🎉 모든 역량 평가 완료 및 저장!\n\n`+
-    `✅ 종합 역량 평가 1건 + 교과별 평가 **${multiCats.length}건** (${multiCats.join(', ')})`
-  );
-}
-
-/* ========== 종합 역량 평가 생성 ========== */
-async function generateOverallEval(silent=false){
-  const hak=String(currentStu.hak);
-  const subs=sewtuk[hak]?.subjects||[];
-  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
-
-  const btn=document.getElementById('btnOverall');
-  if(!silent && btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> 종합 분석 중...';}
-
-  const shortText=subs.map(s=>'['+s.교과+'-'+s.과목+'] '+(s.내용||'').substring(0,300)).join('\n\n');
-  const systemPrompt=`당신은 고등학교 학생부 기재 전문가이자 대입 전형 입학사정관입니다. 학생의 전체 세부능력특기사항을 종합 분석하여 3개 대분류 역량을 평가하세요.
-반드시 아래 JSON만 출력 (다른 텍스트, 마크다운 절대 금지):
-{"학업역량":{"grade":"A","세부":{"성취도":"A","태도":"A","탐구력":"S"},"근거":"300바이트 분량 구체적 근거"},"진로역량":{"grade":"B","세부":{"전공적합성":"B","진로탐색":"B"},"근거":"300바이트 분량 구체적 근거"},"공동체역량":{"grade":"A","세부":{"협업소통":"A","나눔배려":"A","성실성":"A","리더십":"B"},"근거":"300바이트 분량 구체적 근거"},"종합의견":"세특 서술 6~8문장"}
-
-【근거 작성 규칙】
-- 반드시 세특 원문의 구체적 활동명·탐구 주제·교과명·행동 키워드를 포함할 것
-- 추상적 평가어("우수함", "뛰어남")만 나열하지 말고 근거가 되는 사실을 서술
-- 예시(학업): "국어·수학·과학 전 교과에서 통계·논증·실험 등 탐구 방법 다양하게 활용, 자기주도 심화학습 반복 확인"
-- 예시(진로): "경제·수학 교과 연계 탐구 집중적이나 구체적 진로 방향 명시 없어 전공 연계성 일부 제한적"
-- 예시(공동체): "국어·일본어·통합사회 등 다수 교과서 모둠장·조장 역할 반복 수행, 협력적 소통과 팀 기여 두드러짐"
-- 반드시 300바이트(한글 약 100자) 분량으로 충분히 서술할 것 (너무 짧으면 안 됨)
-
-【종합의견 필수 작성 규칙】
-- 반드시 음슴체로: "~함", "~임", "~됨", "~보임", "~드러남" 등으로 마무리
-- "~다", "~습니다" 절대 금지
-- 전 교과에 걸친 핵심 강점을 구체적 활동·키워드 살려 6~8문장 서술
-
-등급: S=반복탁월 A=대부분우수 B=일부양호 C=제한적 D=거의없음`;
-
-  const timeoutPromise=new Promise((_,rej)=>setTimeout(()=>rej(new Error('요청 시간 초과 (60초).')),60000));
-  try{
-    const text=await Promise.race([callAPI(systemPrompt,
-      [{role:'user',content:'학생: '+currentStu.name+'\n\n전체 세특:\n'+shortText}],
-      1600
-    ), timeoutPromise]);
-
-    let obj;
-    try{obj=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{throw new Error('JSON 파싱 실패: '+text.substring(0,100));}
-
-    pendingOverall[hak]=obj;
-    renderOverallSection();
-
-    if(!silent){
-      addMsg('assistant',
-        '🎯 **'+currentStu.name+'** 종합 역량 평가 완료!\n\n'+
-        '📚 학업역량 **'+(obj.학업역량?.grade||'?')+'** · 🎯 진로역량 **'+(obj.진로역량?.grade||'?')+'** · 🤝 공동체역량 **'+(obj.공동체역량?.grade||'?')+'**\n\n'+
-        '💬 '+(obj.종합의견||''),
-        [{label:'🔄 다시 생성',action:'generateOverallEval()'}]
-      );
-      await autoSave(hak);
-    }
-  }catch(e){
-    console.error('종합평가 오류:', e);
-    if(!silent) addMsg('assistant','❌ 종합 평가 실패: '+e.message);
-    else addMsg('assistant','❌ 종합 역량 평가 실패: '+e.message);
-  }
-  if(!silent && btn){btn.disabled=false;btn.innerHTML='🎯 종합 및 교과역량 평가';}
-}
-
-/* ========== 종합평가 섹션 렌더링 ========== */
-function renderOverallSection(){
-  const el=document.getElementById('overallSection'); if(!el) return;
-  const hak=String(currentStu?.hak);
-  const saved=sewtuk[hak]?.종합평가;
-  const pend=pendingOverall[hak];
-  const data=pend||saved||null;
-  const labels={'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444'};
-
-  if(!data){
-    el.innerHTML=`<div class="overall-section">
-      <div class="overall-head">
-        <div class="overall-head-title">🎯 종합 역량 평가</div>
-        <div style="font-size:11px;color:var(--muted);">상단 버튼으로 AI 종합 분석을 생성하세요</div>
-      </div>
-    </div>`;
-    return;
-  }
-
-  const card=(key,label,subKeys)=>{
-    const d=data[key]; if(!d) return '';
-    const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
-      `<span style="color:${labels[v]||'#94a3b8'};font-weight:700;">${v}</span> ${k}`
-    ).join(' · ');
-    return `<div class="overall-card">
-      <div class="overall-card-label">${label}</div>
-      <div class="overall-card-grade" style="color:${labels[d.grade]||'#64748b'}">${d.grade}</div>
-      <div class="overall-card-subs">${subHtml}</div>
-      ${d.근거?`<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5;">${esc(d.근거)}</div>`:''}
-    </div>`;
-  };
-
-  el.innerHTML=`<div class="overall-section">
-    <div class="overall-head">
-      <div class="overall-head-title">🎯 종합 역량 평가 ${pend?'<span style="font-size:10px;color:var(--yellow);">미저장</span>':'<span style="font-size:10px;color:var(--green);">저장됨</span>'}</div>
-      <button class="btn-overall" style="padding:5px 10px;font-size:11px;" onclick="generateOverallEval()">🔄 재생성</button>
-    </div>
-    <div class="overall-body">
-      <div class="overall-grid">
-        ${card('학업역량','📚 학업역량')}
-        ${card('진로역량','🎯 진로역량')}
-        ${card('공동체역량','🤝 공동체역량')}
-      </div>
-      ${data.종합의견?`<div class="overall-comment"><div class="overall-comment-label">💬 종합 의견</div>${esc(data.종합의견)}</div>`:''}
-    </div>
-  </div>`;
-}
+/* generateAllOverall / generateOverallEval / renderOverallSection 제거됨 */
 
 /* ========== 채팅 ========== */
 function addMsg(role,text,actions){
@@ -2612,25 +2246,13 @@ async function sendChat(){
 async function autoSave(hak){
   hak=String(hak);
   const subs=sewtuk[hak]?.subjects||[];
-  const p=pending[hak]||{}; const pe=pendingEval[hak]||{};
-  // pending 데이터 sewtuk에 반영
+  const p=pending[hak]||{};
+  // pending 요약 데이터 sewtuk에 반영
   subs.forEach(s=>{
     const k=sKey(s);
     if(p[k]!==undefined){s.요약=p[k];delete p[k];}
-    if(pe[k]!==undefined){s.평가=pe[k];delete pe[k];}
   });
-  if(pendingOverall[hak]){
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].종합평가=pendingOverall[hak];
-    pendingOverall[hak]=null;
-  }
-  if(pendingSubjOverall[hak]&&Object.keys(pendingSubjOverall[hak]).length>0){
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].교과별평가=sewtuk[hak].교과별평가||{};
-    Object.assign(sewtuk[hak].교과별평가, pendingSubjOverall[hak]);
-    pendingSubjOverall[hak]={};
-  }
-  updateProgress(); renderPanel(); renderOverallSection();
+  updateProgress(); renderPanel();
   // 시트에 저장
   try{
     await saveToSheet(hak);
@@ -2644,51 +2266,24 @@ async function applyAndSave(){
   if(!currentStu) return;
   const hak=String(currentStu.hak);
   if(!pending[hak]) pending[hak]={};
-  if(!pendingEval[hak]) pendingEval[hak]={};
   const p=pending[hak];
-  const pe=pendingEval[hak];
   const pLen=Object.keys(p).length;
-  const peLen=Object.keys(pe).length;
-  const hasOverall=!!(pendingOverall[hak]);
-  const hasSubjOverall=!!(pendingSubjOverall[hak]&&Object.keys(pendingSubjOverall[hak]).length>0);
-  if(pLen===0 && peLen===0 && !hasOverall && !hasSubjOverall){
-    addMsg('assistant','저장할 새 요약이나 평가가 없습니다.');
+  if(pLen===0){
+    addMsg('assistant','저장할 새 요약이 없습니다.');
     return;
   }
   const subs=sewtuk[hak]?.subjects||[];
-  let cnt=0, evalCnt=0;
-  const parts=[];
+  let cnt=0;
   subs.forEach(s=>{
     const k=sKey(s);
     if(p[k]!==undefined){s.요약=p[k];delete p[k];cnt++;}
-    if(pe[k]!==undefined){s.평가=pe[k];delete pe[k];evalCnt++;}
   });
-  if(cnt>0) parts.push(`요약 **${cnt}개**`);
-  if(evalCnt>0) parts.push(`평가 **${evalCnt}개**`);
-  // 종합평가 저장
-  if(pendingOverall[hak]){
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].종합평가=pendingOverall[hak];
-    pendingOverall[hak]=null;
-    renderOverallSection();
-    parts.push('종합역량 평가');
-  }
-  // 교과별 종합평가 저장
-  if(hasSubjOverall){
-    if(!sewtuk[hak]) sewtuk[hak]={};
-    sewtuk[hak].교과별평가=sewtuk[hak].교과별평가||{};
-    Object.assign(sewtuk[hak].교과별평가, pendingSubjOverall[hak]);
-    const subjCats=Object.keys(pendingSubjOverall[hak]);
-    pendingSubjOverall[hak]={};
-    parts.push(`교과별 평가 **${subjCats.length}건**`);
-  }
   updateProgress(); renderPanel(); renderList();
-  // 자동으로 구글 시트에 저장
   try{
     await saveToSheet(hak);
-    addMsg('assistant',`✅ ${parts.join(' + ')} 반영 및 **구글 시트 저장** 완료!`);
+    addMsg('assistant',`✅ 요약 **${cnt}개** 반영 및 **구글 시트 저장** 완료!`);
   }catch(e){
-    addMsg('assistant',`✅ ${parts.join(' + ')} 반영되었습니다.\n⚠️ 시트 저장 실패: ${e.message}`,
+    addMsg('assistant',`✅ 요약 **${cnt}개** 반영되었습니다.\n⚠️ 시트 저장 실패: ${e.message}`,
       [{label:'💾 다시 저장',action:'exportJSON()'}]
     );
   }
@@ -2703,25 +2298,39 @@ async function saveChangcheToSheet(hak){
 
 
 
-/* ========== 종합역량평가 채팅 카드 렌더링 ========== */
+/* ========== 종합역량평가 채팅 카드 렌더링 (새 등급 체계) ========== */
 function renderCompEvalMsg(obj, isSaved){
-  const gradeColor = {'S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b','D':'#ef4444','E':'#94a3b8'};
-  const gc = g => `<strong style="color:${gradeColor[g]||'#94a3b8'}">${g||'?'}</strong>`;
-  const subRow = (label, g) => g ? `<span style="font-size:11px;color:#94a3b8;">${label} ${gc(g)}</span>` : '';
+  // 새 10단계 등급 컬러
+  const gradeColor = {
+    'A+':'#4f46e5','A0':'#10b981','A-':'#34d399',
+    'B+':'#06b6d4','B0':'#0891b2','B-':'#0e7490',
+    'C+':'#f59e0b','C0':'#d97706','C-':'#b45309',
+    'D':'#ef4444'
+  };
+  const gc = g => {
+    const color = gradeColor[g]||'#94a3b8';
+    return `<strong style="color:${color}">${g||'?'}</strong>`;
+  };
+  const gs = (g, s) => s ? `${gc(g)}(${s}점)` : gc(g);
 
   const 학업 = obj.학업역량||{};
   const 진로 = obj.진로역량||{};
   const 공동 = obj.공동체역량||{};
 
   const msg =
-    `${isSaved?'📋 **저장된 종합역량평가**':'🏆 **종합역량평가 완료 및 저장!**'}\n\n`+
-    `┌─────────────────────────────┐\n`+
-    `│ 📚 학업역량 ${gc(학업.grade)}   🎯 진로역량 ${gc(진로.grade)}   🤝 공동체역량 ${gc(공동.grade)}\n`+
-    `├─────────────────────────────┤\n`+
-    `│ 학업: 성취도 ${gc(학업.학업성취도?.grade)} · 태도 ${gc(학업.학업태도?.grade)} · 탐구 ${gc(학업.탐구력?.grade)}\n`+
-    `│ 진로: 전공적합성 ${gc(진로.전공적합성?.grade)} · 진로탐색 ${gc(진로.진로탐색?.grade)}\n`+
-    `│ 공동: 협업소통 ${gc(공동.협업소통?.grade)} · 나눔배려 ${gc(공동.나눔배려?.grade)} · 성실성 ${gc(공동.성실성?.grade)} · 리더십 ${gc(공동.리더십?.grade)}\n`+
-    `└─────────────────────────────┘`+
+    `${isSaved?'📋 **저장된 종합역량평가**':'🏆 **종합역량평가 완료 및 저장!'}\n\n`+
+    `┌─────────────────────────────────┐\n`+
+    `│ 🎯 종합 ${gs(obj.종합등급, obj.종합점수)}\n`+
+    `├─────────────────────────────────┤\n`+
+    `│ 📚 학업역량 ${gs(학업.grade, 학업.score)}\n`+
+    `│   성취도 ${gs(학업.학업성취도?.grade, 학업.학업성취도?.score)} · 태도 ${gs(학업.학업태도?.grade, 학업.학업태도?.score)} · 탐구 ${gs(학업.탐구력?.grade, 학업.탐구력?.score)}\n`+
+    `├─────────────────────────────────┤\n`+
+    `│ 🎯 진로역량 ${gs(진로.grade, 진로.score)}\n`+
+    `│   교과이수 ${gs(진로.전공관련교과이수?.grade, 진로.전공관련교과이수?.score)} · 성취도 ${gs(진로.전공관련교과성취도?.grade, 진로.전공관련교과성취도?.score)} · 탐색 ${gs(진로.진로탐색활동?.grade, 진로.진로탐색활동?.score)}\n`+
+    `├─────────────────────────────────┤\n`+
+    `│ 🤝 공동체역량 ${gs(공동.grade, 공동.score)}\n`+
+    `│   협업 ${gs(공동.협업소통?.grade, 공동.협업소통?.score)} · 나눔 ${gs(공동.나눔배려?.grade, 공동.나눔배려?.score)} · 성실 ${gs(공동.성실규칙준수?.grade, 공동.성실규칙준수?.score)} · 리더십 ${gs(공동.리더십?.grade, 공동.리더십?.score)}\n`+
+    `└─────────────────────────────────┘`+
     (obj.종합의견 ? `\n\n💬 **종합의견**\n${obj.종합의견}` : '')+
     `\n\n🔄 재생성하려면 **"🏆 종합 역량 평가"** 버튼을 다시 누르세요.`;
 
