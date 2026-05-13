@@ -3565,8 +3565,27 @@ function renderCompEvalTab(el){
     || (g2hak ? evalData[g2hak]?.맞춤활동추천 : null) || null;
 
   el.innerHTML = `<div class="card" style="padding:16px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-      <button onclick="printCompEval()" class="print-no" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <!-- 진로/전공 표시 인라인 -->
+      <div id="careerDisplay" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;">
+        <span style="color:#94a3b8;font-weight:500;">희망진로</span>
+        <span id="careerVal" style="font-weight:700;color:#1e293b;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${escapeHtml(currentStu?.진로||currentStu?.career||'미입력')}">${escapeHtml(currentStu?.진로||currentStu?.career||'미입력')}</span>
+        <span style="color:#cbd5e1;">|</span>
+        <span style="color:#94a3b8;font-weight:500;">희망전공</span>
+        <span id="majorVal" style="font-weight:700;color:#1e293b;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${escapeHtml(currentStu?.전공||currentStu?.major||'미입력')}">${escapeHtml(currentStu?.전공||currentStu?.major||'미입력')}</span>
+      </div>
+      <!-- 수정 버튼 -->
+      <button onclick="openCareerEditModal()" class="print-no"
+        style="display:flex;align-items:center;gap:5px;padding:7px 13px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
+        onmouseover="this.style.background='#f0fdf4';this.style.borderColor='#22c55e';this.style.color='#16a34a';"
+        onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#475569';">
+        ✏️ 수정
+      </button>
+      <!-- 인쇄 버튼 -->
+      <button onclick="printCompEval()" class="print-no"
+        style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
         onmouseover="this.style.background='#eff6ff';this.style.borderColor='#6366f1';this.style.color='#6366f1';"
         onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#475569';">
         🖨️ 종합역량평가 인쇄
@@ -4485,7 +4504,7 @@ function renderIndexRecSection(data){
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
     <div style="padding:16px 20px;">
       <div style="margin-bottom:14px;">
-        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — ${{안정형:'기존 활동과 자연스럽게 연결',심화형:'이론·개념을 깊이 파고드는 탐구',차별화형:'독창적 시각으로 차별화',실천형:'현장에서 실천하는 활동'}[active.key]||''}</div>
+        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
         <div style="font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
         ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
       </div>
@@ -4984,6 +5003,101 @@ function drawEvalTrend(container){
       </div>
     </div>`;
 }
+
+/* ===== 진로/전공 수정 모달 ===== */
+function openCareerEditModal(){
+  if(!currentStu){ alert('학생을 선택해주세요.'); return; }
+  const 진로 = currentStu.진로 || currentStu.career || '';
+  const 전공 = currentStu.전공 || currentStu.major || '';
+  document.getElementById('careerEditInput').value = 진로;
+  document.getElementById('majorEditInput').value = 전공;
+  document.getElementById('careerEditModal').style.display = 'flex';
+}
+
+function closeCareerEditModal(){
+  document.getElementById('careerEditModal').style.display = 'none';
+}
+
+async function saveCareerEdit(){
+  if(!currentStu){ return; }
+  const newCareer = document.getElementById('careerEditInput').value.trim();
+  const newMajor  = document.getElementById('majorEditInput').value.trim();
+  const btn = document.getElementById('careerSaveBtn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+
+  try{
+    const res = await apiPost({
+      action: 'saveStudentField',
+      password: currentPassword,
+      hak: String(currentStu.hak),
+      fields: { 진로: newCareer, 전공: newMajor }
+    });
+    if(res && res.error) throw new Error(res.error);
+
+    // 로컬 상태 업데이트
+    currentStu.진로   = newCareer;
+    currentStu.career = newCareer;
+    currentStu.전공   = newMajor;
+    currentStu.major  = newMajor;
+    const idx = students.findIndex(s => String(s.hak) === String(currentStu.hak));
+    if(idx >= 0){
+      students[idx].진로   = newCareer;
+      students[idx].career = newCareer;
+      students[idx].전공   = newMajor;
+      students[idx].major  = newMajor;
+    }
+
+    // 화면 즉시 반영
+    const cv = document.getElementById('careerVal');
+    const mv = document.getElementById('majorVal');
+    if(cv){ cv.textContent = newCareer || '미입력'; cv.title = newCareer || '미입력'; }
+    if(mv){ mv.textContent = newMajor  || '미입력'; mv.title = newMajor  || '미입력'; }
+
+    closeCareerEditModal();
+    alert('✅ 저장 완료! 구글 시트에 반영되었습니다.');
+  } catch(e){
+    alert('❌ 저장 실패: ' + e.message);
+  } finally{
+    btn.disabled = false; btn.textContent = '💾 저장';
+  }
+}
+
+function printCompEval(){
+  window.print();
+}
+
 </script>
+
+<!-- ===== 진로/전공 수정 모달 ===== -->
+<div id="careerEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px 32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:800;color:#0f172a;">✏️ 진로 / 전공 수정</div>
+      <button onclick="closeCareerEditModal()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">희망 진로</label>
+      <input id="careerEditInput" type="text" placeholder="예) 경제학자, 의사, 공무원..."
+        style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;outline:none;transition:border .15s;"
+        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+    </div>
+    <div style="margin-bottom:22px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">희망 전공</label>
+      <input id="majorEditInput" type="text" placeholder="예) 경제학과, 의예과, 행정학과..."
+        style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;outline:none;transition:border .15s;"
+        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeCareerEditModal()"
+        style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;">
+        취소
+      </button>
+      <button id="careerSaveBtn" onclick="saveCareerEdit()"
+        style="padding:9px 20px;border:none;border-radius:8px;background:#6366f1;font-size:13px;font-weight:700;color:#fff;cursor:pointer;">
+        💾 저장
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
