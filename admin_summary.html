@@ -1571,7 +1571,7 @@ function renderCompRecSection(data){
 
   const recBody = Object.keys(d).length ? `<div style="padding:16px 18px;">
     <div style="margin-bottom:14px;">
-      <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+      <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — ${{안정형:'기존 활동과 자연스럽게 연결',심화형:'이론·개념을 깊이 파고드는 탐구',차별화형:'독창적 시각으로 차별화',실천형:'현장에서 실천하는 활동'}[active.key]||''}</div>
       <div style="font-size:16px;font-weight:800;color:var(--text);">${escapeHtml(d.제목||'')}</div>
       ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
     </div>
@@ -2350,42 +2350,100 @@ async function generateCompRec(){
   const ccData = changche[hak] || changche[String(currentStu.g2_hak)] || null;
   const 진로 = currentStu.진로 || currentStu.career || '미설정';
   const 희망학과 = currentStu.희망학과 || currentStu.major || '미설정';
-  const 활동요약 = subs.slice(0,5).map(s=>
-    `[${s.교과}-${s.과목}] ${Array.isArray(s.요약)?s.요약[0]||'':''}`
+
+  // 세특 요약: 교과별 요약 문장 최대 2개 (최대 8과목)
+  const 활동요약 = subs.slice(0,8).map(s=>
+    `[${s.교과}-${s.과목}] ${Array.isArray(s.요약)?s.요약.slice(0,2).join(' / '):''}`.substring(0,120)
   ).filter(Boolean).join('\n') || '';
-  const 창체요약 = ccData?.activities?.slice(0,4).map(a=>`[${a.분류}] ${a.활동명}`).join(', ') || '';
+
+  // 창체 요약: 활동명 + 내용 첫문장
+  const 창체요약 = ccData?.activities?.slice(0,5).map(a=>{
+    const 내용첫줄 = (a.내용||'').split(/[.\n]/)[0].substring(0,60);
+    return `[${a.분류}] ${a.활동명}${내용첫줄?' — '+내용첫줄:''}`;
+  }).join('\n') || '';
+
+  // 종합역량 강점 키워드
+  const 강점요약 = (obj.강점보완점?.강점||[]).slice(0,3).join(' / ') || '';
+  const 학업등급 = obj.학업역량?.grade || '';
+  const 진로등급 = obj.진로역량?.grade || '';
+  const 공동체등급 = obj.공동체역량?.grade || '';
+
+  // 유형별 정의
+  const REC_DEFS = [
+    { key:'안정형', desc:'기존 세특·창체 활동과 자연스럽게 연결해 확장하는 활동. 리스크 없이 현재 강점을 강화.' },
+    { key:'심화형', desc:'전공 관련 이론·개념을 더 깊이 파고드는 활동. 학문적 탐구력과 지적 호기심 강조.' },
+    { key:'차별화형', desc:'비슷한 진로 학생들과 차별화되는 독창적 시각이나 융합적 접근. 면접·서류에서 기억에 남는 활동.' },
+    { key:'실천형', desc:'현장 체험·캠페인·프로젝트 등 결과물이 남는 실천 활동. 공동체역량·리더십 입증.' },
+  ];
+
+  const makePrompt = (typeDef) => `당신은 한국 대입 학생부종합전형 전문가입니다.
+아래 학생에게 맞는 "${typeDef.key}" 유형 활동 1건을 추천하세요.
+
+[유형 설명] ${typeDef.desc}
+
+[학생 정보]
+- 진로: ${진로} / 희망학과: ${희망학과}
+- 종합역량: ${obj.종합등급||'?'} (학업:${학업등급} / 진로:${진로등급} / 공동체:${공동체등급})
+- 강점: ${강점요약||'데이터 없음'}
+
+[주요 세특 활동]
+${활동요약.substring(0,600)||'데이터 없음'}
+
+[창체 활동]
+${창체요약.substring(0,350)||'데이터 없음'}
+
+반드시 아래 JSON 형식만 출력하세요. 마크다운 없이, 키 이름 그대로 사용하세요.
+각 필드는 이 학생의 실제 활동을 반영한 구체적인 내용으로 작성하세요 (형식적·추상적 문장 금지).
+
+{
+  "제목": "활동 제목 (20자 이내, 명사형으로)",
+  "태그": "#태그1 #태그2 #태그3",
+  "선정이유": "이 학생의 기존 활동과 연결되는 구체적 근거를 2~3문장으로 작성",
+  "기존활동연결": "세특·창체에서 어떤 구체적 활동이 이번 추천과 이어지는지 2문장으로 설명",
+  "진로관련성": "희망 진로·전공과 어떻게 연결되는지 2문장으로 설명",
+  "학종평가포인트": "학종 서류·면접에서 어떤 역량으로 평가받을 수 있는지 2문장으로 설명",
+  "실행방법": "구체적으로 어떻게 진행하는지 단계별로 3~4문장 설명",
+  "후속확장": "이 활동 이후 연계할 수 있는 심화 활동을 1문장으로",
+  "탐구질문": [
+    "이 활동과 관련해 탐구할 수 있는 구체적 질문 1",
+    "이 활동과 관련해 탐구할 수 있는 구체적 질문 2",
+    "이 활동과 관련해 탐구할 수 있는 구체적 질문 3"
+  ]
+}`;
+
+  function safeParseRecJSON(text) {
+    let clean = text.replace(/```json|```/g,'').trim();
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if(start === -1 || end === -1) throw new Error('JSON 객체를 찾을 수 없음');
+    return JSON.parse(clean.substring(start, end+1));
+  }
 
   try{
-    const recPrompt = `한국 대입 학종 전문가. 아래 학생의 맞춤 활동을 4유형으로 추천하세요.
+    const recObj = {};
 
-진로: ${진로} / 희망학과: ${희망학과} / 종합: ${obj.종합등급||'?'}${obj.종합점수||''}점
-활동: ${활동요약.substring(0,300)}
-창체: ${창체요약.substring(0,150)}
-
-JSON만 출력(마크다운 없이, 각 필드 50자 이내):
-{"안정형":{"제목":"20자이내","태그":"분야태그","선정이유":"기존활동연결근거","학종평가포인트":"평가포인트","실행방법":"구체적방법","탐구질문":["Q1","Q2"]},"심화형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]},"차별화형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]},"실천형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]}}
-
-안정형=기존확장 심화형=이론심화 차별화형=독창시각 실천형=현장실측`;
-
-    const recText = await callAPI('', [{role:'user', content:recPrompt}], 5000);
-    let recObj;
-    try{
-      let clean = recText.replace(/```json|```/g,'').trim();
-      // JSON 잘림 복구
-      if(!clean.endsWith('}')){
-        const lb = clean.lastIndexOf('}');
-        if(lb > 0) clean = clean.substring(0, lb+1);
-        const op = (clean.match(/{/g)||[]).length;
-        const cl = (clean.match(/}/g)||[]).length;
-        for(let i=0;i<op-cl;i++) clean+='}';
+    for(let i=0; i<REC_DEFS.length; i++){
+      const typeDef = REC_DEFS[i];
+      addMsgComp('assistant', `⏳ [${i+1}/4] ${typeDef.key} 생성 중...`);
+      try{
+        const text = await callAPI('', [{role:'user', content:makePrompt(typeDef)}], 2000);
+        recObj[typeDef.key] = safeParseRecJSON(text);
+      } catch(e){
+        addMsgComp('assistant', `⚠️ ${typeDef.key} 파싱 실패, 재시도 중...`);
+        try{
+          const text2 = await callAPI('', [{role:'user', content:makePrompt(typeDef)+'\n\n{ 로 시작하고 } 로 끝나는 JSON만 출력하세요.'}], 2000);
+          recObj[typeDef.key] = safeParseRecJSON(text2);
+        } catch(e2){
+          recObj[typeDef.key] = { 제목:'생성 실패', 태그:'', 선정이유:e2.message, 기존활동연결:'', 진로관련성:'', 학종평가포인트:'', 실행방법:'', 후속확장:'', 탐구질문:[] };
+        }
       }
-      recObj = JSON.parse(clean);
-    } catch(e){ throw new Error('JSON 파싱 실패: '+e.message); }
+      // 탭 하나 완성될 때마다 중간 저장 + 렌더링
+      evalData[hak].맞춤활동추천 = {...recObj};
+      await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
+      renderCompPanel();
+    }
 
-    evalData[hak].맞춤활동추천 = recObj;
-    await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
-    renderCompPanel();
-    addMsgComp('assistant','✅ 맞춤형 활동 추천 생성 완료!');
+    addMsgComp('assistant','✅ 맞춤형 활동 추천 4유형 생성 완료!');
     renderCompPanel();
   }catch(e){
     addMsgComp('assistant',`❌ 추천 생성 실패: ${e.message}`);
