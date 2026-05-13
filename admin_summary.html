@@ -815,7 +815,7 @@ function renderList(){
     const score = ev?.종합점수??null;
     const gc = GC_LIST[grade]||null;
     const gradeBadge = grade
-      ? `<span style="font-size:10px;font-weight:800;color:${gc};background:${gc}18;border:1px solid ${gc}44;border-radius:8px;padding:1px 6px;margin-left:auto;white-space:nowrap;">${grade}${score!=null?' '+score:''}점</span>`
+      ? `<span style="font-size:10px;font-weight:800;color:${gc};background:${gc}18;border:1px solid ${gc}44;border-radius:8px;padding:1px 6px;margin-left:auto;white-space:nowrap;">${dispGrade(grade)}${score!=null?' '+score:''}점</span>`
       : '';
     return `<div class="stu-item ${currentStu&&currentStu.hak===s.hak?'active':''}" onclick="selectStu('${s.hak}')">
       <span class="stu-dot ${dot}"></span>
@@ -1285,8 +1285,8 @@ function renderCompPanel(){
     'C+':'rgba(245,158,11,.3)','C0':'rgba(217,119,6,.3)','C-':'rgba(180,83,9,.2)',
     'D':'rgba(239,68,68,.3)'
   };
-  const gc = g => `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${g||'?'}</span>`;
-  const gs = (g, s) => s!=null ? `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${g||'?'}</span><span style="font-size:10px;color:#94a3b8;">(${s}점)</span>` : gc(g);
+  const gc = g => `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${dispGrade(g)||'?'}</span>`;
+  const gs = (g, s) => s!=null ? `<span style="color:${GC[g]||'#94a3b8'};font-weight:900;">${dispGrade(g)||'?'}</span><span style="font-size:10px;color:#94a3b8;">(${s}점)</span>` : gc(g);
 
   const eval_ = evalData[hak]?.종합역량평가 || null;
   const swot  = evalData[hak]?.강점보완점  || null;
@@ -1317,7 +1317,7 @@ function renderCompPanel(){
   const scoreBanner = (totalScore||totalGrade) ? `
     <div style="background:${BGC[totalGrade]||'#f8fafc'};border:1.5px solid ${BORDER[totalGrade]||'#e2e8f0'};border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:16px;margin-bottom:4px;">
       <div style="font-size:13px;color:var(--muted);font-weight:600;">🎯 종합</div>
-      <div style="font-size:32px;font-weight:900;color:${GC[totalGrade]||'#94a3b8'};line-height:1;">${totalGrade||'?'}</div>
+      <div style="font-size:32px;font-weight:900;color:${GC[totalGrade]||'#94a3b8'};line-height:1;">${dispGrade(totalGrade)||'?'}</div>
       ${totalScore!=null?`<div style="font-size:24px;font-weight:700;color:${GC[totalGrade]||'#94a3b8'};">${totalScore}점</div>`:''}
       <div style="font-size:11px;color:var(--muted);margin-left:auto;">100점 만점 기준</div>
     </div>` : '';
@@ -1337,13 +1337,13 @@ function renderCompPanel(){
       const sg = sd?.grade||null;
       const ss = sd?.score||null;
       if(!sg) return '';
-      return `<span style="margin-right:8px;">${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${sg}</b>${ss!=null?`<span style="font-size:9px;color:#94a3b8;">(${ss})</span>`:''}</span>`;
+      return `<span style="margin-right:8px;">${lbl}: <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b>${ss!=null?`<span style="font-size:9px;color:#94a3b8;">(${ss})</span>`:''}</span>`;
     }).join('');
     const rid = `cr-${grp}`;
     return `<div class="comp-score-card" style="background:${BGC[g]||'#f8fafc'};border-color:${BORDER[g]||'#e2e8f0'};">
       <div class="comp-score-card-label">${icons[grp]||''} ${grp}</div>
       <div style="display:flex;align-items:baseline;gap:6px;">
-        <div class="comp-score-card-grade" style="color:${GC[g]||'#94a3b8'}">${g}</div>
+        <div class="comp-score-card-grade" style="color:${GC[g]||'#94a3b8'}">${dispGrade(g)}</div>
         ${d.score!=null?`<div style="font-size:16px;font-weight:700;color:${GC[g]||'#94a3b8'};">${d.score}점</div>`:''}
       </div>
       <div class="comp-score-card-subs">${subsHtml}</div>
@@ -1403,7 +1403,7 @@ function renderCompPanel(){
           return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
               <span style="font-size:12px;color:var(--muted);min-width:90px;">${lbl}</span>
-              <span style="color:${GC[sd.grade]||'#94a3b8'};font-weight:800;">${sd.grade}</span>
+              <span style="color:${GC[sd.grade]||'#94a3b8'};font-weight:800;">${dispGrade(sd.grade)}</span>
               ${sd.score!=null?`<span style="font-size:11px;color:${GC[sd.grade]||'#94a3b8'};">${sd.score}점</span>`:''}
             </div>
             ${sd.comment?`<div style="font-size:11px;color:var(--muted2);line-height:1.6;padding-left:98px;">${escapeHtml(sd.comment)}</div>`:''}</div>`;
@@ -1475,6 +1475,10 @@ JSON만 출력:
     if(swotArea) swotArea.innerHTML = `<div style="padding:12px;color:#ef4444;font-size:13px;">❌ ${e.message}</div>`;
   }
 }
+
+
+/* ========== 등급 표시 헬퍼 (A0 → A 표시) ========== */
+function dispGrade(g){ return g==='A0'?'A':String(g||''); }
 
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -2309,7 +2313,7 @@ function renderCompEvalMsg(obj, isSaved){
   };
   const gc = g => {
     const color = gradeColor[g]||'#94a3b8';
-    return `<strong style="color:${color}">${g||'?'}</strong>`;
+    return `<strong style="color:${color}">${dispGrade(g)||'?'}</strong>`;
   };
   const gs = (g, s) => s ? `${gc(g)}(${s}점)` : gc(g);
 
