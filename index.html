@@ -3194,7 +3194,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       ${gauge}
       <div style="flex:1;min-width:160px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-          <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${grade} 등급</span>
+          <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${dispGrade(grade)} 등급</span>
           <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
         </div>
         <div style="font-size:13px;color:#64748b;margin-bottom:12px;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
@@ -3595,7 +3595,7 @@ function drawEvalRadar(eval_, container){
     '진로역량':  {icon:'🎯',color:'#f59e0b',bg:'rgba(245,158,11,.08)',barColor:'#fbbf24',
       subs:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
     '공동체역량':{icon:'🤝',color:'#10b981',bg:'rgba(16,185,129,.08)',barColor:'#34d399',
-      subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]}
+      subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실규칙준수'],['리더십','리더십']]}
   };
   const axes=[
     {label:'학업성취도',grp:'학업역량',  sub:'학업성취도'},
@@ -3605,7 +3605,7 @@ function drawEvalRadar(eval_, container){
     {label:'진로탐색',  grp:'진로역량',  sub:'진로탐색활동'},
     {label:'협업·소통', grp:'공동체역량',sub:'협업소통'},
     {label:'나눔·배려', grp:'공동체역량',sub:'나눔배려'},
-    {label:'성실성',    grp:'공동체역량',sub:'성실성규칙준수'},
+    {label:'성실성',    grp:'공동체역량',sub:'성실규칙준수'},
     {label:'리더십',    grp:'공동체역량',sub:'리더십'},
   ];
 
@@ -3642,7 +3642,7 @@ function drawEvalRadar(eval_, container){
     const pct=gPct(g);
     const subsHtml=cfg.subs.map(([lbl,sub])=>{
       const sg=getG(grp,sub)||'-';
-      return `<span style="margin-right:9px;">${lbl}: <b style="color:${gColor(sg)};font-weight:800;">${sg}</b></span>`;
+      return `<span style="margin-right:9px;">${lbl}: <b style="color:${gColor(sg)};font-weight:800;">${dispGrade(sg)}</b></span>`;
     }).join('');
     return `<div class="radar-stat-card grp-${grp}">
       <div class="radar-stat-icon" style="background:${cfg.bg}">${cfg.icon}</div>
@@ -3652,7 +3652,7 @@ function drawEvalRadar(eval_, container){
         <div class="radar-stat-subs">${subsHtml}</div>
       </div>
       <div class="radar-stat-right">
-        <div class="radar-stat-grade" style="color:${gColor(g)}">${g}</div>
+        <div class="radar-stat-grade" style="color:${gColor(g)}">${dispGrade(g)}</div>
         <div class="radar-stat-grade-label">등급</div>
       </div>
     </div>`;
@@ -3686,7 +3686,7 @@ function drawEvalRadar(eval_, container){
               <div class="eval-gauge-denom">/ 100</div>
             </div>
           </div>
-          <div class="eval-gauge-badge" style="background:${BGC[overallGrade]||'#f1f5f9'};color:${color};">${overallGrade}등급 수준</div>
+          <div class="eval-gauge-badge" style="background:${BGC[overallGrade]||'#f1f5f9'};color:${color};">${dispGrade(overallGrade)}등급 수준</div>
           ${gisuHtml}
         </div>
         <!-- 2열: 레이더 -->
@@ -3971,7 +3971,7 @@ function renderCompEvalPanel(eval_){
     <div class="overall-eval-grid">
       ${card('학업역량','📚 학업역량',[['학업성취도','학업성취도','학업역량'],['학업태도','학업태도','학업역량'],['탐구력','탐구력','학업역량']])}
       ${card('진로역량','🎯 진로역량',[['교과이수','전공관련교과이수','진로역량'],['교과성취도','전공관련교과성취도','진로역량'],['진로탐색','진로탐색활동','진로역량']])}
-      ${card('공동체역량','🤝 공동체역량',[['협업·소통','협업소통','공동체역량'],['나눔·배려','나눔배려','공동체역량'],['성실성','성실성규칙준수','공동체역량'],['리더십','리더십','공동체역량']])}
+      ${card('공동체역량','🤝 공동체역량',[['협업·소통','협업소통','공동체역량'],['나눔·배려','나눔배려','공동체역량'],['성실성','성실규칙준수','공동체역량'],['리더십','리더십','공동체역량']])}
     </div>
     <div class="overall-reason-toggle-row" onclick="toggleAllReason('${pid}')">
       <span id="${pid}-arr">▶</span><span id="${pid}-lbl">세부 근거 보기</span>
@@ -4042,7 +4042,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
   };
   const 학업G = get대G('학업역량', ['학업성취도','학업태도','탐구력']);
   const 진로G  = get대G('진로역량',  ['전공적합성','진로탐색']);
-  const 공동G  = get대G('공동체역량', ['협업소통','나눔배려','성실성','리더십']);
+  const 공동G  = get대G('공동체역량', ['협업소통','나눔배려','성실규칙준수','리더십']);
 
   const subRow = (label, key) => {
     const v = overall[key];
@@ -4058,7 +4058,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
         <div class="overall-group-label">${label}</div>
       </div>
       <div class="overall-group-body">
-        <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${grade}</div>
+        <div class="overall-group-grade" style="color:${GC[grade]||'#64748b'}">${dispGrade(grade)}</div>
         <div class="overall-sub-list">${rows}</div>
       </div>
       ${근거?`<div class="overall-reason-bar" data-pid="${pid}">${escapeHtml(근거)}</div>`:''}
@@ -4075,7 +4075,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
     <div class="overall-eval-grid">
       ${group('학업역량', 학업G, subRow('성취도','학업성취도')+subRow('학업태도','학업태도')+subRow('탐구력','탐구력'), subjOverall?.학업역량?.근거)}
       ${group('진로역량', 진로G, subRow('전공적합','전공적합성')+subRow('진로탐색','진로탐색'), subjOverall?.진로역량?.근거)}
-      ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실성')+subRow('리더십','리더십'), subjOverall?.공동체역량?.근거)}
+      ${group('공동체역량', 공동G, subRow('협업·소통','협업소통')+subRow('나눔·배려','나눔배려')+subRow('성실성','성실규칙준수')+subRow('리더십','리더십'), subjOverall?.공동체역량?.근거)}
     </div>
     ${has근거?`<div class="overall-reason-toggle-row" id="${pid}-btn" onclick="toggleAllReason('${pid}')">
       <span id="${pid}-arr">▶</span><span id="${pid}-lbl">근거 보기</span>
@@ -4763,7 +4763,7 @@ function drawEvalTrend(container){
     {key:'진로역량', short:'진로', icon:'🎯', color:'#f59e0b',
      subs:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
     {key:'공동체역량',short:'공동체',icon:'🤝',color:'#10b981',
-     subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실성규칙준수'],['리더십','리더십']]},
+     subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실규칙준수'],['리더십','리더십']]},
   ];
 
   function changeTag(prev,curr){
