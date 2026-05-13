@@ -4191,7 +4191,10 @@ function renderSewtuk(el){
             </div>
             <span class="arrow">▶</span>
           </div>
-          <div class="accordion-body">${escapeHtml(s.내용)}</div>
+          <div class="accordion-body">
+            ${escapeHtml(s.내용)}
+            ${renderDecompBlock(s.활동분해||null)}
+          </div>
         </div>
       `;
     });
@@ -4299,7 +4302,10 @@ function renderChangche(el){
             </div>
             <span class="arrow">▶</span>
           </div>
-          <div class="accordion-body">${escapeHtml(a.내용)}</div>
+          <div class="accordion-body">
+            ${escapeHtml(a.내용)}
+            ${renderDecompBlock(a.활동분해||null)}
+          </div>
         </div>
       `;
     });
@@ -4330,6 +4336,50 @@ function toggleMajorCard(uid){
 
 /* ========== 등급 표시 헬퍼 (A0 → A 표시) ========== */
 function dispGrade(g){ return g==='A0'?'A':String(g||''); }
+
+
+/* ========== 활동 분해 태그 렌더링 ========== */
+const DECOMP_META = {
+  핵심주제: { color: '#4f46e5', bg: 'rgba(79,70,229,.08)', border: 'rgba(79,70,229,.2)', icon: '🎯' },
+  활동유형: { color: '#0891b2', bg: 'rgba(8,145,178,.08)', border: 'rgba(8,145,178,.2)', icon: '⚙️' },
+  교과연계: { color: '#059669', bg: 'rgba(5,150,105,.08)', border: 'rgba(5,150,105,.2)', icon: '📚' },
+  사고수준: { color: '#d97706', bg: 'rgba(217,119,6,.08)', border: 'rgba(217,119,6,.2)', icon: '💡' },
+};
+
+function renderDecompBlock(분해, compact=false){
+  if(!분해 || typeof 분해 !== 'object') return '';
+  const cats = Object.keys(DECOMP_META);
+  const hasAny = cats.some(c => Array.isArray(분해[c]) && 분해[c].length);
+  if(!hasAny) return '';
+
+  if(compact){
+    const tags = cats.flatMap(c => {
+      const m = DECOMP_META[c];
+      return (분해[c]||[]).map(t =>
+        `<span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:14px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;">${t}</span>`
+      );
+    }).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${tags}</div>`;
+  }
+
+  const rows = cats.map(c => {
+    const tags = 분해[c] || [];
+    if(!tags.length) return '';
+    const m = DECOMP_META[c];
+    const pills = tags.map(t =>
+      `<span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:14px;padding:2px 9px;font-size:11px;font-weight:600;">${escapeHtml(t)}</span>`
+    ).join('');
+    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:10px;color:#94a3b8;font-weight:600;min-width:52px;">${m.icon} ${c}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">${pills}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  return `<div style="padding:8px 12px 10px;border-top:1px solid #e5e7eb;display:flex;flex-direction:column;gap:7px;">
+    <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">🔍 활동 분해</div>
+    ${rows}
+  </div>`;
+}
 
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
