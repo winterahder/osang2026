@@ -2356,26 +2356,31 @@ async function generateCompRec(){
   const 창체요약 = ccData?.activities?.slice(0,4).map(a=>`[${a.분류}] ${a.활동명}`).join(', ') || '';
 
   try{
-    const recPrompt = `당신은 한국 대입 학생부종합전형 전문 컨설턴트입니다.
-학생의 기존 활동을 분석하여 진로와 연결되는 맞춤형 후속 활동을 4유형으로 추천하세요.
+    const recPrompt = `한국 대입 학종 전문가. 아래 학생의 맞춤 활동을 4유형으로 추천하세요.
 
-학생 정보:
-- 진로: ${진로} / 희망학과: ${희망학과}
-- 종합평가: ${obj.종합등급||'?'} ${obj.종합점수||'?'}점
+진로: ${진로} / 희망학과: ${희망학과} / 종합: ${obj.종합등급||'?'}${obj.종합점수||''}점
+활동: ${활동요약.substring(0,300)}
+창체: ${창체요약.substring(0,150)}
 
-주요 활동:
-${활동요약}
-창체: ${창체요약}
+JSON만 출력(마크다운 없이, 각 필드 50자 이내):
+{"안정형":{"제목":"20자이내","태그":"분야태그","선정이유":"기존활동연결근거","학종평가포인트":"평가포인트","실행방법":"구체적방법","탐구질문":["Q1","Q2"]},"심화형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]},"차별화형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]},"실천형":{"제목":"","태그":"","선정이유":"","학종평가포인트":"","실행방법":"","탐구질문":["Q1","Q2"]}}
 
-반드시 아래 JSON만 출력 (마크다운 없이):
-{"안정형":{"제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["Q1","Q2","Q3"]},"심화형":{(동일)},"차별화형":{(동일)},"실천형":{(동일)}}
+안정형=기존확장 심화형=이론심화 차별화형=독창시각 실천형=현장실측`;
 
-안정형: 기존 활동 자연스러운 확장 / 심화형: 이론·데이터 심화 탐구 / 차별화형: 독창적 관점 / 실천형: 현장 실측 중심`;
-
-    const recText = await callAPI('', [{role:'user', content:recPrompt}], 3000);
+    const recText = await callAPI('', [{role:'user', content:recPrompt}], 5000);
     let recObj;
-    try{ recObj = JSON.parse(recText.replace(/```json|```/g,'').trim()); }
-    catch{ throw new Error('JSON 파싱 실패'); }
+    try{
+      let clean = recText.replace(/```json|```/g,'').trim();
+      // JSON 잘림 복구
+      if(!clean.endsWith('}')){
+        const lb = clean.lastIndexOf('}');
+        if(lb > 0) clean = clean.substring(0, lb+1);
+        const op = (clean.match(/{/g)||[]).length;
+        const cl = (clean.match(/}/g)||[]).length;
+        for(let i=0;i<op-cl;i++) clean+='}';
+      }
+      recObj = JSON.parse(clean);
+    } catch(e){ throw new Error('JSON 파싱 실패: '+e.message); }
 
     evalData[hak].맞춤활동추천 = recObj;
     await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
