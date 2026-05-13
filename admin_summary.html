@@ -2218,6 +2218,27 @@ ${(hbData[g]||'').substring(0,600)}`}],
 
 
 
+
+/* ========== 종합역량 탭 전용 메시지 (chatBodyComp + chatBody 둘 다) ========== */
+function addMsgComp(role, text, actions){
+  // chatBodyComp (종합역량 탭 우측 패널)
+  const compBody = document.getElementById('chatBodyComp');
+  if(compBody){
+    const time = new Date().toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'});
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    const fmt = text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    const acts = (actions&&actions.length)
+      ? `<div class="chat-actions">${actions.map(a=>`<button class="chat-action-btn ${a.cls||''}" onclick="${a.action}">${a.label}</button>`).join('')}</div>`
+      : '';
+    div.innerHTML = `<div class="msg-bubble">${fmt}${acts}</div><div class="msg-time">${time}</div>`;
+    compBody.appendChild(div);
+    compBody.scrollTop = compBody.scrollHeight;
+  }
+  // chatBody (세특 탭 채팅창) — 히스토리용
+  addMsg(role, text, actions);
+}
+
 /* ========== 종합역량 채팅 ========== */
 async function sendChatComp(){
   const input = document.getElementById('chatInputComp');
@@ -2359,7 +2380,7 @@ ${활동요약}
 async function generateComprehensiveEval(){
   const hak=String(currentStu.hak);
   const subs=sewtuk[hak]?.subjects||[];
-  if(!subs.length){addMsg('assistant','세특 데이터가 없습니다.');return;}
+  if(!subs.length){addMsgComp('assistant','세특 데이터가 없습니다.');return;}
 
   // ① Haiku 사용 시 경고
   if(apiProvider==='anthropic' && currentAnthropicModel.includes('haiku')){
@@ -2584,7 +2605,7 @@ A+(95~100) A0(88~94) A-(82~87) B+(76~81) B0(70~75) B-(64~69) C+(58~63) C0(52~57)
     evalData[hak].종합역량평가=obj;
 
     // ★ 강점/보완점 자동 생성 (종합역량평가와 함께 저장)
-    addMsg('assistant','⏳ 강점·보완점 분석 중...');
+    addMsgComp('assistant','⏳ 강점·보완점 분석 중...');
     try {
       // 새 등급 체계(A+~D) 기반 요약 생성
       const grpSummary = ['학업역량','진로역량','공동체역량'].map(grp=>{
@@ -2631,14 +2652,14 @@ ${obj.종합의견?`종합의견: ${obj.종합의견.substring(0,500)}`:''}
 
       if(swotObj) {
         evalData[hak].강점보완점 = swotObj;
-        addMsg('assistant','✅ 강점·보완점 분석 완료');
+        addMsgComp('assistant','✅ 강점·보완점 분석 완료');
       }
     } catch(swotErr) {
-      addMsg('assistant',`⚠️ 강점·보완점 생성 실패 (종합역량평가는 정상 저장): ${swotErr.message}`);
+      addMsgComp('assistant',`⚠️ 강점·보완점 생성 실패 (종합역량평가는 정상 저장): ${swotErr.message}`);
     }
 
     // ★ 활동 분해 종합 생성 (세특+창체+행발 원문 직접 분석)
-    addMsg('assistant','⏳ 활동 분해 분석 중...');
+    addMsgComp('assistant','⏳ 활동 분해 분석 중...');
     try {
       const sewtukSubs = sewtuk[hak]?.subjects || [];
       const ccActs = ccData?.activities || [];
@@ -2690,17 +2711,17 @@ ${hbText||'없음'}
         try {
           await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
         } catch(e) { console.warn('활동분해 중간저장 실패:', e); }
-        addMsg('assistant','✅ 활동 분해 분석 완료');
+        addMsgComp('assistant','✅ 활동 분해 분석 완료');
       } else {
-        addMsg('assistant','⚠️ 활동 분해 JSON 파싱 실패');
+        addMsgComp('assistant','⚠️ 활동 분해 JSON 파싱 실패');
       }
     } catch(decompErr) {
       console.error('활동분해 실패:', decompErr);
-      addMsg('assistant',`⚠️ 활동 분해 분석 실패: ${decompErr.message}`);
+      addMsgComp('assistant',`⚠️ 활동 분해 분석 실패: ${decompErr.message}`);
     }
 
     // ★ 맞춤형 활동 추천 생성
-    addMsg('assistant','⏳ 맞춤형 활동 추천 생성 중...');
+    addMsgComp('assistant','⏳ 맞춤형 활동 추천 생성 중...');
     try {
       const 진로 = currentStu.진로 || currentStu.career || '미설정';
       const 희망학과 = currentStu.희망학과 || currentStu.major || '미설정';
@@ -2769,13 +2790,13 @@ ${decompCtx||'없음'}
       } catch { recObj = null; }
       if(recObj) {
         evalData[hak].맞춤활동추천 = recObj;
-        addMsg('assistant','✅ 맞춤형 활동 추천 생성 완료');
+        addMsgComp('assistant','✅ 맞춤형 활동 추천 생성 완료');
       }
     } catch(recErr) {
-      addMsg('assistant',`⚠️ 맞춤형 활동 추천 생성 실패: ${recErr.message}`);
+      addMsgComp('assistant',`⚠️ 맞춤형 활동 추천 생성 실패: ${recErr.message}`);
     }
 
-    addMsg('assistant','💾 구글 시트(eval)에 저장 중...');
+    addMsgComp('assistant','💾 구글 시트(eval)에 저장 중...');
     await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
 
     renderCompEvalMsg(obj, false);
@@ -2784,7 +2805,7 @@ ${decompCtx||'없음'}
     // 학생 목록 등급 뱃지 갱신
     renderList();
   }catch(e){
-    addMsg('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
+    addMsgComp('assistant',`❌ 종합 역량 평가 실패: ${e.message}`);
   }finally{
     if(btn){btn.disabled=false;btn.innerHTML='🏆 종합 역량 평가 (내신+세특+창체+행발)';}
   }
