@@ -2271,7 +2271,7 @@ function renderMockApplyTab(el){
               onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
               <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
                 <div style="background:${gbg};width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  <span style="font-size:18px;font-weight:900;color:${gc};">${d.전공적합성||'?'}</span>
+                  <span style="font-size:18px;font-weight:900;color:${gc};">${dispGrade(d.전공적합성)||'?'}</span>
                 </div>
                 <div style="min-width:0;">
                   <div style="font-size:14px;font-weight:800;color:#0f172a;">${escapeHtml(dept)}</div>
@@ -3931,7 +3931,7 @@ function renderCompEvalPanel(eval_){
 
   const subItems=(items)=>items.map(([label,key,grp])=>{
     const d=eval_[grp]?.[key]; if(!d) return '';
-    return `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade" style="color:${GC[d.grade]||'#94a3b8'}">${d.grade}</span></div>`;
+    return `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade" style="color:${GC[d.grade]||'#94a3b8'}">${dispGrade(d.grade)}</span></div>`;
   }).join('');
 
   const card=(grp,label,items)=>{
@@ -3946,7 +3946,7 @@ function renderCompEvalPanel(eval_){
     return `<div class="overall-eval-group" style="background:${bg};border-top:3px solid ${color};">
       <div class="overall-group-header"><div class="overall-group-label">${label}</div></div>
       <div class="overall-group-body">
-        <div class="overall-group-grade" style="color:${color};flex:0 0 38%;text-align:center;">${d.grade}</div>
+        <div class="overall-group-grade" style="color:${color};flex:0 0 38%;text-align:center;">${dispGrade(d.grade)}</div>
         <div class="overall-sub-list">${subItems(items)}</div>
       </div>
       ${comments?`<div class="overall-reason-bar" data-pid="${pid}" style="display:none;">${comments}</div>`:''}
@@ -3958,7 +3958,7 @@ function renderCompEvalPanel(eval_){
   const bannerColor = GC[totalGrade] || '#8b5cf6';
   const scoreBanner = (totalGrade||totalScore!=null) ? `
     <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:${BGC[totalGrade]||'#f5f3ff'};border-radius:10px;margin-bottom:12px;">
-      <div style="font-size:32px;font-weight:900;color:${bannerColor};line-height:1;">${totalGrade||'?'}</div>
+      <div style="font-size:32px;font-weight:900;color:${bannerColor};line-height:1;">${dispGrade(totalGrade)||'?'}</div>
       ${totalScore!=null?`<div style="font-size:22px;font-weight:700;color:${bannerColor};">${totalScore}점</div>`:''}
       <div style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</div>
     </div>` : '';
@@ -3993,14 +3993,14 @@ function renderAIOverallPanel(overall, title, scope){
     const color=GC[d.grade]||'#64748b';
     const bgCls=`og-${d.grade||'X'}`;
     const subHtml=Object.entries(d.세부||{}).map(([k,v])=>
-      `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${v}</span></div>`
+      `<div class="overall-sub-row"><span class="overall-sub-name">${k}</span><span class="overall-sub-grade" style="color:${GC[v]||'#94a3b8'}">${dispGrade(v)}</span></div>`
     ).join('');
     return `<div class="overall-eval-group ${bgCls}" style="border-top:3px solid ${color};">
       <div class="overall-group-header">
         <div class="overall-group-label">${label}</div>
       </div>
       <div class="overall-group-body">
-        <div class="overall-group-grade" style="color:${color}">${d.grade}</div>
+        <div class="overall-group-grade" style="color:${color}">${dispGrade(d.grade)}</div>
         <div class="overall-sub-list">${subHtml}</div>
       </div>
       ${d.근거?`<div class="overall-reason-bar" data-pid="${pid}">${escapeHtml(d.근거)}</div>`:''}
@@ -4047,7 +4047,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
   const subRow = (label, key) => {
     const v = overall[key];
     const g = v && typeof v === 'string' ? v : v?.grade;
-    return g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${g}">${g}</span></div>` : '';
+    return g ? `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade g-${dispGrade(g)}">${dispGrade(g)}</span></div>` : '';
   };
 
   const pid=`rop-${Math.random().toString(36).slice(2,6)}`;
@@ -4326,6 +4326,10 @@ function toggleMajorCard(uid){
   el.style.display = isOpen ? 'none' : 'block';
   if(arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
+
+
+/* ========== 등급 표시 헬퍼 (A0 → A 표시) ========== */
+function dispGrade(g){ return g==='A0'?'A':String(g||''); }
 
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
