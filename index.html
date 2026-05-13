@@ -4175,7 +4175,9 @@ function renderSewtuk(el){
     filtered.forEach(s=>{
       const key = `${s.학년}-${s.학기}-${s.과목}`;
       const isOpen = openAccordions.has(key);
-      const kws = Array.isArray(s.키워드) && s.키워드.length ? s.키워드 : null;
+      const _kwKey = `${s.교과}-${s.과목}-${s.학년}`;
+      const kws = (Array.isArray(s.키워드) && s.키워드.length ? s.키워드 : null) ||
+                  (evalData[String(currentStu?.hak)]?.세특활동분해?.[_kwKey]?.키워드 || null);
       const kwBlock = kws
         ? `<div class="kw-wrap">${kws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>`
         : '';
@@ -4201,7 +4203,11 @@ function renderSewtuk(el){
           </div>
           <div class="accordion-body">
             ${escapeHtml(s.내용)}
-            ${renderDecompBlock(s.활동분해||null)}
+            ${renderDecompBlock(
+              s.활동분해 ||
+              evalData[String(currentStu?.hak)]?.세특활동분해?.[`${s.교과}-${s.과목}-${s.학년}`]?.활동분해 ||
+              null
+            )}
           </div>
         </div>
       `;
@@ -4287,7 +4293,9 @@ function renderChangche(el){
       const allActs = data.activities || [];
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
       const saved = data?.창체요약?.[actIdx] || a.요약 || '';
-      const kws = Array.isArray(a.키워드) && a.키워드.length ? a.키워드 : null;
+      const _ccIdx = allActs.indexOf(a);
+      const kws = (Array.isArray(a.키워드) && a.키워드.length ? a.키워드 : null) ||
+                  (evalData[String(currentStu?.hak)]?.창체활동분해?.[_ccIdx]?.키워드 || null);
       const kwBlock = kws
         ? `<div class="kw-wrap">${kws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>`
         : '';
@@ -4312,7 +4320,11 @@ function renderChangche(el){
           </div>
           <div class="accordion-body">
             ${escapeHtml(a.내용)}
-            ${renderDecompBlock(a.활동분해||null)}
+            ${renderDecompBlock(
+              a.활동분해 ||
+              evalData[String(currentStu?.hak)]?.창체활동분해?.[allActs.indexOf(a)]?.활동분해 ||
+              null
+            )}
           </div>
         </div>
       `;
