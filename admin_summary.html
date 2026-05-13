@@ -863,12 +863,12 @@ function renderMain(){
         <!-- 세특 전용 버튼 -->
         <button class="btn-all tab-btn-sewtuk" id="btnAll" onclick="generateAll()">✨ 전체 요약 생성</button>
         <button class="btn-one tab-btn-sewtuk" id="btnOne" onclick="generateNext()">▶ 다음 미완료 1개</button>
-        <button class="btn-all tab-btn-sewtuk" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);" onclick="generateAllKeywords('sewtuk')">🏷 키워드·활동분해 추출</button>
         <!-- 창체 전용 버튼 -->
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
-        <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywords('changche')">🏷 키워드·활동분해 추출</button>
         <!-- 행발 전용 버튼 -->
         <button class="btn-all tab-btn-haengbal" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywords('haengbal')">🏷 키워드 추출</button>
+        <!-- 종합역량 전용 버튼 -->
+        <button class="btn-all tab-btn-comp" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywordsAll()">🏷 키워드·활동분해 추출 (세특+창체)</button>
         <!-- 공통 버튼 -->
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
@@ -1940,6 +1940,95 @@ function sendChatHb(){
 
 
 
+
+/* ========== 🏷 키워드·활동분해 일괄 추출 (종합역량 탭) ========== */
+async function generateAllKeywordsAll(){
+  if(!currentStu){ addMsg('assistant','학생을 먼저 선택해주세요.'); return; }
+  const hak = String(currentStu.hak);
+
+  // 세특 먼저
+  const subs = sewtuk[hak]?.subjects || [];
+  const ccActs = (changche[hak] || changche[String(currentStu.g2_hak)] || {})?.activities || [];
+
+  if(!subs.length && !ccActs.length){
+    addMsg('assistant','⚠️ 세특·창체 데이터가 없습니다.');
+    return;
+  }
+
+  const total = subs.length + ccActs.length;
+  let done = 0;
+
+  const fill = document.getElementById('allProgFill');
+  const lbl  = document.getElementById('allProgLabel');
+  const progBar = document.getElementById('allProg');
+  if(progBar) progBar.classList.add('show');
+
+  addMsg('assistant', `🏷 세특 ${subs.length}개 + 창체 ${ccActs.length}개, 총 **${total}개** 키워드·활동분해 추출 시작...`);
+
+  // 세특 처리
+  for(const s of subs){
+    if(fill) fill.style.width = Math.round(done/total*100)+'%';
+    if(lbl)  lbl.textContent  = `${done}/${total}`;
+    try{
+      const text = await callAPI(
+        `당신은 학생부 전문가입니다. 세부능력특기사항을 분석하여 아래 JSON 형식으로만 출력하세요 (마크다운 절대 금지).
+{"키워드":["키워드1","키워드2","키워드3","키워드4","키워드5"],"활동분해":{"핵심주제":["주제1","주제2"],"활동유형":["유형1","유형2"],"교과연계":["교과1","교과2"],"사고수준":["수준1","수준2"]}}
+키워드: 5~8개, 10자 이내, 탐구주제·역량명 위주
+핵심주제: 2~3개, 활동유형: 2~3개, 교과연계: 1~3개, 사고수준: 2~3개
+일반 단어(공부, 활동, 참여) 금지`,
+        [{role:'user', content:`과목: ${s.교과}-${s.과목} ${s.학년}학년
+세특:
+${(s.내용||'').substring(0,600)}`}],
+        500
+      );
+      let parsed;
+      try{ parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }catch{ parsed=null; }
+      if(parsed?.키워드?.length) s.키워드 = parsed.키워드;
+      if(parsed?.활동분해) s.활동분해 = parsed.활동분해;
+    }catch(e){}
+    done++;
+    await new Promise(r=>setTimeout(r,200));
+  }
+
+  // 창체 처리
+  const ccData = changche[hak] || changche[String(currentStu.g2_hak)] || null;
+  for(const a of (ccData?.activities||[])){
+    if(fill) fill.style.width = Math.round(done/total*100)+'%';
+    if(lbl)  lbl.textContent  = `${done}/${total}`;
+    try{
+      const text = await callAPI(
+        `당신은 학생부 전문가입니다. 창의적 체험활동을 분석하여 아래 JSON 형식으로만 출력하세요 (마크다운 절대 금지).
+{"키워드":["키워드1","키워드2","키워드3"],"활동분해":{"핵심주제":["주제1"],"활동유형":["유형1","유형2"],"교과연계":["교과1"],"사고수준":["수준1","수준2"]}}
+키워드: 3~5개, 10자 이내, 활동명·역량·주요테마 위주`,
+        [{role:'user', content:`활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
+내용:
+${(a.내용||'').substring(0,500)}`}],
+        400
+      );
+      let parsed;
+      try{ parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }catch{ parsed=null; }
+      if(parsed?.키워드?.length) a.키워드 = parsed.키워드;
+      if(parsed?.활동분해) a.활동분해 = parsed.활동분해;
+    }catch(e){}
+    done++;
+    await new Promise(r=>setTimeout(r,200));
+  }
+
+  if(fill) fill.style.width = '100%';
+  if(lbl)  lbl.textContent  = `${total}/${total} 완료`;
+
+  // 저장 — 실패해도 화면은 표시
+  try{
+    await saveToSheet(hak);
+    if(ccData) await saveChangcheToSheet(hak);
+  }catch(saveErr){
+    addMsg('assistant',`⚠️ 시트 저장 실패 (${saveErr.message}) — 화면에는 표시됩니다. 상단 ☁️ 전체 저장으로 다시 저장해주세요.`);
+  }
+
+  renderPanel();
+  addMsg('assistant', `✅ 키워드·활동분해 추출 완료! 세특 ${subs.length}개 + 창체 ${ccActs.length}개 처리됐습니다.\n종합역량 평가를 생성하면 활동 분해 종합도 자동으로 만들어집니다.`);
+}
+
 /* ========== 🏷 키워드 일괄 추출 ========== */
 async function generateAllKeywords(type){
   if(!currentStu){ addMsg('assistant','학생을 먼저 선택해주세요.'); return; }
@@ -1994,7 +2083,7 @@ ${(s.내용||'').substring(0,600)}`}],
     }
     if(fill) fill.style.width = '100%';
     if(lbl)  lbl.textContent  = `${done}/${subs.length} 완료`;
-    await saveToSheet(hak);
+    try{ await saveToSheet(hak); }catch(e){ addMsg('assistant',`⚠️ 저장 실패: ${e.message}`); }
     renderPanel();
     addMsg('assistant', `✅ 세특 키워드·활동분해 추출 완료! **${done}개** 과목에 🏷 키워드 + 🔍 활동분해가 표시됩니다.`);
 
@@ -2036,7 +2125,7 @@ ${(a.내용||'').substring(0,500)}`}],
       done++;
       await new Promise(r=>setTimeout(r,200));
     }
-    await saveChangcheToSheet(hak);
+    try{ await saveChangcheToSheet(hak); }catch(e){ addMsgToChat('chatBodyCc','assistant',`⚠️ 저장 실패: ${e.message}`); }
     renderChangchePanel();
     addMsgToChat('chatBodyCc','assistant', `✅ 창체 키워드·활동분해 추출 완료! **${done}개** 활동에 🏷 키워드 + 🔍 활동분해가 표시됩니다.`);
 
