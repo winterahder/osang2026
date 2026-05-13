@@ -1,40 +1,42 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>오상고 상담카드 시스템 2026</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer onload="window._googleGsiLoaded=true"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; font-size: 14px; }
-  /* ===== 구글 로그인 화면 ===== */
-  #lockScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-  #lockScreen.hidden { display: none; }
-  .lock-box { background: #fff; border-radius: 16px; padding: 40px 44px; width: 360px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.35); }
-  .lock-box .lock-icon { font-size: 48px; margin-bottom: 12px; }
-  .lock-box h2 { font-size: 18px; color: #1e293b; margin-bottom: 4px; }
-  .lock-box p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
-  .lock-error { color: #ef4444; font-size: 13px; margin-top: 10px; min-height: 20px; }
-  .lock-spinner { display: none; align-items: center; justify-content: center; gap: 10px; color: #2563eb; font-size: 13px; margin-top: 10px; }
-  .lock-spinner.show { display: flex; }
-  .ls-spin { width: 18px; height: 18px; border: 3px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: kp-spin 0.75s linear infinite; }
-  .google-btn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 12px 16px; background: #fff; color: #3c4043; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-  .google-btn:hover { background: #f8faff; border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,0.15); }
-  .google-btn svg { flex-shrink: 0; }
-  .pending-box { background: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #92400e; line-height: 1.6; }
-  .logout-btn { background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #64748b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-  .logout-btn:hover { background: #f1f5f9; }
-  header { background: #fff; padding: 14px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
-  header h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
-  header h1 span.year { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 4px; }
-  #status { color: #64748b; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); overflow: hidden; }
-  aside { background: #fff; border-radius: 8px; padding: 12px; overflow: hidden; display: flex; flex-direction: column; }
-  aside input, aside select { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
-  aside .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
-  .stu-list { flex: 1; overflow-y: auto; margin-top: 6px; }
+두 이미지를 보니 문제가 명확하네요. Image 1은 레이더+카드 형식, Image 2는 3컬럼 카드 형식인데 같은 탭 안에 둘 다 있어서 점수도 다르고 항목도 중복됩니다. 코드를 먼저 정확히 확인할게요.
+
+이제 데이터 구조가 완전히 파악됐어요. **핵심 문제:**
+
+1. `drawEvalRadar`는 `학업성취도`, `전공관련교과성취도` 등 서브 키를 직접 읽는데, 레이더 라벨에 `전공적합성`이라 표시 → 데이터 키랑 불일치
+2. `drawEvalRadar`가 자체로 점수를 재계산(3개 그룹 평균) → admin이 저장한 `종합점수/종합등급`과 다른 숫자가 나옴
+3. `renderCompEvalPanel`(Image 2)와 `drawEvalRadar`(Image 1)가 중복 렌더링
+
+지금 파일 수정할게요.
+
+이제 전체 구조를 완벽히 파악했어요. 수정 작업을 시작할게요.
+
+**문제 요약:**
+1. `drawEvalRadar` - 자체 점수 재계산으로 Image 1 숫자가 다름
+2. `renderCompEvalPanel` - Image 2와 같은 내용이 중복으로 아래에 또 나옴
+3. 진로역량 서브항목 `전공적합` 라벨이 데이터 키(`전공관련교과성취도`)와 불일치
+4. 글자 크기가 일관되지 않음
+
+이제 레이더 카드 헤더에 진로/전공 + 수정 + 인쇄 버튼을 통합하고, 아래 `renderCompEvalPanel`을 UI 개선된 버전으로 교체할게요.
+
+이제 `renderCompEvalPanel`을 완전히 재설계할게요. 레이더 카드와 중복 없이, 글자 크기/항목 일치시켜서.
+
+이제 `renderCompEvalTab`의 `requestAnimationFrame`도 수정 - 레이더에 종합역량평가 패널이 통합되도록.
+
+이제 CSS를 통일된 글자 크기로 업데이트하고, 3열 그리드 모바일 대응도 추가할게요.
+
+변경 내용을 정리해드릴게요.
+
+---
+
+**수정된 내용 4가지**
+
+**① 숫자 불일치 해결** — 레이더 카드(Image 1)가 그룹 평균으로 자체 점수를 재계산하던 것을 제거하고, admin에서 저장한 `종합점수`/`종합등급` 값을 그대로 사용하도록 수정했어요.
+
+**② 중복 패널 제거** — 레이더 아래에 `renderCompEvalPanel`(Image 2)이 별도로 한 번 더 렌더링되던 구조를 제거하고, 레이더 카드 + 종합역량평가 패널이 순서대로 한 번씩만 나오도록 정리했어요.
+
+**③ 항목 불일치 수정** — 진로역량 서브항목이 `전공적합(성)`으로 잘못 표시되던 것을 실제 데이터 키인 `교과이수(전공관련교과이수)`, `교과성취도(전공관련교과성취도)`, `진로탐색(진로탐색활동)` 3개로 수정했어요. 레이더 축도 동일하게 10개로 맞췄어요.
+
+**④ UI 통일** — `renderCompEvalPanel`을 전면 재설계해서 글자 크기를 13px 기준으로 통일, 서브항목에 comment가 바로 보이도록 구성, 섹션 간 여백 일관성을 맞췄어요. 희망진로/전공 표시와 수정·인쇄 버튼도 레이더 카드 헤더 오른쪽에 한 줄로 통합했어요.  .stu-list { flex: 1; overflow-y: auto; margin-top: 6px; }
   .stu-item { display: grid; grid-template-columns: 55px 1fr; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; align-items: center; }
   .stu-item:hover { background: #f1f5f9; }
   .stu-item.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
