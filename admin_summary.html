@@ -2782,11 +2782,16 @@ ${decompCtx||'없음'}
 - 실천형(🏃): 현장·인터뷰·실측 중심`;
 
       const recText = await callAPI('', [{role:'user', content:recPrompt}], 3000);
+      console.log('맞춤활동추천 AI 응답:', recText?.substring(0,200));
       let recObj;
       try {
         let clean = recText.replace(/```json|```/g,'').trim();
         recObj = JSON.parse(clean);
-      } catch { recObj = null; }
+      } catch(parseErr) {
+        console.error('맞춤활동추천 파싱 실패:', parseErr.message);
+        console.error('원문 앞부분:', recText?.substring(0,500));
+        recObj = null;
+      }
       if(recObj) {
         evalData[hak].맞춤활동추천 = recObj;
         addMsgComp('assistant','✅ 맞춤형 활동 추천 생성 완료');
