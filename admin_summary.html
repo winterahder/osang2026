@@ -963,7 +963,7 @@ function buildSubjectItemHTML(s, i, hak, labels){
     const arr=pend||saved||[];
     const hasSummary=arr.length>0;
 
-    // 키워드 데이터
+    // 키워드 + 활동분해 데이터
     const kwSaved = s.키워드 || null;
     const kwBlock = kwSaved && kwSaved.length
       ? `<div style="padding:8px 12px 10px;border-top:1px solid var(--border);">
@@ -973,6 +973,7 @@ function buildSubjectItemHTML(s, i, hak, labels){
           </div>
         </div>`
       : '';
+    const decompBlock = renderDecompBlock(s.활동분해 || null);
 
     let itemCls='',btnCls='',btnLabel='';
     let sumBadge='';
@@ -1013,6 +1014,7 @@ function buildSubjectItemHTML(s, i, hak, labels){
         </div>
         ${summaryBlock}
         ${kwBlock}
+        ${decompBlock}
         <div style="display:flex;gap:6px;margin:0 12px 11px;">
           <button class="gen-btn ${btnCls}" style="margin:0;flex:1;" id="gb-${i}" onclick="generateOne(${i});event.stopPropagation()">${btnLabel}</button>
         </div>
@@ -1477,6 +1479,52 @@ JSON만 출력:
 }
 
 
+
+/* ========== 활동 분해 태그 렌더링 ========== */
+const DECOMP_META = {
+  핵심주제: { color: '#4f46e5', bg: 'rgba(79,70,229,.08)', border: 'rgba(79,70,229,.2)', icon: '🎯' },
+  활동유형: { color: '#0891b2', bg: 'rgba(8,145,178,.08)', border: 'rgba(8,145,178,.2)', icon: '⚙️' },
+  교과연계: { color: '#059669', bg: 'rgba(5,150,105,.08)', border: 'rgba(5,150,105,.2)', icon: '📚' },
+  사고수준: { color: '#d97706', bg: 'rgba(217,119,6,.08)', border: 'rgba(217,119,6,.2)', icon: '💡' },
+};
+
+function renderDecompBlock(분해, compact=false){
+  if(!분해 || typeof 분해 !== 'object') return '';
+  const cats = Object.keys(DECOMP_META);
+  const hasAny = cats.some(c => Array.isArray(분해[c]) && 분해[c].length);
+  if(!hasAny) return '';
+
+  if(compact){
+    // 콤팩트: 한 줄로 모든 태그
+    const tags = cats.flatMap(c => {
+      const m = DECOMP_META[c];
+      return (분해[c]||[]).map(t =>
+        `<span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:14px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;">${t}</span>`
+      );
+    }).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding:6px 12px 8px;border-top:1px solid var(--border);">${tags}</div>`;
+  }
+
+  // 풀 버전: 카테고리별 구분
+  const rows = cats.map(c => {
+    const tags = 분해[c] || [];
+    if(!tags.length) return '';
+    const m = DECOMP_META[c];
+    const pills = tags.map(t =>
+      `<span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:14px;padding:2px 9px;font-size:11px;font-weight:600;">${t}</span>`
+    ).join('');
+    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;min-width:52px;">${m.icon} ${c}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">${pills}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  return `<div style="padding:8px 12px 10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:7px;">
+    <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:2px;">🔍 활동 분해</div>
+    ${rows}
+  </div>`;
+}
+
 /* ========== 등급 표시 헬퍼 (A0 → A 표시) ========== */
 function dispGrade(g){ return g==='A0'?'A':String(g||''); }
 
@@ -1520,6 +1568,7 @@ async function renderChangchePanel(){
           ${kwSaved.map(kw=>`<span style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${escapeHtml(kw)}</span>`).join('')}
         </div>
       </div>` : '';
+    const decompBlock = renderDecompBlock(a.활동분해 || null);
 
     return `
       <div class="cc-item">
@@ -1538,6 +1587,7 @@ async function renderChangchePanel(){
           <div class="cc-content-text">${(a.내용||'').substring(0,300)}${(a.내용||'').length>300?'...':''}</div>
           ${summaryBlock}
           ${kwBlock}
+          ${decompBlock}
           <div style="display:flex;gap:6px;margin-top:6px;">
             <button class="btn-subj-overall" style="flex:1;" onclick="generateCcItemSummary(${i})" id="btnCcItem${i}">✨ AI 요약 생성</button>
           </div>
@@ -1787,22 +1837,33 @@ async function generateAllKeywords(type){
       if(lbl)  lbl.textContent  = `${done}/${subs.length}`;
       try{
         const text = await callAPI(
-          `당신은 학생부 전문가입니다. 세부능력특기사항에서 이 학생을 대표하는 핵심 역량·탐구주제·활동 키워드를 추출하세요.
-반드시 아래 JSON 배열만 출력 (마크다운·다른텍스트 절대 금지):
-["키워드1","키워드2","키워드3","키워드4","키워드5"]
-규칙:
-- 5~8개 이내, 각 10자 이내
-- 탐구주제·역량명·핵심활동명 위주 (예: "게임이론", "통계적추론", "자기주도탐구", "협업리더십")
-- 일반적인 단어(공부, 활동, 참여) 금지`,
+          `당신은 학생부 전문가입니다. 세부능력특기사항을 분석하여 아래 JSON 형식으로만 출력하세요 (마크다운 절대 금지).
+{
+  "키워드": ["키워드1","키워드2","키워드3","키워드4","키워드5"],
+  "활동분해": {
+    "핵심주제": ["주제1","주제2"],
+    "활동유형": ["유형1","유형2"],
+    "교과연계": ["교과1","교과2"],
+    "사고수준": ["수준1","수준2"]
+  }
+}
+키워드 규칙: 5~8개, 각 10자 이내, 탐구주제·역량명 위주 (예: "정보비대칭", "통계적추론")
+핵심주제: 탐구한 핵심 주제 2~3개 (예: "필터버블", "투자의사결정")
+활동유형: 활동 방식 2~3개 (예: "주제탐구", "사례분석", "교차검증", "현장체험", "모의실험")
+교과연계: 연결되는 교과목 1~3개 (예: "경제", "수학", "사회·문화")
+사고수준: 사고 방식 2~3개 (예: "원인-결과분석", "비교·대조", "한계인식", "정량분석", "교차검증")
+일반적 단어(공부, 활동, 참여) 금지`,
           [{role:'user', content:`과목: ${s.교과}-${s.과목} ${s.학년}학년
 세특:
 ${(s.내용||'').substring(0,600)}`}],
-          300
+          500
         );
-        let arr;
-        try{ arr = JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
-        catch{ arr = []; }
-        if(arr.length) s.키워드 = arr;
+        let parsed;
+        try{
+          parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+        }catch{ parsed = null; }
+        if(parsed?.키워드?.length) s.키워드 = parsed.키워드;
+        if(parsed?.활동분해 && typeof parsed.활동분해 === 'object') s.활동분해 = parsed.활동분해;
       }catch(e){ /* 개별 실패 무시 */ }
       done++;
       await new Promise(r=>setTimeout(r,200));
@@ -1811,7 +1872,7 @@ ${(s.내용||'').substring(0,600)}`}],
     if(lbl)  lbl.textContent  = `${done}/${subs.length} 완료`;
     await saveToSheet(hak);
     renderPanel();
-    addMsg('assistant', `✅ 세특 키워드 추출 완료! **${done}개** 과목에 키워드가 표시됩니다.`);
+    addMsg('assistant', `✅ 세특 키워드·활동분해 추출 완료! **${done}개** 과목에 🏷 키워드 + 🔍 활동분해가 표시됩니다.`);
 
   } else if(type === 'changche'){
     const acts = changche[hak]?.activities || [];
@@ -1822,29 +1883,38 @@ ${(s.내용||'').substring(0,600)}`}],
     for(const a of acts){
       try{
         const text = await callAPI(
-          `당신은 학생부 전문가입니다. 창의적 체험활동에서 핵심 키워드를 추출하세요.
-반드시 아래 JSON 배열만 출력 (마크다운 금지):
-["키워드1","키워드2","키워드3","키워드4"]
-규칙:
-- 3~5개 이내, 각 10자 이내
-- 활동명·역량·주요테마 위주 (예: "환경탐구", "리더십", "진로설계")
-- 일반단어(활동, 참여) 금지`,
+          `당신은 학생부 전문가입니다. 창의적 체험활동을 분석하여 아래 JSON 형식으로만 출력하세요 (마크다운 절대 금지).
+{
+  "키워드": ["키워드1","키워드2","키워드3"],
+  "활동분해": {
+    "핵심주제": ["주제1","주제2"],
+    "활동유형": ["유형1","유형2"],
+    "교과연계": ["교과1"],
+    "사고수준": ["수준1","수준2"]
+  }
+}
+키워드: 3~5개, 10자 이내, 활동명·역량·주요테마 위주
+핵심주제: 활동의 핵심 주제 1~2개
+활동유형: 활동 방식 1~2개 (예: "사회참여", "현장체험", "주제탐구", "기획·운영")
+교과연계: 연결되는 교과 1~2개
+사고수준: 1~2개 (예: "실천적성찰", "문제해결", "협력적사고")`,
           [{role:'user', content:`활동: ${a.학년}학년 ${a.분류} - ${a.활동명}
 내용:
 ${(a.내용||'').substring(0,500)}`}],
-          200
+          400
         );
-        let arr;
-        try{ arr = JSON.parse(text.replace(/```json|```/g,'').trim()); if(!Array.isArray(arr)) throw 0; }
-        catch{ arr = []; }
-        if(arr.length) a.키워드 = arr;
+        let parsed;
+        try{ parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }
+        catch{ parsed = null; }
+        if(parsed?.키워드?.length) a.키워드 = parsed.키워드;
+        if(parsed?.활동분해 && typeof parsed.활동분해 === 'object') a.활동분해 = parsed.활동분해;
       }catch(e){}
       done++;
       await new Promise(r=>setTimeout(r,200));
     }
     await saveChangcheToSheet(hak);
     renderChangchePanel();
-    addMsgToChat('chatBodyCc','assistant', `✅ 창체 키워드 추출 완료! **${done}개** 활동에 키워드가 표시됩니다.`);
+    addMsgToChat('chatBodyCc','assistant', `✅ 창체 키워드·활동분해 추출 완료! **${done}개** 활동에 🏷 키워드 + 🔍 활동분해가 표시됩니다.`);
 
   } else if(type === 'haengbal'){
     const hbData = haengbal[hak]?.원문 || haengbal[hak] || {};
