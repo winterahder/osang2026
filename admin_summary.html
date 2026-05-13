@@ -2695,9 +2695,15 @@ ${hbText||'없음'}
 {"핵심주제":["주제1","주제2","주제3"],"활동유형":["유형1","유형2","유형3"],"교과연계":["교과1","교과2","교과3"],"사고수준":["수준1","수준2","수준3"],"사고흐름":"탐구 흐름 서술 3~5문장","사회적맥락":"사회적 의미 2~3문장"}`;
 
       const decompText = await callAPI('', [{role:'user', content:decompPrompt}], 1200);
+      console.log('활동분해 AI 응답 원문:', decompText);
       let decompObj;
-      try { decompObj = JSON.parse(decompText.replace(/```json|```/g,'').trim()); }
-      catch { decompObj = null; }
+      try {
+        const cleaned = decompText.replace(/```json|```/g,'').trim();
+        decompObj = JSON.parse(cleaned);
+      } catch(parseErr) {
+        console.error('활동분해 파싱 실패 원문:', decompText);
+        decompObj = null;
+      }
       if(decompObj) {
         evalData[hak].활동분해종합 = decompObj;
         // 활동분해 즉시 중간 저장
