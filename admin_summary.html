@@ -867,8 +867,7 @@ function renderMain(){
         <button class="btn-all tab-btn-changche" style="background:linear-gradient(135deg,#10b981,#059669);display:none;" onclick="generateAllCcSummary()">✨ 전체 요약 생성</button>
         <!-- 행발 전용 버튼 -->
         <button class="btn-all tab-btn-haengbal" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywords('haengbal')">🏷 키워드 추출</button>
-        <!-- 종합역량 전용 버튼 -->
-        <button class="btn-all tab-btn-comp" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:none;" onclick="generateAllKeywordsAll()">🏷 키워드·활동분해 추출 (세특+창체)</button>
+
         <!-- 공통 버튼 -->
         <button class="btn-save" onclick="applyAndSave()">💾 저장 적용</button>
         <button class="btn-export" onclick="exportAllJSON()">☁️ 전체 저장</button>
@@ -2638,48 +2637,59 @@ ${obj.종합의견?`종합의견: ${obj.종합의견.substring(0,500)}`:''}
       addMsg('assistant',`⚠️ 강점·보완점 생성 실패 (종합역량평가는 정상 저장): ${swotErr.message}`);
     }
 
-    // ★ 활동 분해 종합 생성
+    // ★ 활동 분해 종합 생성 (세특+창체+행발 원문 직접 분석)
     addMsg('assistant','⏳ 활동 분해 분석 중...');
     try {
       const sewtukSubs = sewtuk[hak]?.subjects || [];
       const ccActs = ccData?.activities || [];
-      // 기존 개별 활동분해 취합
-      const allDecomp = {핵심주제:[], 활동유형:[], 교과연계:[], 사고수준:[]};
-      [...sewtukSubs, ...ccActs].forEach(item => {
-        const d = item.활동분해;
-        if(!d) return;
-        ['핵심주제','활동유형','교과연계','사고수준'].forEach(k => {
-          (d[k]||[]).forEach(t => { if(!allDecomp[k].includes(t)) allDecomp[k].push(t); });
-        });
-      });
+      const hbData = haengbal[hak]?.원문 || haengbal[hak] || {};
 
-      const decompPrompt = `다음은 고등학생의 세특·창체 활동 전체에서 추출한 활동 분해 태그입니다.
-이를 바탕으로 학생의 탐구 흐름과 사회적 맥락을 분석해주세요.
+      // 세특 요약 수집
+      const sewtukText = sewtukSubs.slice(0,8).map(s =>
+        `[${s.교과}-${s.과목}] ${Array.isArray(s.요약) ? s.요약.join(' / ') : (s.요약||'')}`
+      ).filter(Boolean).join('\n');
 
-핵심주제: ${allDecomp.핵심주제.join(', ')||'없음'}
-활동유형: ${allDecomp.활동유형.join(', ')||'없음'}
-교과연계: ${allDecomp.교과연계.join(', ')||'없음'}
-사고수준: ${allDecomp.사고수준.join(', ')||'없음'}
+      // 창체 활동명+내용 수집
+      const ccText = ccActs.slice(0,6).map(a =>
+        `[${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,100)}`
+      ).filter(Boolean).join('\n');
 
-세특 요약:
-${sewtukSubs.slice(0,6).map(s=>Array.isArray(s.요약)?s.요약.join(' / '):'').filter(Boolean).join('\n')}
+      // 행발 수집
+      const hbText = ['1','2','3'].map(g => hbData[g] ? `[${g}학년 행발] ${String(hbData[g]).substring(0,150)}` : '').filter(Boolean).join('\n');
+
+      const decompPrompt = `당신은 학생부종합전형 전문가입니다. 아래 학생의 세특·창체·행발 자료를 종합 분석하여 활동 분해 결과를 출력하세요.
+
+진로: ${currentStu.진로||currentStu.career||'미설정'} / 희망학과: ${currentStu.희망학과||currentStu.major||'미설정'}
+
+【세특 요약】
+${sewtukText||'없음'}
+
+【창체 활동】
+${ccText||'없음'}
+
+【행발】
+${hbText||'없음'}
 
 반드시 아래 JSON만 출력 (마크다운 없이):
 {
-  "핵심주제": ["통합된 핵심주제 태그들 (중복 제거, 최대 8개)"],
-  "활동유형": ["통합된 활동유형 태그들 (최대 6개)"],
-  "교과연계": ["통합된 교과연계 태그들 (최대 6개)"],
-  "사고수준": ["통합된 사고수준 태그들 (최대 6개)"],
-  "사고흐름": "학생의 탐구 흐름을 3~5문장으로 서술 (구체적 활동명·키워드 포함)",
-  "사회적맥락": "학생 활동의 사회적 의미를 2~3문장으로 서술"
+  "핵심주제": ["이 학생을 대표하는 탐구 주제 5~8개 (예: '정보비대칭', '알고리즘편향', '투자의사결정')"],
+  "활동유형": ["활동 방식 3~6개 (예: '주제탐구', '사례분석', '현장체험', '모의실험', '사회참여')"],
+  "교과연계": ["연계 교과 3~6개 (예: '경제·시장과 경제활동', '경영·마케팅 전략')"],
+  "사고수준": ["사고 방식 3~6개 (예: '원인-결과 분석', '비교·대조', '교차 검증', '한계 인식')"],
+  "사고흐름": "학생의 탐구 흐름을 3~5문장으로 서술. 구체적 활동명·이론명 포함. 1학년→2학년 성장 흐름 강조.",
+  "사회적맥락": "학생 활동의 사회적 의미를 2~3문장으로 서술. 개인 탐구가 사회 문제와 어떻게 연결되는지."
 }`;
 
-      const decompText = await callAPI(null, [{role:'user', content:decompPrompt}], 1000);
+      const decompText = await callAPI(null, [{role:'user', content:decompPrompt}], 1200);
       let decompObj;
       try { decompObj = JSON.parse(decompText.replace(/```json|```/g,'').trim()); }
-      catch { decompObj = allDecomp; }
-      evalData[hak].활동분해종합 = decompObj;
-      addMsg('assistant','✅ 활동 분해 분석 완료');
+      catch { decompObj = null; }
+      if(decompObj) {
+        evalData[hak].활동분해종합 = decompObj;
+        addMsg('assistant','✅ 활동 분해 분석 완료');
+      } else {
+        addMsg('assistant','⚠️ 활동 분해 JSON 파싱 실패');
+      }
     } catch(decompErr) {
       addMsg('assistant',`⚠️ 활동 분해 분석 실패: ${decompErr.message}`);
     }
@@ -2689,52 +2699,62 @@ ${sewtukSubs.slice(0,6).map(s=>Array.isArray(s.요약)?s.요약.join(' / '):'').
     try {
       const 진로 = currentStu.진로 || currentStu.career || '미설정';
       const 희망학과 = currentStu.희망학과 || currentStu.major || '미설정';
-      const 활동요약 = sewtuk[hak]?.subjects?.slice(0,5).map(s =>
+      const 활동요약 = sewtuk[hak]?.subjects?.slice(0,6).map(s =>
         `[${s.교과}-${s.과목}] ${Array.isArray(s.요약)?s.요약[0]||'':''}`
       ).filter(Boolean).join('\n') || '';
       const 창체요약 = ccData?.activities?.slice(0,4).map(a =>
-        `[${a.분류}] ${a.활동명}`
-      ).filter(Boolean).join(', ') || '';
+        `[${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,80)}`
+      ).filter(Boolean).join('\n') || '';
+      const hbDataRec = haengbal[hak]?.원문 || haengbal[hak] || {};
+      const hbTextRec = ['1','2','3'].map(g => hbDataRec[g]?`${g}학년: ${String(hbDataRec[g]).substring(0,100)}`:'').filter(Boolean).join(' / ');
+      const decompSummary = evalData[hak]?.활동분해종합;
+      const decompCtx = decompSummary
+        ? `핵심주제: ${(decompSummary.핵심주제||[]).join(', ')}
+사고수준: ${(decompSummary.사고수준||[]).join(', ')}`
+        : '';
 
       const recPrompt = `당신은 한국 대입 학생부종합전형 전문 컨설턴트입니다.
-학생의 기존 활동을 분석하여 진로와 연결되는 맞춤형 후속 활동을 4유형으로 추천하세요.
+학생의 기존 활동을 종합 분석하여 진로와 연결되는 맞춤형 후속 활동을 4유형으로 추천하세요.
 
-학생 정보:
-- 진로: ${진로}
-- 희망학과: ${희망학과}
-- 학년: ${hak[0]}학년
-- 종합평가: ${obj.종합등급||'?'} ${obj.종합점수||'?'}점
+【학생 정보】
+진로: ${진로} / 희망학과: ${희망학과} / ${hak[0]}학년
+종합평가: ${obj.종합등급||'?'} ${obj.종합점수||'?'}점
 
-주요 세특 활동:
-${활동요약}
+【주요 세특】
+${활동요약||'없음'}
 
-창체 활동: ${창체요약}
+【창체】
+${창체요약||'없음'}
 
-종합의견: ${(obj.종합의견||'').substring(0,300)}
+【행발】
+${hbTextRec||'없음'}
+
+【활동 분해 종합】
+${decompCtx||'없음'}
 
 반드시 아래 JSON만 출력 (마크다운 없이):
 {
   "안정형": {
     "제목": "활동 제목 (20자 이내)",
-    "태그": "관련 분야 태그",
-    "선정이유": "2~3문장. 기존 활동과 연결점 명시",
+    "태그": "관련 분야 태그 (예: 금융자산운용 기초)",
+    "선정이유": "2~3문장. 어떤 기존 활동에서 자연스럽게 이어지는지 구체적으로",
     "기존활동연결": "1~2문장",
     "진로관련성": "1~2문장",
-    "학종평가포인트": "2~3문장. 입학사정관 시각",
-    "실행방법": "3~4문장. 구체적 실행 절차",
+    "학종평가포인트": "2~3문장. 입학사정관이 주목할 포인트",
+    "실행방법": "4~5문장. 구체적이고 실현 가능한 절차",
     "후속확장": "1문장",
-    "탐구질문": ["Q1 내용", "Q2 내용", "Q3 내용"]
+    "탐구질문": ["Q1 구체적 질문", "Q2 구체적 질문", "Q3 구체적 질문"]
   },
-  "심화형": { (동일 구조) },
-  "차별화형": { (동일 구조) },
-  "실천형": { (동일 구조) }
+  "심화형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] },
+  "차별화형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] },
+  "실천형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] }
 }
 
-각 유형 특성:
-- 안정형: 기존 활동을 자연스럽게 확장, 리스크 낮음
-- 심화형: 이론·데이터 기반 심화 탐구, 학문적 깊이
-- 차별화형: 다른 지원자와 구별되는 독창적 관점
-- 실천형: 현장 방문·관찰·실측 등 실천 중심`;
+유형별 특성:
+- 안정형(⚓): 기존 활동 자연스러운 확장, 실현 가능성 높음
+- 심화형(🔬): 이론·데이터 기반 심화, 학문적 깊이
+- 차별화형(💡): 타 지원자와 구별되는 독창적 관점
+- 실천형(🏃): 현장·인터뷰·실측 중심`;
 
       const recText = await callAPI(null, [{role:'user', content:recPrompt}], 3000);
       let recObj;
