@@ -4485,7 +4485,7 @@ function renderIndexRecSection(data){
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
     <div style="padding:16px 20px;">
       <div style="margin-bottom:14px;">
-        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — ${{안정형:'기존 활동과 자연스럽게 연결',심화형:'이론·개념을 깊이 파고드는 탐구',차별화형:'독창적 시각으로 차별화',실천형:'현장에서 실천하는 활동'}[active.key]||''}</div>
         <div style="font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
         ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
       </div>
