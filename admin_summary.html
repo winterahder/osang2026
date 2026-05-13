@@ -2786,7 +2786,15 @@ async function applyAndSave(){
 async function saveChangcheToSheet(hak){
   const data = changche[String(hak)];
   if(!data) return;
-  await apiPost({action:'saveChangche', password:currentPw, hak:String(hak), changcheData:data}, 30000);
+  // 원문(내용) 제외 — Apps Script에서 기존 원문과 병합 저장
+  const lite = JSON.parse(JSON.stringify(data));
+  if(Array.isArray(lite.activities)){
+    lite.activities = lite.activities.map(a => {
+      const {내용, ...rest} = a;
+      return rest;
+    });
+  }
+  await apiPost({action:'saveChangche', password:currentPw, hak:String(hak), changcheData:lite}, 30000);
 }
 
 
@@ -2833,7 +2841,15 @@ function renderCompEvalMsg(obj, isSaved){
 async function saveToSheet(hak){
   const data=sewtuk[String(hak)];
   if(!data) return;
-  await apiPost({action:'saveSewtuk', password:currentPw, hak:String(hak), sewtukData:data}, 30000);
+  // 원문(내용) 제외 — Apps Script에서 기존 원문과 병합 저장
+  const lite = JSON.parse(JSON.stringify(data));
+  if(Array.isArray(lite.subjects)){
+    lite.subjects = lite.subjects.map(s => {
+      const {내용, ...rest} = s;
+      return rest;
+    });
+  }
+  await apiPost({action:'saveSewtuk', password:currentPw, hak:String(hak), sewtukData:lite}, 30000);
 }
 
 async function exportJSON(){
