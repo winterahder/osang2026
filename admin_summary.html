@@ -1451,7 +1451,17 @@ function renderCompPanel(){
 
   // ── 맞춤형 활동 추천 ──
   const recData = evalData[hak]?.맞춤활동추천 || null;
-  const recHtml = recData ? renderCompRecSection(recData) : '';
+  const recHtml = recData
+    ? renderCompRecSection(recData)
+    : `<div class="comp-score-wrap">
+        <div class="comp-score-header">
+          <div class="comp-score-title">🎯 맞춤형 활동 추천</div>
+        </div>
+        <div style="padding:16px;text-align:center;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">종합역량평가 결과를 바탕으로 4가지 유형의 맞춤 활동을 추천해드립니다.</div>
+          <button class="comp-gen-btn primary" onclick="generateCompRec()" style="margin:0 auto;">🎯 맞춤형 활동 추천 생성</button>
+        </div>
+      </div>`;
 
   panel.innerHTML = `
     ${actionRow}
@@ -2326,13 +2336,15 @@ function clearCompLog(){
 
 /* ========== 맞춤형 활동 추천 재생성 ========== */
 async function generateCompRec(){
-  if(!currentStu){ addMsg('assistant','학생을 먼저 선택해주세요.'); return; }
+  if(!currentStu){ addMsgComp('assistant','학생을 먼저 선택해주세요.'); return; }
   const hak = String(currentStu.hak);
   const obj = evalData[hak]?.종합역량평가;
-  if(!obj){ addMsg('assistant','종합역량평가를 먼저 생성해주세요.'); return; }
+  if(!obj){ addMsgComp('assistant','종합역량평가를 먼저 생성해주세요.'); return; }
 
-  const btn = document.querySelector('.comp-gen-btn.secondary[onclick="generateCompRec()"]');
+  // 버튼 비활성화 (primary 또는 secondary 둘 다)
+  const btn = document.querySelector('[onclick="generateCompRec()"]');
   if(btn){ btn.disabled=true; btn.textContent='⏳ 생성 중...'; }
+  addMsgComp('assistant','⏳ 맞춤형 활동 추천 생성 중...');
 
   const subs = sewtuk[hak]?.subjects || [];
   const ccData = changche[hak] || changche[String(currentStu.g2_hak)] || null;
@@ -2368,11 +2380,12 @@ ${활동요약}
     evalData[hak].맞춤활동추천 = recObj;
     await apiPost({action:'saveEval', password:currentPw, hak:String(hak), evalData:evalData[hak]});
     renderCompPanel();
-    addMsg('assistant','✅ 맞춤형 활동 추천 재생성 완료!');
+    addMsgComp('assistant','✅ 맞춤형 활동 추천 생성 완료!');
+    renderCompPanel();
   }catch(e){
-    addMsg('assistant',`❌ 추천 생성 실패: ${e.message}`);
+    addMsgComp('assistant',`❌ 추천 생성 실패: ${e.message}`);
   }finally{
-    if(btn){ btn.disabled=false; btn.textContent='✨ 추천 재생성'; }
+    if(btn){ btn.disabled=false; btn.textContent=btn.classList.contains('primary')?'🎯 맞춤형 활동 추천 생성':'✨ 추천 재생성'; }
   }
 }
 
@@ -2717,87 +2730,6 @@ ${hbText||'없음'}
     } catch(decompErr) {
       console.error('활동분해 실패:', decompErr);
       addMsgComp('assistant',`⚠️ 활동 분해 분석 실패: ${decompErr.message}`);
-    }
-
-    // ★ 맞춤형 활동 추천 생성
-    addMsgComp('assistant','⏳ 맞춤형 활동 추천 생성 중...');
-    try {
-      const 진로 = currentStu.진로 || currentStu.career || '미설정';
-      const 희망학과 = currentStu.희망학과 || currentStu.major || '미설정';
-      const 활동요약 = sewtuk[hak]?.subjects?.slice(0,6).map(s =>
-        `[${s.교과}-${s.과목}] ${Array.isArray(s.요약)?s.요약[0]||'':''}`
-      ).filter(Boolean).join('\n') || '';
-      const 창체요약 = ccData?.activities?.slice(0,4).map(a =>
-        `[${a.분류}] ${a.활동명}: ${(a.내용||'').substring(0,80)}`
-      ).filter(Boolean).join('\n') || '';
-      const hbDataRec = haengbal[hak]?.원문 || haengbal[hak] || {};
-      const hbTextRec = ['1','2','3'].map(g => hbDataRec[g]?`${g}학년: ${String(hbDataRec[g]).substring(0,100)}`:'').filter(Boolean).join(' / ');
-      const decompSummary = evalData[hak]?.활동분해종합;
-      const decompCtx = decompSummary
-        ? `핵심주제: ${(decompSummary.핵심주제||[]).join(', ')}
-사고수준: ${(decompSummary.사고수준||[]).join(', ')}`
-        : '';
-
-      const recPrompt = `당신은 한국 대입 학생부종합전형 전문 컨설턴트입니다.
-학생의 기존 활동을 종합 분석하여 진로와 연결되는 맞춤형 후속 활동을 4유형으로 추천하세요.
-
-【학생 정보】
-진로: ${진로} / 희망학과: ${희망학과} / ${hak[0]}학년
-종합평가: ${obj.종합등급||'?'} ${obj.종합점수||'?'}점
-
-【주요 세특】
-${활동요약||'없음'}
-
-【창체】
-${창체요약||'없음'}
-
-【행발】
-${hbTextRec||'없음'}
-
-【활동 분해 종합】
-${decompCtx||'없음'}
-
-반드시 아래 JSON만 출력 (마크다운 없이):
-{
-  "안정형": {
-    "제목": "활동 제목 (20자 이내)",
-    "태그": "관련 분야 태그 (예: 금융자산운용 기초)",
-    "선정이유": "2~3문장. 어떤 기존 활동에서 자연스럽게 이어지는지 구체적으로",
-    "기존활동연결": "1~2문장",
-    "진로관련성": "1~2문장",
-    "학종평가포인트": "2~3문장. 입학사정관이 주목할 포인트",
-    "실행방법": "4~5문장. 구체적이고 실현 가능한 절차",
-    "후속확장": "1문장",
-    "탐구질문": ["Q1 구체적 질문", "Q2 구체적 질문", "Q3 구체적 질문"]
-  },
-  "심화형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] },
-  "차별화형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] },
-  "실천형": { "제목":"","태그":"","선정이유":"","기존활동연결":"","진로관련성":"","학종평가포인트":"","실행방법":"","후속확장":"","탐구질문":["","",""] }
-}
-
-유형별 특성:
-- 안정형(⚓): 기존 활동 자연스러운 확장, 실현 가능성 높음
-- 심화형(🔬): 이론·데이터 기반 심화, 학문적 깊이
-- 차별화형(💡): 타 지원자와 구별되는 독창적 관점
-- 실천형(🏃): 현장·인터뷰·실측 중심`;
-
-      const recText = await callAPI('', [{role:'user', content:recPrompt}], 3000);
-      console.log('맞춤활동추천 AI 응답:', recText?.substring(0,200));
-      let recObj;
-      try {
-        let clean = recText.replace(/```json|```/g,'').trim();
-        recObj = JSON.parse(clean);
-      } catch(parseErr) {
-        console.error('맞춤활동추천 파싱 실패:', parseErr.message);
-        console.error('원문 앞부분:', recText?.substring(0,500));
-        recObj = null;
-      }
-      if(recObj) {
-        evalData[hak].맞춤활동추천 = recObj;
-        addMsgComp('assistant','✅ 맞춤형 활동 추천 생성 완료');
-      }
-    } catch(recErr) {
-      addMsgComp('assistant',`⚠️ 맞춤형 활동 추천 생성 실패: ${recErr.message}`);
     }
 
     addMsgComp('assistant','💾 구글 시트(eval)에 저장 중...');
