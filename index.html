@@ -5491,14 +5491,17 @@ function renderMajorAdmissions() {
       const passCnt  = parseInt(r['합격건수']||0);
       const failCnt  = parseInt(r['불합격건수']||0);
 
-      // 내 내신 대비 판정
+      // 내 내신 대비 판정 (내신은 낮을수록 좋음)
+      // diff = passAvg - myAvg
+      // diff > 0 → 합격평균이 내 내신보다 높음 → 내가 더 좋음 → 안정
+      // diff < 0 → 합격평균이 내 내신보다 낮음 → 내가 더 나쁨 → 도전
       let badge = '', badgeBg = '';
       if(myAvg && !isNaN(passAvg)){
         const diff = passAvg - myAvg;
-        if(diff >= 0.3)       { badge='도전'; badgeBg='#fef2f2;color:#dc2626'; }
-        else if(diff >= 0)    { badge='소신'; badgeBg='#fef9c3;color:#92400e'; }
-        else if(diff >= -0.3) { badge='적정'; badgeBg='#dcfce7;color:#15803d'; }
-        else                  { badge='안정'; badgeBg='#dbeafe;color:#1d4ed8'; }
+        if(diff >= 0.3)       { badge='안정'; badgeBg='#dbeafe;color:#1d4ed8'; }
+        else if(diff >= 0)    { badge='적정'; badgeBg='#dcfce7;color:#15803d'; }
+        else if(diff >= -0.3) { badge='소신'; badgeBg='#fef9c3;color:#92400e'; }
+        else                  { badge='도전'; badgeBg='#fef2f2;color:#dc2626'; }
       }
 
       return `
@@ -5538,11 +5541,11 @@ function renderMajorAdmissions() {
           ${myAvgText}
         </div>
         ${myAvg ? `
-        <div style="display:flex;gap:6px;margin-top:8px;font-size:11px;">
-          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-weight:700;">안정: 합격평균+0.3↑</span>
-          <span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:4px;font-weight:700;">적정: ±0.3</span>
-          <span style="background:#fef9c3;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:700;">소신: 0~0.3↓</span>
-          <span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:4px;font-weight:700;">도전: 0.3↓이상</span>
+        <div style="display:flex;gap:6px;margin-top:8px;font-size:11px;flex-wrap:wrap;">
+          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-weight:700;">안정: 합격평균보다 내 내신이 0.3↑ 낮음</span>
+          <span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:4px;font-weight:700;">적정: ±0.3 이내</span>
+          <span style="background:#fef9c3;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:700;">소신: 합격평균보다 내 내신이 0~0.3↑ 높음</span>
+          <span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:4px;font-weight:700;">도전: 0.3↑ 이상 높음</span>
         </div>` : ''}
       </div>
       <div style="padding:12px 14px 6px;">${typeHtml}</div>
