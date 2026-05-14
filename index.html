@@ -5380,14 +5380,30 @@ function renderMock(el){
   const majorN = norm(stuMajor);
   const careerN = norm(stuCareer);
 
+  // 수능최저 컬럼명 여러 가능성 대응
+  function getSuneungField(r) {
+    return String(r['수능최저'] || r['수능최저학력기준'] || r['최저기준'] || '').trim();
+  }
+
   const matchedUnivs = (kbUniv||[]).filter(r => {
     const dept = norm(r['모집단위']||'');
     if(!dept) return false;
-    const suneung = String(r['수능최저']||'');
-    if(!suneung || suneung === '없음' || suneung === '미적용') return false;
+    const suneung = getSuneungField(r);
+    if(!suneung || suneung === '없음' || suneung === '미적용' || suneung === '-') return false;
     return (majorN.length >= 2 && (dept.includes(majorN) || majorN.includes(dept)))
         || (careerN.length >= 2 && (dept.includes(careerN) || careerN.includes(dept)));
-  }).slice(0, 8); // 최대 8개
+  }).slice(0, 8);
+
+  // 디버깅용: 매칭 안 됐을 때 원인 추적
+  const debugInfo = {
+    stuMajor, stuCareer,
+    kbUnivTotal: (kbUniv||[]).length,
+    kbUnivWithSuneung: (kbUniv||[]).filter(r => {
+      const s = getSuneungField(r);
+      return s && s !== '없음' && s !== '미적용' && s !== '-';
+    }).length,
+    matchedCount: matchedUnivs.length
+  };
 
   // ========== 수능최저 표 헤더 ==========
   const sunheungHeader = ['4합(2)','3합(2)','2합(2)','4합(1)','3합(1)','2합(1)'];
@@ -5422,9 +5438,24 @@ function renderMock(el){
     </tr>`;
   }).join('');
 
-  // 매칭된 대학 수능최저 표
-  const matchedUnivHtml = matchedUnivs.length > 0
-    ? `<div style="margin-top:14px;padding:14px 16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;">
+  // 매칭된 대학 수능최저 표 (없으면 디버깅 안내)
+  let matchedUnivHtml = '';
+  if(matchedUnivs.length === 0) {
+    // 왜 매칭 안 됐는지 안내
+    let reason = '';
+    if(!stuMajor && !stuCareer) {
+      reason = '학생 기본정보에 <b>희망 전공·진로</b>가 입력되어 있지 않습니다.';
+    } else if(debugInfo.kbUnivWithSuneung === 0) {
+      reason = '<b>kb_univ 시트</b>에 수능최저학력기준 데이터가 없거나 컬럼명이 다를 수 있습니다. (찾는 컬럼: 수능최저, 수능최저학력기준, 최저기준)';
+    } else {
+      reason = '<b>희망 전공 "' + escapeHtml(stuMajor || stuCareer) + '"</b> 키워드로 매칭되는 대학이 ' + debugInfo.kbUnivWithSuneung + '개 수능최저 데이터 중에 없습니다.';
+    }
+    matchedUnivHtml = '<div style="margin-top:14px;padding:12px 14px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#92400e;">'
+      + '<div style="font-weight:700;margin-bottom:4px;">⚠️ 희망전공 수능최저 매칭 불가</div>'
+      + '<div style="font-size:11.5px;line-height:1.7;">' + reason + '</div>'
+      + '</div>';
+  } else {
+    matchedUnivHtml = `<div style="margin-top:14px;padding:14px 16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;">
         <div style="font-size:13px;font-weight:800;color:#854d0e;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
           🎯 희망전공 <span style="background:#fff7ed;color:#9a3412;padding:2px 8px;border-radius:6px;font-size:11px;">${escapeHtml(stuMajor || stuCareer)}</span> 관련 수능최저 기준
         </div>
@@ -5454,8 +5485,8 @@ function renderMock(el){
           }).join('')}
         </div>
         <div style="margin-top:8px;font-size:10px;color:#92400e;text-align:right;">※ 최신 모의고사 기준 자동 매칭 · 실제와 차이 있을 수 있음</div>
-      </div>`
-    : '';
+      </div>`;
+  }
 
   // ========== 최종 HTML ==========
   el.innerHTML = `
@@ -5566,7 +5597,11 @@ function renderMock(el){
     renderTab();
   });
 
-  drawChart(rounds);
+  try {
+    drawChart(rounds);
+  } catch(e) {
+    console.warn('차트 그리기 실패:', e);
+  }
 }
 
 function getVal(r, sub, mode){
@@ -5684,7 +5719,7 @@ function drawChart(rounds){
   // 학년 경계선 인덱스
   const yearBreaks = findYearBreaks(rounds);
 
-  // 선택된 과목만 데이터셋 생성
+  // 선택된 과목만 데이터셋 생성 (단순화)
   const visibleSubjects = SUBJECTS.filter(sub => mockChartSubjects.has(sub));
   const datasets = visibleSubjects.map(sub => ({
     label: sub,
@@ -5693,34 +5728,48 @@ function drawChart(rounds){
     backgroundColor: COLORS[sub],
     tension: 0.25,
     spanGaps: true,
-    pointRadius: rounds.map(r => getVal(r, sub, currentMode) == null ? 6 : 5),
-    pointBackgroundColor: rounds.map(r => getVal(r, sub, currentMode) == null ? '#fff' : COLORS[sub]),
-    pointBorderColor: rounds.map(r => getVal(r, sub, currentMode) == null ? COLORS[sub] : '#fff'),
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    pointBackgroundColor: COLORS[sub],
+    pointBorderColor: '#fff',
     pointBorderWidth: 2,
-    pointStyle: rounds.map(r => getVal(r, sub, currentMode) == null ? 'circle' : 'circle'),
   }));
 
-  // 학년 경계 점선 플러그인
+  // 학년 경계 점선 플러그인 (안전 버전)
   const yearBreakPlugin = {
     id: 'yearBreaks',
-    afterDraw(chart) {
-      if(!yearBreaks.length) return;
-      const { ctx, chartArea, scales } = chart;
-      ctx.save();
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      yearBreaks.forEach(idx => {
-        // 학년 경계 = idx와 idx-1 사이 중간
-        const x1 = scales.x.getPixelForValue(idx - 1);
-        const x2 = scales.x.getPixelForValue(idx);
-        const x = (x1 + x2) / 2;
-        ctx.beginPath();
-        ctx.moveTo(x, chartArea.top);
-        ctx.lineTo(x, chartArea.bottom);
-        ctx.stroke();
-      });
-      ctx.restore();
+    afterDatasetsDraw(chart) {
+      try {
+        if(!yearBreaks.length) return;
+        if(!chart.scales || !chart.scales.x) return;
+        if(!chart.data.datasets[0] || !chart.getDatasetMeta) return;
+        const meta = chart.getDatasetMeta(0);
+        if(!meta || !meta.data || !meta.data.length) return;
+
+        const { ctx, chartArea } = chart;
+        if(!chartArea) return;
+
+        ctx.save();
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        yearBreaks.forEach(idx => {
+          // meta.data[idx]가 있는지 확인 (인덱스 안전)
+          const prevPt = meta.data[idx - 1];
+          const currPt = meta.data[idx];
+          if(!prevPt || !currPt) return;
+          const x = (prevPt.x + currPt.x) / 2;
+          ctx.beginPath();
+          ctx.moveTo(x, chartArea.top);
+          ctx.lineTo(x, chartArea.bottom);
+          ctx.stroke();
+        });
+        ctx.restore();
+      } catch(e) {
+        // 학년 경계 그리기 실패해도 차트 자체는 표시되도록
+        console.warn('yearBreakPlugin 에러:', e);
+      }
     }
   };
 
@@ -6142,7 +6191,14 @@ let _cutoffDBReady = false; // cutoffDB 로드 완료 여부
 function renderMajorAdmissions() {
   const major  = currentStu?.전공 || currentStu?.major || '';
   const career = currentStu?.진로 || currentStu?.career || '';
-  if(!major && !career) return '';
+
+  // 디버깅: 전공/진로 없을 때
+  if(!major && !career) {
+    return '<div style="margin:16px 0;padding:20px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px;text-align:center;color:#9a3412;font-size:13px;">'
+      + '⚠️ 희망 전공·진로 정보가 없어 합불 현황을 표시할 수 없습니다.<br>'
+      + '<span style="font-size:11px;color:#94a3b8;">학생 기본정보에 희망 전공 또는 진로를 입력해주세요.</span>'
+      + '</div>';
+  }
 
   const myAvg = calcStudentAvg9(currentStu);
   const is9native = isStudent9Grade(currentStu);
