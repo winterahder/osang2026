@@ -588,23 +588,24 @@
     .m-htabs {
       display: flex; overflow-x: auto; gap: 0;
       scrollbar-width: none; -webkit-overflow-scrolling: touch;
-      padding: 0 2px;
+      padding: 0 4px;
+      justify-content: space-between;
     }
     .m-htabs::-webkit-scrollbar { display: none; }
     .m-htab {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 3px;
-      padding: 8px 12px; cursor: pointer; flex-shrink: 0;
+      justify-content: center; gap: 4px;
+      padding: 10px 0; cursor: pointer; flex: 1;
       border-bottom: 3px solid transparent;
       color: #94a3b8; transition: all 0.15s;
-      min-width: 56px;
+      min-width: 44px;
     }
     .m-htab.active {
       border-bottom-color: #6366f1; color: #6366f1;
-      background: linear-gradient(to bottom, rgba(99,102,241,.06), transparent);
+      background: linear-gradient(to bottom, rgba(99,102,241,.07), transparent);
     }
-    .m-htab-icon  { font-size: 18px; line-height: 1; }
-    .m-htab-label { font-size: 10px; font-weight: 600; white-space: nowrap; letter-spacing: -0.2px; }
+    .m-htab-icon  { font-size: 20px; line-height: 1; }
+    .m-htab-label { font-size: 11px; font-weight: 700; white-space: nowrap; letter-spacing: -0.3px; }
 
     /* 콘텐츠 */
     #tabContent { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
