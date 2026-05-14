@@ -697,6 +697,108 @@
     .m-grade-card.grade5-4 { background: linear-gradient(160deg,#9a3412,#f97316); } /* 주황 */
     .m-grade-card.grade5-5 { background: linear-gradient(160deg,#991b1b,#ef4444); } /* 빨강 */
 
+    /* ===== 모의고사 모바일 카드 ===== */
+    .m-mock-cards { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 12px; }
+    .m-mock-round-card {
+      background: #fff; border: 1px solid #e8edf5;
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .m-mock-round-card.m-mock-latest {
+      border-color: #6366f1; border-width: 2px;
+      box-shadow: 0 4px 14px rgba(99,102,241,.18);
+    }
+    .m-mock-round-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 13px; gap: 10px;
+      background: linear-gradient(135deg, #fafbff 0%, #f3f4ff 100%);
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .m-mock-latest .m-mock-round-header {
+      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    }
+    .m-mock-round-label {
+      font-size: 16px; font-weight: 800; color: #1e293b; letter-spacing: -0.3px;
+    }
+    .m-mock-round-sublabel {
+      font-size: 11px; color: #94a3b8; margin-top: 2px; font-weight: 500;
+    }
+    .m-mock-round-avg {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 70px; padding: 8px 12px; border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.12);
+    }
+    .m-mock-round-avg-num {
+      font-size: 24px; font-weight: 900; color: #fff;
+      line-height: 1; letter-spacing: -1px;
+      text-shadow: 0 1px 2px rgba(0,0,0,.2);
+    }
+    .m-mock-round-avg-unit {
+      font-size: 10px; color: rgba(255,255,255,.85);
+      font-weight: 700; margin-top: 3px;
+    }
+    .m-mock-subj-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 5px; padding: 10px 11px 11px;
+    }
+    .m-mock-subj-card {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 7px 4px 8px; border-radius: 8px;
+      border: 1px solid transparent;
+      background: #f8fafc;
+    }
+    .mc-subj-name {
+      font-size: 10px; font-weight: 700; color: #64748b;
+      letter-spacing: -0.2px; line-height: 1.3; text-align: center;
+    }
+    .mc-subj-sel {
+      display: block; font-size: 8.5px; color: #94a3b8;
+      font-weight: 600; margin-top: 1px;
+    }
+    .mc-subj-val {
+      font-size: 22px; font-weight: 900; line-height: 1;
+      letter-spacing: -1px; margin-top: 3px;
+    }
+    /* 등급 색상 (1~9등급) */
+    .m-mock-subj-card.mc-g-1 { background: linear-gradient(160deg,#3730a3,#4f46e5); }
+    .m-mock-subj-card.mc-g-2 { background: linear-gradient(160deg,#065f46,#10b981); }
+    .m-mock-subj-card.mc-g-3 { background: linear-gradient(160deg,#0e7490,#06b6d4); }
+    .m-mock-subj-card.mc-g-4 { background: linear-gradient(160deg,#1e40af,#2563eb); }
+    .m-mock-subj-card.mc-g-5 { background: linear-gradient(160deg,#1e3a8a,#0891b2); }
+    .m-mock-subj-card.mc-g-6 { background: linear-gradient(160deg,#92400e,#d97706); }
+    .m-mock-subj-card.mc-g-7 { background: linear-gradient(160deg,#9a3412,#f97316); }
+    .m-mock-subj-card.mc-g-8 { background: linear-gradient(160deg,#991b1b,#ef4444); }
+    .m-mock-subj-card.mc-g-9 { background: linear-gradient(160deg,#7f1d1d,#b91c1c); }
+    .m-mock-subj-card.mc-g-1 .mc-subj-name,
+    .m-mock-subj-card.mc-g-2 .mc-subj-name,
+    .m-mock-subj-card.mc-g-3 .mc-subj-name,
+    .m-mock-subj-card.mc-g-4 .mc-subj-name,
+    .m-mock-subj-card.mc-g-5 .mc-subj-name,
+    .m-mock-subj-card.mc-g-6 .mc-subj-name,
+    .m-mock-subj-card.mc-g-7 .mc-subj-name,
+    .m-mock-subj-card.mc-g-8 .mc-subj-name,
+    .m-mock-subj-card.mc-g-9 .mc-subj-name { color: rgba(255,255,255,.8); }
+    .m-mock-subj-card.mc-g-1 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-2 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-3 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-4 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-5 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-6 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-7 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-8 .mc-subj-sel,
+    .m-mock-subj-card.mc-g-9 .mc-subj-sel { color: rgba(255,255,255,.7); }
+    .m-mock-subj-card.mc-g-1 .mc-subj-val,
+    .m-mock-subj-card.mc-g-2 .mc-subj-val,
+    .m-mock-subj-card.mc-g-3 .mc-subj-val,
+    .m-mock-subj-card.mc-g-4 .mc-subj-val,
+    .m-mock-subj-card.mc-g-5 .mc-subj-val,
+    .m-mock-subj-card.mc-g-6 .mc-subj-val,
+    .m-mock-subj-card.mc-g-7 .mc-subj-val,
+    .m-mock-subj-card.mc-g-8 .mc-subj-val,
+    .m-mock-subj-card.mc-g-9 .mc-subj-val { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .m-mock-subj-card.mc-neutral .mc-subj-val { color: #1e293b; }
+    .m-mock-subj-card.mc-empty .mc-subj-val { color: #cbd5e1; }
+
     /* 과목명 */
     .m-grade-head {
       padding: 7px 7px 2px;
@@ -1800,15 +1902,15 @@ function drawGradeChart(data, semesters){
           const raw = ds.data[pi];
           if(!raw || raw.y == null) return;
           ctx.save();
-          ctx.font = 'bold 30px -apple-system, sans-serif';
+          ctx.font = 'bold 12px -apple-system, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           const label = raw.y.toFixed(2);
           const tw = ctx.measureText(label).width;
           ctx.fillStyle = 'rgba(255,255,255,0.85)';
-          ctx.fillRect(pt.x - tw/2 - 5, pt.y - 32, tw + 10, 22);
+          ctx.fillRect(pt.x - tw/2 - 3, pt.y - 22, tw + 6, 16);
           ctx.fillStyle = ds.borderColor;
-          ctx.fillText(label, pt.x, pt.y - 12);
+          ctx.fillText(label, pt.x, pt.y - 8);
           ctx.restore();
         });
       });
@@ -5042,9 +5144,81 @@ function renderMock(el){
     </tr>`;
   }).join('');
 
+  // ========== 모바일 카드 뷰 ==========
+  // 등급 → 색상 클래스 (1~9등급)
+  function gradeColorClass(val, sub){
+    if(val == null || val === '-') return 'mc-empty';
+    const n = parseInt(val);
+    if(isNaN(n)) return 'mc-empty';
+    // 영어/한국사는 등급 직접 사용, 다른 과목도 등급 모드면 직접 사용
+    return 'mc-g-' + Math.min(9, Math.max(1, n));
+  }
+
+  // 회차별 카드 (가장 최근이 위)
+  const mobileCards = [...rounds].reverse().map((r, idx) => {
+    const summary = calcMockSummary(r, currentMode);
+    const isLatest = idx === 0;
+    const summaryVal = summary ? summary.val : '-';
+    const summaryLabel = summary ? summary.label : '';
+
+    // 평균등급 색상 (등급 모드일 때만)
+    let avgColorBg = 'linear-gradient(160deg,#475569,#64748b)';
+    if(currentMode === '등급' && summary){
+      const avgInt = Math.round(parseFloat(summary.val));
+      const avgColors = {
+        1:'linear-gradient(160deg,#3730a3,#4f46e5)',
+        2:'linear-gradient(160deg,#065f46,#10b981)',
+        3:'linear-gradient(160deg,#0e7490,#06b6d4)',
+        4:'linear-gradient(160deg,#1e40af,#2563eb)',
+        5:'linear-gradient(160deg,#1e3a8a,#0891b2)',
+        6:'linear-gradient(160deg,#92400e,#d97706)',
+        7:'linear-gradient(160deg,#9a3412,#f97316)',
+        8:'linear-gradient(160deg,#991b1b,#ef4444)',
+        9:'linear-gradient(160deg,#7f1d1d,#b91c1c)',
+      };
+      avgColorBg = avgColors[avgInt] || avgColorBg;
+    }
+
+    // 과목 미니카드 (4열)
+    const subjectCards = SUBJECTS.map(sub => {
+      const d = r[sub];
+      if(!d) return `<div class="m-mock-subj-card mc-empty"><div class="mc-subj-name">${sub}</div><div class="mc-subj-val">-</div></div>`;
+
+      let val, displayVal;
+      if(currentMode === '등급'){ val = d['등급']; displayVal = val ?? '-'; }
+      else if(currentMode === '원점수'){ val = d['원점수']; displayVal = val ?? '-'; }
+      else if(sub === '영어' || sub === '한국사'){ val = d['등급']; displayVal = val ?? '-'; }
+      else { val = d[currentMode]; displayVal = val ?? '-'; }
+
+      const sel = d.선택?.trim();
+      const colorCls = (currentMode === '등급' || sub === '영어' || sub === '한국사')
+        ? gradeColorClass(displayVal, sub) : 'mc-neutral';
+
+      return `<div class="m-mock-subj-card ${colorCls}">
+        <div class="mc-subj-name">${sub}${sel ? `<span class="mc-subj-sel">${sel}</span>` : ''}</div>
+        <div class="mc-subj-val">${displayVal}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="m-mock-round-card ${isLatest ? 'm-mock-latest' : ''}">
+      <div class="m-mock-round-header">
+        <div>
+          <div class="m-mock-round-label">${isLatest ? '🎯 최근 ' : ''}${ROUND_LABEL[r.round]||r.round}</div>
+          <div class="m-mock-round-sublabel">${summaryLabel}</div>
+        </div>
+        <div class="m-mock-round-avg" style="background:${avgColorBg};">
+          <div class="m-mock-round-avg-num">${summaryVal}</div>
+          <div class="m-mock-round-avg-unit">${currentMode === '등급' ? '등급' : currentMode === '백분위' ? '%ile' : '점'}</div>
+        </div>
+      </div>
+      <div class="m-mock-subj-grid">${subjectCards}</div>
+    </div>`;
+  }).join('');
+
   el.innerHTML = `
     <div class="toggle-group">${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}</div>
-    <table class="mock">
+    <!-- 데스크탑 테이블 -->
+    <table class="mock m-hide-on-mobile">
       <thead><tr>
         <th>회차</th>
         <th style="color:#6d28d9;">${summaryHeaders[currentMode]||''}</th>
@@ -5055,7 +5229,9 @@ function renderMock(el){
       </tr></thead>
       <tbody>${roundRows}</tbody>
     </table>
-    ${hasSubjectNames ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;padding:0 2px;">📌 선택과목: ${Object.entries(subjectNames).map(([k,v])=>`${k} → ${v}`).join(' · ')}</div>` : ''}
+    <!-- 모바일 카드 -->
+    <div class="m-mock-cards m-show-on-mobile">${mobileCards}</div>
+    ${hasSubjectNames ? `<div class="m-hide-on-mobile" style="font-size:11px;color:#94a3b8;margin-top:6px;padding:0 2px;">📌 선택과목: ${Object.entries(subjectNames).map(([k,v])=>`${k} → ${v}`).join(' · ')}</div>` : ''}
     <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
   `;
   el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
