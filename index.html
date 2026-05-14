@@ -577,15 +577,15 @@
       flex-shrink: 0;
     }
     .m-sel {
-      flex: 1; padding: 9px 8px;
-      border: 1.5px solid #e2e8f0; border-radius: 8px;
-      font-size: 13px; font-weight: 500;
+      flex: 1; padding: 10px 10px;
+      border: 1.5px solid #e2e8f0; border-radius: 9px;
+      font-size: 14px; font-weight: 600;
       background: #f8fafc; color: #1e293b;
       min-width: 0; outline: none;
       -webkit-appearance: none; appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 8px center;
-      padding-right: 24px;
+      background-repeat: no-repeat; background-position: right 9px center;
+      padding-right: 26px;
     }
     .m-sel:focus { border-color: #6366f1; background-color: #fff; }
 
@@ -595,12 +595,13 @@
 
     /* 학생 헤더 */
     .m-stu-header {
-      padding: 10px 14px; background: #fff;
+      padding: 12px 14px; background: #fff;
       border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .m-stu-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
-    .m-stu-header .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+    .m-stu-header h2 { font-size: 19px !important; font-weight: 800; margin: 0; color: #0f172a; }
+    .m-stu-header .badges { display: flex; gap: 5px; flex-wrap: wrap; }
+    .m-stu-header .badge { font-size: 12px !important; padding: 3px 9px !important; }
 
     /* 가로 스크롤 탭 */
     .m-htabs-wrap {
@@ -616,18 +617,18 @@
     .m-htabs::-webkit-scrollbar { display: none; }
     .m-htab {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 4px;
-      padding: 10px 0; cursor: pointer; flex: 1;
+      justify-content: center; gap: 5px;
+      padding: 12px 0 10px; cursor: pointer; flex: 1;
       border-bottom: 3px solid transparent;
       color: #94a3b8; transition: all 0.15s;
       min-width: 44px;
     }
     .m-htab.active {
       border-bottom-color: #6366f1; color: #6366f1;
-      background: linear-gradient(to bottom, rgba(99,102,241,.07), transparent);
+      background: linear-gradient(to bottom, rgba(99,102,241,.08), transparent);
     }
-    .m-htab-icon  { font-size: 20px; line-height: 1; }
-    .m-htab-label { font-size: 11px; font-weight: 700; white-space: nowrap; letter-spacing: -0.3px; }
+    .m-htab-icon  { font-size: 22px; line-height: 1; }
+    .m-htab-label { font-size: 13px; font-weight: 700; white-space: nowrap; letter-spacing: -0.3px; }
 
     /* 콘텐츠 */
     #tabContent { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -649,49 +650,71 @@
     .m-show-on-mobile { display: block !important; }
     .m-hide-on-mobile { display: none !important; }
 
-    /* 내신 */
-    .grade-summary-panel { grid-template-columns: 1fr; }
-    .grade-avg-big .avg-val { font-size: 40px; }
+    /* 내신 - 평균 카드 */
+    .grade-summary-panel { grid-template-columns: 1fr !important; gap: 10px; }
+    .grade-avg-big { padding: 16px 14px 14px !important; }
+    .grade-avg-big .avg-label { font-size: 13px !important; }
+    .grade-avg-big .avg-val { font-size: 48px !important; }
+    .grade-avg-big .avg-filter { font-size: 12px !important; }
 
-    /* 내신 카드형 */
-    .m-grade-cards { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
-    .m-grade-card {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 13px;
-      background: #fff; border: 1px solid #f1f5f9;
-      border-radius: 10px;
+    /* 필터 버튼 (교과 선택) */
+    .toggle-btn { font-size: 13px !important; padding: 7px 13px !important; }
+    .filter-label { font-size: 13px !important; }
+
+    /* 차트 (학기별 추이) */
+    .chart-wrap, .grade-chart-wrap { padding: 8px 4px; }
+
+    /* 내신 카드 - 그리드 (2열) */
+    .m-grade-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 4px 0 10px;
     }
-    .m-grade-card-left { flex: 1; min-width: 0; }
-    .m-grade-subj-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+    /* 폭이 너무 좁으면 1열 (폴드 접힘 등) */
+    @media (max-width: 380px) {
+      .m-grade-cards { grid-template-columns: 1fr; }
+    }
+    .m-grade-card {
+      display: flex; flex-direction: column;
+      padding: 12px 11px;
+      background: #fff;
+      border: 1.5px solid #e8edf5;
+      border-radius: 12px;
+      gap: 9px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.03);
+    }
+    /* 1) 상단: 교과 + 과목명 */
+    .m-grade-head {
+      display: flex; flex-direction: column; gap: 3px;
+      min-height: 40px;
+    }
     .m-grade-cat {
       font-size: 10px; font-weight: 700;
       color: #6366f1; background: #eef2ff;
-      padding: 2px 6px; border-radius: 4px;
-      flex-shrink: 0;
+      padding: 2px 7px; border-radius: 5px;
+      width: fit-content;
     }
-    .m-grade-subj { font-size: 14px; font-weight: 700; color: #0f172a; }
-    .m-grade-meta {
-      font-size: 11px; color: #94a3b8; line-height: 1.5;
-      display: flex; flex-wrap: wrap; gap: 0 2px;
+    .m-grade-subj {
+      font-size: 15px; font-weight: 800; color: #0f172a;
+      line-height: 1.25; letter-spacing: -0.3px;
+      word-break: keep-all;
     }
-    .m-grade-meta b { color: #475569; font-weight: 700; }
-    .m-grade-rank {
-      font-size: 10.5px; color: #64748b; margin-top: 3px;
-      font-weight: 600;
-    }
-    .m-grade-card-right {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; min-width: 50px; flex-shrink: 0;
-      padding-left: 8px;
-      border-left: 1px solid #f1f5f9;
+    /* 2) 등급 (가운데 크게) */
+    .m-grade-num-row {
+      display: flex; align-items: baseline;
+      justify-content: center; gap: 5px;
+      padding: 6px 0;
+      background: #f8fafc; border-radius: 10px;
     }
     .m-grade-num {
-      font-size: 26px; font-weight: 900; line-height: 1;
-      color: #0f172a; letter-spacing: -1px;
+      font-size: 38px; font-weight: 900;
+      line-height: 1; color: #0f172a;
+      letter-spacing: -2px;
     }
     .m-grade-label {
-      font-size: 9px; color: #cbd5e1; font-weight: 700;
-      letter-spacing: 0.04em; margin-top: 2px;
+      font-size: 11px; color: #94a3b8;
+      font-weight: 700; letter-spacing: 0.02em;
     }
     /* 등급별 색상 */
     .m-grade-num.grade-1 { color: #1d4ed8; }
@@ -704,10 +727,40 @@
     .m-grade-num.grade-8 { color: #dc2626; }
     .m-grade-num.grade-9 { color: #991b1b; }
 
+    /* 3) 학점·원점수 등 정보 */
+    .m-grade-info {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    }
+    .m-grade-info-item {
+      display: flex; justify-content: space-between;
+      align-items: baseline;
+      padding: 3px 1px; gap: 4px;
+    }
+    .m-grade-info-item .k {
+      font-size: 11px; color: #94a3b8; font-weight: 600;
+    }
+    .m-grade-info-item .v {
+      font-size: 13px; color: #1e293b; font-weight: 800;
+    }
+
+    /* 4) 석차 */
+    .m-grade-rank {
+      font-size: 11.5px; color: #64748b;
+      padding-top: 6px; border-top: 1px dashed #e2e8f0;
+      font-weight: 600; text-align: center;
+    }
+    .m-grade-rank b { color: #475569; font-weight: 800; }
+
     /* 학기 제목 */
-    .semester-block { margin-bottom: 18px; }
-    .semester-title { font-size: 14px; font-weight: 800; color: #0f172a; padding: 0 4px 8px; }
-    .semester-meta { display: block; margin-top: 3px; font-size: 11.5px; color: #64748b; font-weight: 500; }
+    .semester-block { margin-bottom: 22px; }
+    .semester-title {
+      font-size: 17px; font-weight: 800; color: #0f172a;
+      padding: 4px 4px 6px; letter-spacing: -0.4px;
+    }
+    .semester-meta {
+      display: block; margin-top: 3px;
+      font-size: 12.5px; color: #64748b; font-weight: 500;
+    }
 
     /* 세특 */
     .acc-left { max-width: 100%; padding-right: 4px; }
@@ -1844,24 +1897,26 @@ function renderSemesterBlock(sem, semData){
     const gDisplay = g!=null ? g : '-';
     const 석차 = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : null;
     return `<div class="m-grade-card">
-      <div class="m-grade-card-left">
-        <div class="m-grade-subj-row">
-          <span class="m-grade-cat">${s.교과||'-'}</span>
-          <span class="m-grade-subj">${s.과목}</span>
-        </div>
-        <div class="m-grade-meta">
-          <span>${s.학점||'-'}학점</span>
-          ${s.원점수!=null?`<span>· 원점수 <b>${s.원점수}</b></span>`:''}
-          ${s.과목평균!=null?`<span>· 평균 ${s.과목평균}</span>`:''}
-          ${s.성취도?`<span>· ${s.성취도}</span>`:''}
-        </div>
-        ${석차?`<div class="m-grade-rank">📊 석차 ${석차}</div>`:''}
+      <!-- 1) 과목명 (상단) -->
+      <div class="m-grade-head">
+        <span class="m-grade-cat">${s.교과||'-'}</span>
+        <span class="m-grade-subj">${s.과목}</span>
       </div>
-      <div class="m-grade-card-right">
-        <div class="m-grade-num ${gradeClass}">${gDisplay}</div>
-        <div class="m-grade-label">등급</div>
-        ${estTag}
+      <!-- 2) 등급 (가운데 크게) -->
+      <div class="m-grade-num-row">
+        <span class="m-grade-num ${gradeClass}">${gDisplay}</span>
+        <span class="m-grade-label">등급</span>
+        ${estTag||''}
       </div>
+      <!-- 3) 학점·원점수·평균·성취도 -->
+      <div class="m-grade-info">
+        <div class="m-grade-info-item"><span class="k">학점</span><span class="v">${s.학점||'-'}</span></div>
+        ${s.원점수!=null?`<div class="m-grade-info-item"><span class="k">원점수</span><span class="v">${s.원점수}</span></div>`:''}
+        ${s.과목평균!=null?`<div class="m-grade-info-item"><span class="k">평균</span><span class="v">${s.과목평균}</span></div>`:''}
+        ${s.성취도?`<div class="m-grade-info-item"><span class="k">성취도</span><span class="v">${s.성취도}</span></div>`:''}
+      </div>
+      <!-- 4) 석차 -->
+      ${석차?`<div class="m-grade-rank">📊 석차 <b>${석차}</b></div>`:''}
     </div>`;
   }).join('');
 
