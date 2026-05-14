@@ -4045,10 +4045,19 @@ function renderCompEvalTab(el){
     || (g2hak ? sewtuk[g2hak]?.종합역량평가 : null)
     || null;
 
+  // eval_ 없어도 합격사례 벤치마크는 표시 — 조건 완화
   if(!eval_){
-    el.innerHTML = `<div class="no-data">📋 종합 역량 평가 데이터가 없습니다<br>
-      <small style="color:#94a3b8;">admin에서 🏆 종합 역량 평가 (내신+세특+창체+행발) 버튼으로 생성해주세요</small>
+    // evalData 없으면 합격사례만 표시
+    el.innerHTML = `<div class="card" style="padding:16px;">
+      <div class="no-data" style="margin-bottom:16px;">📋 종합 역량 평가 데이터가 없습니다<br>
+        <small style="color:#94a3b8;">admin에서 🏆 종합 역량 평가 (내신+세특+창체+행발) 버튼으로 생성해주세요</small>
+      </div>
+      <div id="evalSuccessCasesAreaOnly"></div>
     </div>`;
+    requestAnimationFrame(() => {
+      const area = document.getElementById('evalSuccessCasesAreaOnly');
+      if(area) area.innerHTML = renderSuccessCasesSection();
+    });
     return;
   }
 
