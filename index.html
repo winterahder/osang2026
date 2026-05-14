@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>오상고 상담카드 시스템 2026</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="오상고 상담">
+<meta name="theme-color" content="#1e40af">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer onload="window._googleGsiLoaded=true"></script>
 <style>
@@ -663,6 +670,14 @@
     </button>
     <div class="lock-error" id="lockError"></div>
     <div class="lock-spinner" id="lockSpinner"><span class="ls-spin"></span>로그인 중…</div>
+    <!-- PWA 설치 안내 -->
+    <div id="pwaInstallBanner" style="display:none;margin-top:16px;padding:10px 14px;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:10px;font-size:12px;color:#475569;text-align:left;line-height:1.7;">
+      📲 <strong style="color:#1e40af;">앱처럼 설치하기</strong><br>
+      <span id="pwaInstallHint" style="font-size:11.5px;"></span>
+    </div>
+    <button id="pwaInstallBtn" style="display:none;margin-top:8px;width:100%;padding:10px;background:#1e40af;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+      📲 홈 화면에 추가하기
+    </button>
   </div>
 </div>
 <header>
@@ -981,64 +996,76 @@ async function apiPost(body, timeoutMs = 20000){
 // ========== 구글 로그인 ==========
 const SESSION_KEY = 'osh_google_session';
 
-function handleGoogleLogin() {
-  if(typeof google === 'undefined' || !google?.accounts?.oauth2){
-    showLockError('구글 로그인 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
-    return;
-  }
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: 'email profile',
-    callback: async (resp) => {
-      if(resp.error) { showLockError('로그인 실패: ' + resp.error); return; }
-      googleToken = resp.access_token;
-      document.getElementById('lockSpinner').classList.add('show');
-      document.getElementById('lockError').textContent = '';
-      try {
-        // 구글에서 이메일 가져오기
-        const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: 'Bearer ' + googleToken }
-        }).then(r => r.json());
+// ── Google 로그인 후 토큰 처리 (공통) ──
+async function processGoogleToken(accessToken) {
+  googleToken = accessToken;
+  document.getElementById('lockSpinner').classList.add('show');
+  document.getElementById('lockError').textContent = '';
+  try {
+    const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    }).then(r => r.json());
 
-        const email = userInfo.email;
-        if(!email.endsWith('@osang.hs.kr')) {
-          document.getElementById('lockSpinner').classList.remove('show');
-          showLockError('오상고 계정(@osang.hs.kr)만 접속 가능합니다.');
-          return;
-        }
-        currentEmail = email;
-
-        // Apps Script에 이메일로 역할 조회 (없으면 자동 가입)
-        const result = await apiGet({ action: 'checkEmail', email });
-
-        if(result.role === 'pending') {
-          document.getElementById('lockSpinner').classList.remove('show');
-          document.getElementById('lockError').innerHTML =
-            '<div class="pending-box">⏳ <strong>승인 대기 중</strong><br>' + email + '<br>관리자가 역할을 지정하면 접속 가능합니다.</div>';
-          return;
-        }
-
-        currentRole = result.role;
-        currentPassword = result.token; // 앱스스크립트용 임시 토큰
-
-        // 세션 저장
-        const exp = Date.now() + 8 * 60 * 60 * 1000; // 8시간
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp: 9999999999999 })); // 로그아웃 전까지 유지
-
-        await init(result.token);
-        document.getElementById('lockScreen').classList.add('hidden');
-
-        // 로그아웃 버튼 표시
-        showLogoutBtn(email);
-
-      } catch(e) {
-        document.getElementById('lockSpinner').classList.remove('show');
-        showLockError('오류: ' + e.message);
-      }
+    const email = userInfo.email;
+    if(!email || !email.endsWith('@osang.hs.kr')) {
+      document.getElementById('lockSpinner').classList.remove('show');
+      showLockError('오상고 계정(@osang.hs.kr)만 접속 가능합니다.');
+      return;
     }
-  });
-  client.requestAccessToken();
+    currentEmail = email;
+
+    const result = await apiGet({ action: 'checkEmail', email });
+    if(result.role === 'pending') {
+      document.getElementById('lockSpinner').classList.remove('show');
+      document.getElementById('lockError').innerHTML =
+        '<div class="pending-box">⏳ <strong>승인 대기 중</strong><br>' + email + '<br>관리자가 역할을 지정하면 접속 가능합니다.</div>';
+      return;
+    }
+
+    currentRole = result.role;
+    currentPassword = result.token;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp: 9999999999999 }));
+    await init(result.token);
+    document.getElementById('lockScreen').classList.add('hidden');
+    showLogoutBtn(email);
+
+  } catch(e) {
+    document.getElementById('lockSpinner').classList.remove('show');
+    showLockError('오류: ' + e.message);
+  }
 }
+
+// ── 버튼 클릭 → 리다이렉트 방식 (PC/모바일 통일, 팝업 차단 없음) ──
+function handleGoogleLogin() {
+  const base = location.origin + location.pathname;
+  // 경로 끝 슬래시 정규화 (github pages는 / 로 끝남)
+  const redirectUri = base.endsWith('/') ? base : base + '/';
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'token',
+    scope: 'email profile',
+    include_granted_scopes: 'true',
+    prompt: 'select_account',
+  });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+// ── 리다이렉트 복귀 후 URL 해시에서 토큰 자동 처리 ──
+(function handleOAuthCallback() {
+  if (!location.hash) return;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const token = params.get('access_token');
+  if (!token) return;
+  // URL에서 토큰 즉시 제거 (보안)
+  history.replaceState(null, '', location.pathname);
+  // DOM 준비되면 처리
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => processGoogleToken(token), { once: true });
+  } else {
+    processGoogleToken(token);
+  }
+})();
 
 function showLockError(msg) {
   document.getElementById('lockError').innerHTML = msg;
@@ -5010,6 +5037,75 @@ function drawEvalTrend(container){
       </div>
     </div>`;
 }
+
+// ============================================================
+// PWA 설치 로직
+// ============================================================
+let _pwaPrompt = null;
+
+// 안드로이드 크롬: beforeinstallprompt 이벤트 캐치
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _pwaPrompt = e;
+  showPwaBanner('android');
+});
+
+// 이미 설치된 경우 숨김
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwaInstallBanner').style.display = 'none';
+  document.getElementById('pwaInstallBtn').style.display = 'none';
+});
+
+function showPwaBanner(type) {
+  const banner = document.getElementById('pwaInstallBanner');
+  const hint   = document.getElementById('pwaInstallHint');
+  const btn    = document.getElementById('pwaInstallBtn');
+  if (!banner) return;
+
+  if (type === 'android') {
+    hint.textContent = '홈 화면에 추가하면 앱처럼 바로 접속할 수 있어요.';
+    btn.style.display = 'block';
+    btn.onclick = pwaInstall;
+  } else if (type === 'ios') {
+    hint.innerHTML = '아래 <strong>공유 버튼(□↑)</strong>을 탭한 뒤<br><strong>"홈 화면에 추가"</strong>를 선택하세요.';
+    btn.style.display = 'none'; // iOS는 직접 설치 불가, 안내만
+  }
+  banner.style.display = 'block';
+}
+
+async function pwaInstall() {
+  if (!_pwaPrompt) return;
+  _pwaPrompt.prompt();
+  const { outcome } = await _pwaPrompt.userChoice;
+  _pwaPrompt = null;
+  if (outcome === 'accepted') {
+    document.getElementById('pwaInstallBanner').style.display = 'none';
+    document.getElementById('pwaInstallBtn').style.display = 'none';
+  }
+}
+
+// iOS Safari 감지 → 안내 배너 표시
+(function detectIOS() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isInStandaloneMode = window.navigator.standalone === true;
+  if (isIOS && !isInStandaloneMode) {
+    // DOM 준비 후 표시
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => showPwaBanner('ios'), { once: true });
+    } else {
+      showPwaBanner('ios');
+    }
+  }
+})();
+
+// 서비스워커 등록 (오프라인 캐시 + PWA 필수)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 </script>
 </body>
 </html>
