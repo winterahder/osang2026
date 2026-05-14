@@ -5454,6 +5454,7 @@ function calcStudentAvg9(stu) {
 // 범위 상태 전역 관리
 let _admRangeAbove = 1.0;  // 내 내신보다 이만큼 낮은 대학까지 (안정권)
 let _admRangeBelow = 0.8;  // 내 내신보다 이만큼 높은 대학까지 (도전권)
+let _admShowOurSchoolOnly = false; // 우리학교 합불자료 있는 것만 표시
 
 function renderMajorAdmissions() {
   const major  = currentStu?.전공 || currentStu?.major || '';
@@ -5546,13 +5547,13 @@ function renderMajorAdmissions() {
   // 기준: 50컷 (있으면) or 우리학교 합격평균
   // 방법1: 범위 밖 제외 / 방법2: 도전 초과(diff < -_admRangeBelow) 제외
   let allMerged = [...mergeMap.values()].filter(r => {
+    // 우리학교 합불자료 필터
+    if(_admShowOurSchoolOnly && !r.adm) return false;
     const refCut = r.cut50_2025 || r.cut50_2024 || r.cut50_2026
       || (r.adm ? parseFloat(r.adm['합격평균등급'])||null : null);
     if(!refCut || !myAvg) return true; // 기준 없으면 포함
     const diff = refCut - myAvg;
-    // 방법1: 너무 낮은 대학 제외 (내 내신보다 _admRangeAbove 이상 낮은 50컷)
     if(diff > _admRangeAbove) return false;
-    // 방법2: 너무 높은 대학 제외 (도전 초과)
     if(diff < -_admRangeBelow) return false;
     return true;
   });
@@ -5632,6 +5633,13 @@ function renderMajorAdmissions() {
           + opt.label + '</button>';
       }).join('')
     + '<span style="font-size:10.5px;color:#94a3b8;margin-left:4px;">' + allMerged.length + '개 / 전체 ' + totalCount + '개</span>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">'
+    + '<button onclick="_admShowOurSchoolOnly=!' + '_admShowOurSchoolOnly;renderTab();" '
+    + 'style="font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1.5px solid '
+    + (_admShowOurSchoolOnly ? '#10b981;background:#10b981;color:#fff;font-weight:700' : '#e2e8f0;background:#fff;color:#475569;font-weight:500')
+    + ';">🟢 우리학교 합불자료 있는 곳만</button>'
+    + '<span style="font-size:10px;color:#94a3b8;">(' + admMatched.length + '개 학과 보유)</span>'
     + '</div>';
 
   return '<div style="margin:16px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">'
@@ -5671,58 +5679,96 @@ function showAdmissionsPopup(univName, deptName) {
   const uNorm = norm(univName);
   const dNorm = norm(deptName);
 
-  const rows = (admissionsDB||[]).filter(r => {
+  const matched = (admissionsDB||[]).filter(r => {
     const u = norm(r['대학명']||'');
     const d = norm(r['모집단위']||'');
     return (u.includes(uNorm)||uNorm.includes(u)) && (d.includes(dNorm)||dNorm.includes(d));
   });
 
-  if(!rows.length) {
+  if(!matched.length) {
     alert(univName + ' ' + deptName + '\n우리학교 합불 데이터가 없습니다.');
     return;
   }
 
-  const rowsHtml = rows.map(r => {
-    const passCnt  = parseInt(r['합격건수']||0);
-    const failCnt  = parseInt(r['불합격건수']||0);
-    const passAvg  = passCnt  ? parseFloat(r['합격평균등급']).toFixed(2)  : '-';
-    const passHigh = r['합격최고등급'] ? parseFloat(r['합격최고등급']).toFixed(2) : '-';
-    const passLow  = r['합격최저등급'] ? parseFloat(r['합격최저등급']).toFixed(2) : '-';
-    const failAvg  = failCnt  ? parseFloat(r['불합격평균등급']).toFixed(2) : '-';
-    return '<div style="padding:12px;border-bottom:1px solid #f1f5f9;">'
-      + '<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">' + escapeHtml(r['전형유형']||'전형 미상') + '</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
-      + (passCnt ? '<div style="background:#f0fdf4;border-radius:8px;padding:8px 10px;">'
-        + '<div style="font-size:10px;color:#15803d;font-weight:700;margin-bottom:4px;">✅ 합격 ' + passCnt + '건</div>'
-        + '<div style="font-size:18px;font-weight:900;color:#15803d;">' + passAvg + '등급</div>'
-        + '<div style="font-size:10px;color:#64748b;margin-top:2px;">범위 ' + passHigh + '~' + passLow + '</div>'
-        + '</div>' : '')
-      + (failCnt ? '<div style="background:#fef2f2;border-radius:8px;padding:8px 10px;">'
-        + '<div style="font-size:10px;color:#dc2626;font-weight:700;margin-bottom:4px;">❌ 불합격 ' + failCnt + '건</div>'
-        + '<div style="font-size:18px;font-weight:900;color:#dc2626;">' + failAvg + '등급</div>'
-        + '</div>' : '')
-      + '</div></div>';
-  }).join('');
-
+  // ── 팝업 전체 DOM 빌드 ──
   const popup = document.createElement('div');
   popup.id = 'admPopup';
-  popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = '✕';
-  closeBtn.style.cssText = 'font-size:20px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px;';
-  closeBtn.onclick = () => popup.remove();
-
-  const header = document.createElement('div');
-  header.style.cssText = 'padding:16px 16px 12px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;';
-  header.innerHTML = '<div><div style="font-size:16px;font-weight:800;color:#0f172a;">' + escapeHtml(univName) + '</div>'
-    + '<div style="font-size:12px;color:#64748b;">' + escapeHtml(deptName) + ' · 오상고 합불 데이터</div></div>';
-  header.appendChild(closeBtn);
+  Object.assign(popup.style, {
+    position:'fixed', top:'0', left:'0', right:'0', bottom:'0',
+    background:'rgba(0,0,0,.5)', zIndex:'9999',
+    display:'flex', alignItems:'flex-end', justifyContent:'center'
+  });
 
   const sheet = document.createElement('div');
-  sheet.style.cssText = 'background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:80vh;overflow-y:auto;';
-  sheet.appendChild(header);
-  sheet.innerHTML += rowsHtml + '<div style="padding:10px 16px;background:#f8fafc;font-size:10.5px;color:#94a3b8;text-align:center;">※ 오상고 실제 지원 데이터 기준</div>';
+  Object.assign(sheet.style, {
+    background:'#fff', borderRadius:'16px 16px 0 0',
+    width:'100%', maxWidth:'600px', maxHeight:'80vh', overflowY:'auto'
+  });
+
+  // 헤더
+  const hdr = document.createElement('div');
+  Object.assign(hdr.style, {
+    padding:'16px 16px 12px', borderBottom:'1px solid #f1f5f9',
+    display:'flex', alignItems:'center', justifyContent:'space-between',
+    position:'sticky', top:'0', background:'#fff', zIndex:'1'
+  });
+  const hdrInfo = document.createElement('div');
+  hdrInfo.innerHTML = '<div style="font-size:16px;font-weight:800;color:#0f172a;">' + escapeHtml(univName) + ' <span style="font-size:14px;font-weight:500;color:#475569;">' + escapeHtml(deptName) + '</span></div>'
+    + '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">오상고 실제 지원 결과 · ' + matched.length + '개 전형</div>';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  Object.assign(closeBtn.style, { fontSize:'20px', color:'#94a3b8', background:'none', border:'none', cursor:'pointer', padding:'4px' });
+  closeBtn.onclick = () => popup.remove();
+  hdr.appendChild(hdrInfo);
+  hdr.appendChild(closeBtn);
+  sheet.appendChild(hdr);
+
+  // 전형별 행
+  matched.forEach(r => {
+    const passCnt = parseInt(r['합격건수']||0);
+    const failCnt = parseInt(r['불합격건수']||0);
+    const passAvg  = passCnt && r['합격평균등급']  ? parseFloat(r['합격평균등급']).toFixed(2)  : '-';
+    const passHigh = r['합격최고등급'] ? parseFloat(r['합격최고등급']).toFixed(2) : '-';
+    const passLow  = r['합격최저등급'] ? parseFloat(r['합격최저등급']).toFixed(2) : '-';
+    const failAvg  = failCnt && r['불합격평균등급'] ? parseFloat(r['불합격평균등급']).toFixed(2) : '-';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:14px 16px;border-bottom:1px solid #f1f5f9;';
+
+    // 전형 레이블
+    const typeLabel = document.createElement('div');
+    typeLabel.style.cssText = 'font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;';
+    typeLabel.textContent = (r['전형유형']||'전형 미상');
+    row.appendChild(typeLabel);
+
+    // 합격/불합격 카드 그리드
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:' + (passCnt && failCnt ? '1fr 1fr' : '1fr') + ';gap:10px;';
+
+    if(passCnt) {
+      const passCard = document.createElement('div');
+      passCard.style.cssText = 'background:#f0fdf4;border-radius:10px;padding:12px 14px;';
+      passCard.innerHTML = '<div style="font-size:11px;color:#15803d;font-weight:700;margin-bottom:6px;">✅ 합격 ' + passCnt + '건</div>'
+        + '<div style="font-size:24px;font-weight:900;color:#15803d;line-height:1;">' + passAvg + '<span style="font-size:12px;font-weight:500;">등급</span></div>'
+        + '<div style="font-size:11px;color:#64748b;margin-top:4px;">범위 ' + passHigh + ' ~ ' + passLow + '등급</div>';
+      grid.appendChild(passCard);
+    }
+    if(failCnt) {
+      const failCard = document.createElement('div');
+      failCard.style.cssText = 'background:#fef2f2;border-radius:10px;padding:12px 14px;';
+      failCard.innerHTML = '<div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:6px;">❌ 불합격 ' + failCnt + '건</div>'
+        + '<div style="font-size:24px;font-weight:900;color:#dc2626;line-height:1;">' + failAvg + '<span style="font-size:12px;font-weight:500;">등급</span></div>';
+      grid.appendChild(failCard);
+    }
+    row.appendChild(grid);
+    sheet.appendChild(row);
+  });
+
+  // 푸터
+  const footer = document.createElement('div');
+  footer.style.cssText = 'padding:10px 16px;background:#f8fafc;font-size:10.5px;color:#94a3b8;text-align:center;';
+  footer.textContent = '※ 오상고 실제 지원 데이터 기준 · 생기부 점수·면접 등 종합 결과';
+  sheet.appendChild(footer);
 
   popup.appendChild(sheet);
   popup.onclick = e => { if(e.target === popup) popup.remove(); };
