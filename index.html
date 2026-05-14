@@ -113,6 +113,96 @@
   table.mock td.bg-7 { background: #fb923c; color: #fff; }
   table.mock td.bg-8 { background: #ef4444; color: #fff; }
   table.mock td.bg-9 { background: #991b1b; color: #fff; }
+
+  /* ===== 모의고사 새 섹션 (데스크탑) ===== */
+  .mock-chart-wrap {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 18px;
+    margin: 18px 0;
+    align-items: stretch;
+  }
+  .mock-side-panel {
+    background: #fff;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mock-side-title {
+    font-size: 12px; font-weight: 800; color: #475569;
+    padding: 0 4px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 4px;
+  }
+  .mock-side-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 8px; border-radius: 8px;
+    cursor: pointer; transition: background .15s;
+    font-size: 13px;
+  }
+  .mock-side-row:hover { background: #f8fafc; }
+  .mock-side-row.mock-side-all {
+    background: #f1f5f9; font-weight: 700;
+    margin-bottom: 4px; border-bottom: 1px dashed #e2e8f0;
+    padding-bottom: 10px;
+  }
+  .mock-side-check {
+    font-size: 16px; flex-shrink: 0;
+    width: 18px; text-align: center;
+  }
+  .mock-side-check.checked { color: #6366f1; }
+  .mock-side-name {
+    flex: 1; color: #1e293b; font-weight: 600;
+  }
+  .mock-side-sel {
+    display: block; font-size: 10px; color: #94a3b8;
+    font-weight: 500; margin-top: 1px;
+  }
+  .mock-side-avg {
+    font-size: 12px; font-weight: 800; color: #6366f1;
+    white-space: nowrap;
+  }
+  .mock-chart-canvas {
+    background: #fff;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-height: 340px;
+  }
+  .mock-section {
+    background: #fff;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 14px 0;
+  }
+  .mock-section-title {
+    font-size: 14px; font-weight: 800; color: #1e293b;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mock-section-sub {
+    font-size: 11px; color: #94a3b8; font-weight: 500;
+    background: #f1f5f9; padding: 2px 8px; border-radius: 10px;
+  }
+  .mock-suneung-info {
+    background: #eff6ff; border-left: 3px solid #6366f1;
+    padding: 10px 14px; border-radius: 8px;
+    font-size: 12px; color: #334155; line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .mock-suneung-info b { color: #1e40af; }
+  .mock-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mock-summary-table, .mock-suneung-table {
+    min-width: 600px;
+  }
+
   /* 히트맵: 배경 없이 숫자에 작은 박스 뱃지만 적용 */
   .heat-badge { display:inline-block; padding:2px 8px; border-radius:5px; font-weight:700; line-height:1.4; }
   .heat-badge.heat-1 { background:#dbeafe; color:#1e3a8a; }
@@ -799,6 +889,18 @@
     .m-mock-subj-card.mc-neutral .mc-subj-val { color: #1e293b; }
     .m-mock-subj-card.mc-empty .mc-subj-val { color: #cbd5e1; }
 
+    /* 모바일: 차트 래퍼 1열 */
+    .mock-chart-wrap { grid-template-columns: 1fr !important; gap: 8px; margin: 10px 0; }
+    .mock-side-panel { display: none; } /* 데스크탑 전용 */
+    .mock-chart-canvas { padding: 10px 8px; min-height: 240px; }
+    .mock-section { padding: 12px 14px; margin: 10px 0; border-radius: 10px; }
+    .mock-section-title { font-size: 14px; }
+    .mock-section-sub { font-size: 10px; }
+    .mock-mobile-chip { display: inline-flex !important; }
+    .mock-summary-table, .mock-suneung-table { font-size: 11px; }
+    .mock-summary-table th, .mock-summary-table td,
+    .mock-suneung-table th, .mock-suneung-table td { padding: 5px 6px; }
+
     /* 과목명 */
     .m-grade-head {
       padding: 7px 7px 2px;
@@ -1112,6 +1214,11 @@ function isSem9Grade(stu, semData) {
   return isStudent9Grade(stu);
 }
 let changcheGrade = '전체 학년', changcheCat = '전체';
+
+// 모의고사 차트 과목 필터 (체크박스 상태) — 기본 모든 과목 표시
+let mockChartSubjects = new Set(['국어','수학','영어','한국사','탐구1','탐구2']);
+// 모의고사 영역: 합산 점수 계산용 ('국수영탐2', '국수탐2', '국영탐2' 등)
+
 
 // ========== 9등급 환산 로직 (성취도 분포 + 원점수 기반 추정) ==========
 // 분포 문자열 파싱: "A(22.1) B(30.0) C(22.1) D(20.2) E(5.7)" → {A:22.1, B:30.0, ...}
@@ -5215,26 +5322,250 @@ function renderMock(el){
     </div>`;
   }).join('');
 
+  // ========== 사이드 패널: 과목별 평균등급 + 체크박스 ==========
+  function calcSubjectAvg(sub) {
+    let sum = 0, cnt = 0;
+    rounds.forEach(r => {
+      const g = r[sub]?.['등급'];
+      if(g != null) { sum += g; cnt++; }
+    });
+    return cnt > 0 ? (sum/cnt).toFixed(2) : null;
+  }
+
+  // 전과목 평균 (한국사 제외)
+  const allAvg = (() => {
+    let sum = 0, cnt = 0;
+    rounds.forEach(r => {
+      SUBJECTS.filter(s => s !== '한국사').forEach(sub => {
+        const g = r[sub]?.['등급'];
+        if(g != null) { sum += g; cnt++; }
+      });
+    });
+    return cnt > 0 ? (sum/cnt).toFixed(2) : '-';
+  })();
+
+  const subjectChecklist = [
+    { name: '전과목', isAll: true, avg: allAvg },
+    ...SUBJECTS.map(s => ({ name: s, isAll: false, avg: calcSubjectAvg(s), 선택: subjectNames[s] }))
+  ];
+
+  const checklistHtml = subjectChecklist.map(item => {
+    if(item.isAll) {
+      // 전과목 = 모든 과목 켜기/끄기
+      const allOn = SUBJECTS.every(s => mockChartSubjects.has(s));
+      return `<div class="mock-side-row mock-side-all" data-mockall="${allOn?'1':'0'}">
+        <span class="mock-side-check ${allOn?'checked':''}">${allOn?'☑':'☐'}</span>
+        <span class="mock-side-name">전과목</span>
+        <span class="mock-side-avg">${item.avg} 등급</span>
+      </div>`;
+    }
+    const checked = mockChartSubjects.has(item.name);
+    return `<div class="mock-side-row" data-mocksub="${item.name}">
+      <span class="mock-side-check ${checked?'checked':''}" style="color:${checked?COLORS[item.name]:'#cbd5e1'};">${checked?'☑':'☐'}</span>
+      <span class="mock-side-name">${item.name}${item.선택?`<span class="mock-side-sel">${item.선택}</span>`:''}</span>
+      <span class="mock-side-avg">${item.avg||'-'}${item.avg?' 등급':''}</span>
+    </div>`;
+  }).join('');
+
+  // ========== N합 + 수능최저 표 ==========
+  const suneungTable = buildSuneungTable(rounds);
+
+  // 학생 희망대학 수능최저 매칭
+  const stuMajor  = currentStu?.전공 || currentStu?.major || '';
+  const stuCareer = currentStu?.진로 || currentStu?.career || '';
+
+  // kb_univ에서 희망전공 관련 수능최저 조건 찾기
+  const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'')
+    .replace(/학과$|학부$|전공$/, '');
+  const majorN = norm(stuMajor);
+  const careerN = norm(stuCareer);
+
+  const matchedUnivs = (kbUniv||[]).filter(r => {
+    const dept = norm(r['모집단위']||'');
+    if(!dept) return false;
+    const suneung = String(r['수능최저']||'');
+    if(!suneung || suneung === '없음' || suneung === '미적용') return false;
+    return (majorN.length >= 2 && (dept.includes(majorN) || majorN.includes(dept)))
+        || (careerN.length >= 2 && (dept.includes(careerN) || careerN.includes(dept)));
+  }).slice(0, 8); // 최대 8개
+
+  // ========== 수능최저 표 헤더 ==========
+  const sunheungHeader = ['4합(2)','3합(2)','2합(2)','4합(1)','3합(1)','2합(1)'];
+  const sunheungRowsHtml = suneungTable.slice(-6).reverse().map(s => {
+    return `<tr>
+      <td style="font-weight:600;color:#475569;text-align:center;font-size:12px;">${s.label}</td>
+      ${sunheungHeader.map(k => {
+        const v = s[k];
+        if(!v) return '<td style="color:#cbd5e1;text-align:center;">-</td>';
+        return `<td style="text-align:center;font-size:13px;"><b>${v.sum}</b><span style="font-size:10px;color:#94a3b8;margin-left:4px;">/ ${v.names}</span></td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+
+  // ========== 모의고사 요약 표 (백분위 + 등급) ==========
+  const summaryRowsHtml = rounds.slice(-6).reverse().map(r => {
+    const pctSum = calcMockPctSum(r);
+    return `<tr>
+      <td style="text-align:center;font-weight:600;color:#475569;font-size:12px;">${ROUND_LABEL[r.round]||r.round}</td>
+      ${SUBJECTS.map(sub => {
+        const p = r[sub]?.['백분위'];
+        return `<td style="text-align:center;font-size:12px;">${p!=null?p:'<span style="color:#cbd5e1;">-</span>'}</td>`;
+      }).join('')}
+      <td style="text-align:center;font-weight:700;color:#6d28d9;font-size:13px;">${pctSum||'-'}</td>
+      ${SUBJECTS.map(sub => {
+        const g = r[sub]?.['등급'];
+        if(g == null) return '<td style="text-align:center;color:#cbd5e1;">-</td>';
+        const hc = getHeatClass(g, '등급', sub);
+        const sel = r[sub]?.선택?.trim();
+        return `<td style="text-align:center;"><span class="heat-badge ${hc}">${g}</span>${sel ? `<div style="font-size:9px;color:#6366f1;margin-top:1px;">${sel}</div>` : ''}</td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+
+  // 매칭된 대학 수능최저 표
+  const matchedUnivHtml = matchedUnivs.length > 0
+    ? `<div style="margin-top:14px;padding:14px 16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;">
+        <div style="font-size:13px;font-weight:800;color:#854d0e;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          🎯 희망전공 <span style="background:#fff7ed;color:#9a3412;padding:2px 8px;border-radius:6px;font-size:11px;">${escapeHtml(stuMajor || stuCareer)}</span> 관련 수능최저 기준
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${matchedUnivs.map(r => {
+            // 최근 회차 N합 계산
+            const latest = rounds[rounds.length - 1];
+            const suneungText = String(r['수능최저'] || '');
+            // 간단한 N합 추출: "국수영탐 3개합 5" 같은 형식
+            const nMatch = suneungText.match(/(\d)개합?\s*(\d+)/);
+            let status = '?', statusColor = '#94a3b8';
+            if(nMatch && latest) {
+              const n = parseInt(nMatch[1]);
+              const target = parseInt(nMatch[2]);
+              const hap = calcSuneungNHap(latest, n, '국수영탐');
+              if(hap) {
+                if(hap.sum <= target) { status = '충족 ✓'; statusColor = '#16a34a'; }
+                else { status = '미달 ✗'; statusColor = '#dc2626'; }
+              }
+            }
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border-radius:8px;font-size:12px;">
+              <span style="font-weight:700;color:#1e293b;flex-shrink:0;min-width:90px;">${escapeHtml(r['대학명']||'-')}</span>
+              <span style="color:#64748b;flex-shrink:0;min-width:60px;font-size:11px;">${escapeHtml(r['전형유형']||'')}</span>
+              <span style="flex:1;color:#334155;font-size:11.5px;">${escapeHtml(suneungText)}</span>
+              <span style="flex-shrink:0;font-weight:800;color:${statusColor};font-size:12px;">${status}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:#92400e;text-align:right;">※ 최신 모의고사 기준 자동 매칭 · 실제와 차이 있을 수 있음</div>
+      </div>`
+    : '';
+
+  // ========== 최종 HTML ==========
   el.innerHTML = `
+    <!-- 모드 토글 -->
     <div class="toggle-group">${['등급','백분위','표준점수','원점수'].map(m=>`<button class="toggle-btn ${m===currentMode?'active':''}" data-mode="${m}">${m}</button>`).join('')}</div>
-    <!-- 데스크탑 테이블 -->
-    <table class="mock m-hide-on-mobile">
-      <thead><tr>
-        <th>회차</th>
-        <th style="color:#6d28d9;">${summaryHeaders[currentMode]||''}</th>
-        ${SUBJECTS.map(s=>{
-          const sn = subjectNames[s];
-          return `<th>${s}${sn ? `<br><span style="font-size:10px;font-weight:400;color:#6366f1;">${sn}</span>` : ''}</th>`;
-        }).join('')}
-      </tr></thead>
-      <tbody>${roundRows}</tbody>
-    </table>
-    <!-- 모바일 카드 -->
+
+    <!-- ① 차트 + 사이드 과목 패널 -->
+    <div class="mock-chart-wrap">
+      <div class="mock-side-panel m-hide-on-mobile">
+        <div class="mock-side-title">📌 과목 선택</div>
+        ${checklistHtml}
+      </div>
+      <div class="mock-chart-canvas">
+        <div class="chart-wrap" style="height:340px;"><canvas id="chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 모바일 과목 칩 (체크박스 대신) -->
+    <div class="m-show-on-mobile" style="display:none;flex-wrap:wrap;gap:5px;margin:10px 0;">
+      ${SUBJECTS.map(s => {
+        const on = mockChartSubjects.has(s);
+        const c = COLORS[s];
+        return `<button class="mock-mobile-chip" data-mocksub="${s}" style="padding:6px 11px;border-radius:18px;border:1.5px solid ${on?c:'#e2e8f0'};background:${on?c:'#fff'};color:${on?'#fff':'#94a3b8'};font-size:12px;font-weight:700;cursor:pointer;">${s}</button>`;
+      }).join('')}
+    </div>
+
+    <!-- ② 모의고사 요약 표 (백분위 + 등급) -->
+    <div class="mock-section">
+      <div class="mock-section-title">📊 모의고사 요약 <span class="mock-section-sub">최근 6개 회차 · 백분위 / 등급</span></div>
+      <div class="mock-table-scroll">
+        <table class="mock mock-summary-table">
+          <thead>
+            <tr>
+              <th rowspan="2">회차</th>
+              <th colspan="${SUBJECTS.length+1}" style="background:#eff6ff;color:#1d4ed8;">백분위</th>
+              <th colspan="${SUBJECTS.length}" style="background:#f3e8ff;color:#6d28d9;">등급</th>
+            </tr>
+            <tr>
+              ${SUBJECTS.map(s => `<th style="background:#eff6ff;font-size:11px;">${s}${subjectNames[s]?`<br><span style="font-size:9px;color:#6366f1;">${subjectNames[s]}</span>`:''}</th>`).join('')}
+              <th style="background:#eff6ff;color:#6d28d9;font-size:11px;">백분위 합<br><span style="font-size:9px;font-weight:400;">(국수탐2)</span></th>
+              ${SUBJECTS.map(s => `<th style="background:#f3e8ff;font-size:11px;">${s}${subjectNames[s]?`<br><span style="font-size:9px;color:#6366f1;">${subjectNames[s]}</span>`:''}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>${summaryRowsHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ③ 수능 최저 학력 기준 -->
+    <div class="mock-section">
+      <div class="mock-section-title">🎯 수능 최저 학력 기준 <span class="mock-section-sub">N개 영역 합 자동 계산 · 상위 등급 우선</span></div>
+      <div class="mock-suneung-info">
+        모의고사는 <b>수능최저학력기준 충족 여부</b>를 가늠하는데 매우 중요한 자료입니다.
+        학생이 지원하고자 하는 대학의 전형별 수능최저학력기준 적용 여부 및 충족 가능성을 확인하여 수시지원전략을 세워야 합니다.
+      </div>
+      <div class="mock-table-scroll">
+        <table class="mock mock-suneung-table">
+          <thead>
+            <tr>
+              <th>회차</th>
+              ${sunheungHeader.map(h => `<th>${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>${sunheungRowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#94a3b8;padding:0 2px;">※ N합 = 응시한 국/수/영/탐 과목 중 상위 등급의 과목을 N개 골라 합산</div>
+      ${matchedUnivHtml}
+    </div>
+
+    <!-- ④ 모바일 카드 (기존) -->
     <div class="m-mock-cards m-show-on-mobile">${mobileCards}</div>
-    ${hasSubjectNames ? `<div class="m-hide-on-mobile" style="font-size:11px;color:#94a3b8;margin-top:6px;padding:0 2px;">📌 선택과목: ${Object.entries(subjectNames).map(([k,v])=>`${k} → ${v}`).join(' · ')}</div>` : ''}
-    <div class="chart-wrap" style="margin-top:18px;"><canvas id="chart"></canvas></div>
+
+    <!-- ⑤ 데스크탑 전체 회차 표 (모드별) -->
+    <div class="mock-section m-hide-on-mobile">
+      <div class="mock-section-title">📋 모의고사 상세 <span class="mock-section-sub">${currentMode} 기준 전체 회차</span></div>
+      <table class="mock">
+        <thead><tr>
+          <th>회차</th>
+          <th style="color:#6d28d9;">${summaryHeaders[currentMode]||''}</th>
+          ${SUBJECTS.map(s=>{
+            const sn = subjectNames[s];
+            return `<th>${s}${sn ? `<br><span style="font-size:10px;font-weight:400;color:#6366f1;">${sn}</span>` : ''}</th>`;
+          }).join('')}
+        </tr></thead>
+        <tbody>${roundRows}</tbody>
+      </table>
+      ${hasSubjectNames ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;padding:0 2px;">📌 선택과목: ${Object.entries(subjectNames).map(([k,v])=>`${k} → ${v}`).join(' · ')}</div>` : ''}
+    </div>
   `;
+
+  // 모드 토글
   el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ currentMode=b.dataset.mode; renderTab(); });
+
+  // 과목 체크박스 (사이드 패널)
+  el.querySelectorAll('[data-mocksub]').forEach(b => b.onclick = () => {
+    const sub = b.dataset.mocksub;
+    if(mockChartSubjects.has(sub)) mockChartSubjects.delete(sub);
+    else mockChartSubjects.add(sub);
+    renderTab();
+  });
+
+  // 전과목 토글
+  el.querySelectorAll('[data-mockall]').forEach(b => b.onclick = () => {
+    const allOn = b.dataset.mockall === '1';
+    if(allOn) mockChartSubjects.clear();
+    else SUBJECTS.forEach(s => mockChartSubjects.add(s));
+    renderTab();
+  });
+
   drawChart(rounds);
 }
 
@@ -5263,13 +5594,167 @@ function renderCell(r, sub){
   const hc = getHeatClass(val, mode, sub);
   return `<td><span class="heat-badge ${hc}">${displayVal}</span></td>`;
 }
+// ========== 수능 최저 N합 계산 헬퍼 ==========
+// 회차의 과목별 등급 → 가장 좋은 N개 영역 합 계산
+// areas: ['국','수','영','탐'] 중 사용 가능한 영역 자동 선택
+function calcSuneungNHap(round, n, includeSub) {
+  // includeSub: '국수영탐'(기본), '국수영', '국수탐', '국영탐', '수영탐'
+  includeSub = includeSub || '국수영탐';
+  const areas = [];
+
+  if(includeSub.includes('국')){
+    const g = round['국어']?.['등급'];
+    if(g != null) areas.push({name:'국', grade: g});
+  }
+  if(includeSub.includes('수')){
+    const g = round['수학']?.['등급'];
+    if(g != null) areas.push({name:'수', grade: g});
+  }
+  if(includeSub.includes('영')){
+    const g = round['영어']?.['등급'];
+    if(g != null) areas.push({name:'영', grade: g});
+  }
+  if(includeSub.includes('탐')){
+    // 탐구는 1·2 중 좋은 것 1개 선택 (또는 평균)
+    // 바이브온은 상위 등급의 과목만 반영
+    const t1 = round['탐구1']?.['등급'];
+    const t2 = round['탐구2']?.['등급'];
+    const tValid = [t1, t2].filter(g => g != null).sort((a,b)=>a-b);
+    if(tValid.length > 0) areas.push({name:'탐1', grade: tValid[0]});
+  }
+
+  if(areas.length < n) return null; // 영역 부족
+
+  // 등급 오름차순(좋은 등급 먼저) 정렬 후 상위 n개 합
+  areas.sort((a,b) => a.grade - b.grade);
+  const top = areas.slice(0, n);
+  const sum = top.reduce((acc, a) => acc + a.grade, 0);
+  const names = top.map(a => a.name).join('');
+  return { sum, names };
+}
+
+// 모의고사 N합 모든 조합 자동 계산 (4합/3합/2합 × 영역 조합)
+function buildSuneungTable(rounds) {
+  return rounds.map(r => {
+    return {
+      round: r.round,
+      label: ROUND_LABEL[r.round] || r.round,
+      // 4합 (국+수+영+탐)
+      '4합(2)': calcSuneungNHap(r, 4, '국수영탐'),
+      // 3합 (국수영탐 중 3개)
+      '3합(2)': calcSuneungNHap(r, 3, '국수영탐'),
+      // 2합 (국수영탐 중 2개)
+      '2합(2)': calcSuneungNHap(r, 2, '국수영탐'),
+      // 4합(1) — 4개 합이지만 탐구 1과목만
+      '4합(1)': calcSuneungNHap(r, 4, '국수영탐'),
+      // 3합(1) — 3개 합
+      '3합(1)': calcSuneungNHap(r, 3, '국수영탐'),
+      // 2합(1) — 2개 합
+      '2합(1)': calcSuneungNHap(r, 2, '국수영탐'),
+    };
+  });
+}
+
+// 백분위 합산 (영어·한국사 제외, 국수탐2)
+function calcMockPctSum(round) {
+  let sum = 0, count = 0;
+  ['국어', '수학', '탐구1', '탐구2'].forEach(sub => {
+    const p = round[sub]?.['백분위'];
+    if(p != null) { sum += p; count++; }
+  });
+  return count > 0 ? sum.toFixed(1) : null;
+}
+
+// 학년 구분 인덱스 찾기 (차트에 세로 점선 그리기용)
+function findYearBreaks(rounds) {
+  const breaks = [];
+  for(let i = 1; i < rounds.length; i++) {
+    const prev = rounds[i-1].round[1]; // 'g1_3월' → '1'
+    const curr = rounds[i].round[1];
+    if(prev !== curr) breaks.push(i);
+  }
+  return breaks;
+}
+
 function drawChart(rounds){
   if(chartInst){ chartInst.destroy(); chartInst=null; }
   const ctx = document.getElementById('chart'); if(!ctx) return;
   const labels = rounds.map(r=>ROUND_LABEL[r.round]||r.round);
-  const datasets = SUBJECTS.map(sub=>({ label: sub, data: rounds.map(r=>getVal(r,sub,currentMode)), borderColor: COLORS[sub], backgroundColor: COLORS[sub], tension: 0.25, spanGaps: true }));
+
+  // 학년 경계선 인덱스
+  const yearBreaks = findYearBreaks(rounds);
+
+  // 선택된 과목만 데이터셋 생성
+  const visibleSubjects = SUBJECTS.filter(sub => mockChartSubjects.has(sub));
+  const datasets = visibleSubjects.map(sub => ({
+    label: sub,
+    data: rounds.map(r => getVal(r, sub, currentMode)),
+    borderColor: COLORS[sub],
+    backgroundColor: COLORS[sub],
+    tension: 0.25,
+    spanGaps: true,
+    pointRadius: rounds.map(r => getVal(r, sub, currentMode) == null ? 6 : 5),
+    pointBackgroundColor: rounds.map(r => getVal(r, sub, currentMode) == null ? '#fff' : COLORS[sub]),
+    pointBorderColor: rounds.map(r => getVal(r, sub, currentMode) == null ? COLORS[sub] : '#fff'),
+    pointBorderWidth: 2,
+    pointStyle: rounds.map(r => getVal(r, sub, currentMode) == null ? 'circle' : 'circle'),
+  }));
+
+  // 학년 경계 점선 플러그인
+  const yearBreakPlugin = {
+    id: 'yearBreaks',
+    afterDraw(chart) {
+      if(!yearBreaks.length) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      yearBreaks.forEach(idx => {
+        // 학년 경계 = idx와 idx-1 사이 중간
+        const x1 = scales.x.getPixelForValue(idx - 1);
+        const x2 = scales.x.getPixelForValue(idx);
+        const x = (x1 + x2) / 2;
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+
   const cfg = getAxisConfig(currentMode);
-  chartInst = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: `${currentMode} 추이`, font:{size:14, weight:'bold'} }, legend: { position: 'bottom' } }, scales: { y: { reverse: cfg.reverse, min: cfg.min, max: cfg.max, title: { display: true, text: currentMode, font:{weight:'bold'} }, afterBuildTicks: (axis) => { axis.ticks = cfg.ticks.map(v=>({value:v})); }, ticks: { callback: v=>v, stepSize: cfg.step } } } } });
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    plugins: [yearBreakPlugin],
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: currentMode + ' 추이', font:{size:14, weight:'bold'} },
+        legend: { position: 'bottom', labels: { font: {size: 11}, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: ctx => {
+              const v = ctx.parsed.y;
+              if(v == null) return ctx.dataset.label + ': 미응시';
+              return ctx.dataset.label + ': ' + v + (currentMode === '등급' ? '등급' : currentMode === '백분위' ? '%' : '');
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          reverse: cfg.reverse, min: cfg.min, max: cfg.max,
+          title: { display: true, text: currentMode, font: {weight: 'bold'} },
+          afterBuildTicks: axis => { axis.ticks = cfg.ticks.map(v => ({value: v})); },
+          ticks: { callback: v => v, stepSize: cfg.step }
+        }
+      }
+    }
+  });
 }
 function getAxisConfig(mode){
   if(mode==='등급') return { min:0.5, max:9.5, reverse:true, ticks:[1,2,3,4,5,6,7,8,9], step:1 };
