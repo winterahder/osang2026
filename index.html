@@ -5440,9 +5440,14 @@ function renderMock(el){
     return matchDept(r['모집단위']||'');
   });
 
-  // ── 학생 최신 N합 계산 (수능최저 범위 필터용) ──
+  // ── 학생 기준값 계산 ──
   const latestForFilter = rounds[rounds.length - 1];
-  let studentBest3Hap = null; // 최근 회차 3개합 (기준점)
+
+  // 1) 학생 내신 9등급 평균 (suneung_db의 '평균등급'과 비교)
+  const stuInnerAvg9 = calcStudentAvg9(currentStu);
+
+  // 2) 학생 최신 모의고사 N합 (N합점수와 비교)
+  let studentBest3Hap = null;
   if(latestForFilter) {
     const h = calcSuneungNHap(latestForFilter, 3, '국수영탐');
     if(h) studentBest3Hap = h.sum;
@@ -5455,23 +5460,37 @@ function renderMock(el){
     return ga - gb;
   });
 
-  // 학생 수준 기반 범위 필터:
-  // - 학생 3합 기준 ±3 이내 대학만 표시 (너무 쉬운 대학/너무 어려운 대학 제외)
-  // - 평균등급이 없는 행(null)은 포함
-  // - 범위 없으면 전체 표시 (모의고사 데이터 없을 때)
-  const filteredByLevel = studentBest3Hap != null
-    ? matchedUnivs.filter(r => {
-        const nHapN = parseInt(r['N합개수']);
-        const nHapTarget = parseFloat(r['N합점수']);
-        if(isNaN(nHapN) || isNaN(nHapTarget)) return true; // 기준 없으면 포함
-        // 같은 N합 개수로 변환해서 비교 (학생 점수를 같은 N개로 계산)
-        const stuHap = calcSuneungNHap(latestForFilter, nHapN, '국수영탐');
-        if(!stuHap) return true;
-        const diff = nHapTarget - stuHap.sum; // 양수 = 학생이 미달, 음수 = 학생이 충족
-        // 안정(diff >= 2) ~ 도전(diff <= -2) 범위만 표시
-        return diff >= -3 && diff <= 4;
-      })
-    : matchedUnivs;
+  // ── 학생 수준 기반 이중 필터 ──
+  // 조건 A: 내신 평균등급 기준 (±1.0 범위)
+  //   - suneung_db의 '평균등급'이 학생 내신보다 너무 좋거나 나쁜 대학 제외
+  //   - 예: 학생 내신 4.09등급 → 3.09~5.09등급 대학만 표시
+  // 조건 B: N합 기준 (모의고사 보조 확인)
+  //   - 수능최저가 너무 높아 절대 충족 불가한 대학 제외
+  const filteredByLevel = matchedUnivs.filter(r => {
+    const dbAvg = parseFloat(r['평균등급']);
+    const nHapN = parseInt(r['N합개수']);
+    const nHapTarget = parseFloat(r['N합점수']);
+
+    // [조건 A] 내신 평균등급 범위 필터 (핵심!)
+    if(stuInnerAvg9 != null && !isNaN(dbAvg)) {
+      const diff = dbAvg - stuInnerAvg9; // 양수 = 대학이 더 좋음(학생보다 낮은 등급 요구)
+      // 학생 내신보다 1.5등급 초과 좋은 대학(너무 어려운 곳) → 제외
+      // 학생 내신보다 1.5등급 초과 나쁜 대학(너무 쉬운 곳) → 제외
+      if(diff > 1.5 || diff < -1.5) return false;
+    }
+
+    // [조건 B] N합 절대 불가 필터 (모의고사 있을 때만)
+    if(latestForFilter && !isNaN(nHapN) && !isNaN(nHapTarget)) {
+      const stuHap = calcSuneungNHap(latestForFilter, nHapN, '국수영탐');
+      if(stuHap) {
+        const diff = nHapTarget - stuHap.sum;
+        // 모의고사 기준 5점 이상 초과 → 절대 불가로 제외
+        if(diff < -4) return false;
+      }
+    }
+
+    return true;
+  });
 
   // 최대 15개
   const matchedTop = filteredByLevel.slice(0, 15);
@@ -5479,6 +5498,7 @@ function renderMock(el){
   // 디버깅용
   const debugInfo = {
     stuMajor, stuCareer, stuTrack,
+    stuInnerAvg9: stuInnerAvg9 ? stuInnerAvg9.toFixed(2) : null,
     suneungTotal: (suneungDB||[]).length,
     suneungWithStandard: (suneungDB||[]).filter(r => parseFloat(r['N합점수']) > 0).length,
     matchedCount: matchedUnivs.length,
@@ -5554,7 +5574,7 @@ function renderMock(el){
       + '🎯 희망전공 <span style="background:#fff7ed;color:#9a3412;padding:2px 8px;border-radius:6px;font-size:11px;">' + escapeHtml(stuMajor || stuCareer) + '</span> 관련 수능최저 기준'
       + '<span style="color:#94a3b8;font-size:11px;font-weight:500;margin-left:auto;">' + latestLabel + ' 기준 · ' + uniqRows.length + '개 (전체 ' + (debugInfo.filteredCount||matchedUnivs.length) + '개)</span>'
       + '</div>'
-      + (studentBest3Hap != null ? '<div style="font-size:11px;color:#92400e;margin-bottom:8px;">📌 학생 최근 3개합 <b style="color:#1e40af;">' + studentBest3Hap + '점</b> 기준 · 수준에 맞는 범위만 표시</div>' : '')
+      + (stuInnerAvg9 != null        ? '<div style="font-size:11px;color:#92400e;margin-bottom:8px;">'          + '📌 학생 내신 <b style="color:#1e40af;">' + stuInnerAvg9.toFixed(2) + '등급</b> 기준 ±1.5등급 범위 대학 표시'          + (studentBest3Hap != null ? ' · 모의고사 3합 <b style="color:#6366f1;">' + studentBest3Hap + '점</b>' : '')          + '</div>'        : '')
       + '<div style="display:flex;flex-direction:column;gap:5px;">'
       + uniqRows.map(r => {
           const nHapN = parseInt(r['N합개수']);
