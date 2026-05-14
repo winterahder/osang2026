@@ -5463,6 +5463,35 @@ if ('serviceWorker' in navigator) {
 }
 
 
+// ── 9등급 기준 학생 평균 계산 (admissions 비교용) ──
+// 3학년(원래 9등급)은 그대로, 1·2학년(5등급)은 estGrade9로 환산
+function calcStudentAvg9(stu) {
+  const studentData = getStudentGrades(stu);
+  if(!studentData || !studentData.grades) return null;
+
+  let totalCredit = 0, weighted = 0;
+  Object.entries(studentData.grades).forEach(([sem, semData]) => {
+    const semIs9 = isSem9Grade(stu, semData);
+    (semData.subjects||[]).forEach(sub => {
+      if(sub.등급 == null || !sub.학점) return;
+      let g;
+      if(semIs9) {
+        // 이미 9등급제 → 그대로
+        g = sub.등급;
+      } else {
+        // 5등급제 → 9등급 환산
+        const est = estGrade9(sub);
+        g = est ? est.grade : null;
+      }
+      if(g != null) {
+        totalCredit += sub.학점;
+        weighted += g * sub.학점;
+      }
+    });
+  });
+  return totalCredit > 0 ? weighted/totalCredit : null;
+}
+
 // ── 희망전공 기반 합불 현황 ──
 function renderMajorAdmissions() {
   if(!admissionsDB || admissionsDB.length === 0) return '';
@@ -5471,9 +5500,9 @@ function renderMajorAdmissions() {
   const career = currentStu?.진로 || currentStu?.career || '';
   if(!major && !career) return '';
 
-  // 내 내신 평균 (getStudentGrades로 정규화된 구조 사용)
-  const gradeData = getStudentGrades(currentStu);
-  const myAvg = gradeData ? calcStudentAvg(gradeData, null, currentStu) : null;
+  // 내 내신 평균 (admissions는 9등급 기준이므로 9등급 환산 평균 사용)
+  // 3학년: 원래 9등급제 그대로 / 1·2학년: estGrade9로 환산
+  const myAvg = calcStudentAvg9(currentStu);
 
   const norm = s => String(s||'').trim().toLowerCase()
     .replace(/\s/g,'').replace(/[()（）]/g,'')
@@ -5567,7 +5596,10 @@ function renderMajorAdmissions() {
       </div>`;
   }).join('');
 
-  const myAvgText = myAvg ? `<span style="font-size:12px;color:#2563eb;font-weight:700;">내 내신 ${myAvg.toFixed(2)}등급</span>` : '';
+  // 학생 등급제 표시 (1·2학년은 9등급 환산 표시)
+  const is9native = isStudent9Grade(currentStu);
+  const scaleNote = is9native ? '' : ' <span style="font-size:10px;color:#9333ea;font-weight:600;">(9등급 환산)</span>';
+  const myAvgText = myAvg ? `<span style="font-size:12px;color:#2563eb;font-weight:700;">내 내신 ${myAvg.toFixed(2)}등급${scaleNote}</span>` : '';
 
   return `
     <div style="margin:12px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">
