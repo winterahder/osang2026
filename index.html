@@ -1623,13 +1623,7 @@ function renderGrades(el){
   // 학기별 추이 차트 그리기
   drawGradeChart(data, semesters);
 
-  // 졸업생 합불 사례 섹션 추가
-  const alumniSection = renderAlumniCompare();
-  if(alumniSection) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = alumniSection;
-    el.appendChild(wrapper);
-  }
+
 }
 
 function getActiveSubjectFilter(){
@@ -1914,6 +1908,9 @@ function renderAlumniCompare() {
   const matched = admissionsDB.filter(r => {
     const passAvg = parseFloat(r['합격평균등급']);
     if(isNaN(passAvg) || passAvg <= 0) return false;
+    // 정시(수능) 제외
+    const type = String(r['전형유형']||'');
+    if(type.includes('정시') || type.includes('수능')) return false;
     return Math.abs(passAvg - myAvg) <= 0.4 && parseInt(r['합격건수']||0) > 0;
   });
 
@@ -5481,6 +5478,9 @@ function renderMajorAdmissions() {
   // 희망전공/진로 키워드로 admissionsDB 검색
   const matched = admissionsDB.filter(r => {
     if(parseInt(r['합격건수']||0) <= 0) return false;
+    // 정시 제외
+    const typeStr2 = String(r['전형유형']||'');
+    if(typeStr2.includes('정시') || typeStr2.includes('수능')) return false;
     const dept = norm(r['모집단위']||'');
     const mMatch = majorNorm.length >= 2 && (dept.includes(majorNorm) || majorNorm.includes(dept));
     const cMatch = careerNorm.length >= 2 && (dept.includes(careerNorm) || careerNorm.includes(dept));
@@ -5529,19 +5529,26 @@ function renderMajorAdmissions() {
         else                  { badge='도전'; badgeBg='#fef2f2'; badgeColor='#dc2626'; }
       }
 
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f8fafc;">
-          ${badge ? `<span style="flex-shrink:0;font-size:11px;font-weight:800;background:${badgeBg};color:${badgeColor};padding:3px 8px;border-radius:6px;">${badge}</span>` : ''}
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r['대학명']||'-')}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:1px;">
-              합격평균 <b style="color:#0f172a;">${passAvg.toFixed(2)}</b>등급
-              (범위 ${passHigh}~${passLow}) · ${passCnt}건
-              ${failCnt>0&&failAvg?`· ❌불합격평균 ${failAvg}등급`:''}
-            </div>
-          </div>
-          <div style="flex-shrink:0;font-size:10px;color:#94a3b8;">${escapeHtml(r['대학소재지']||'')}</div>
-        </div>`;
+      // 배지 HTML 미리 생성 (중첩 템플릿 리터럴 오류 방지)
+      const badgeHtml = badge
+        ? '<span style="flex-shrink:0;font-size:11px;font-weight:800;background:' + badgeBg + ';color:' + badgeColor + ';padding:3px 8px;border-radius:6px;">' + badge + '</span>'
+        : '';
+      const failHtml = (failCnt > 0 && failAvg)
+        ? '&nbsp;· ❌불합격평균 ' + failAvg + '등급'
+        : '';
+
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f8fafc;">'
+        + badgeHtml
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:700;color:#0f172a;">' + escapeHtml(r['대학명']||'-') + '</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-top:1px;">'
+        + '합격평균 <b style="color:#0f172a;">' + passAvg.toFixed(2) + '</b>등급'
+        + ' (범위 ' + passHigh + '~' + passLow + ') · ' + passCnt + '건'
+        + failHtml
+        + '</div>'
+        + '</div>'
+        + '<div style="flex-shrink:0;font-size:10px;color:#94a3b8;">' + escapeHtml(r['대학소재지']||'') + '</div>'
+        + '</div>';
     }).join('');
 
     return `
