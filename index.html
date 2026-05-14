@@ -5471,9 +5471,8 @@ function renderMajorAdmissions() {
   const career = currentStu?.진로 || currentStu?.career || '';
   if(!major && !career) return '';
 
-  // 내 내신 평균
-  const hak = String(currentStu?.hak || '');
-  const gradeData = grades[hak] || grades[String(currentStu?.g2_hak)] || grades[String(currentStu?.g1_hak)];
+  // 내 내신 평균 (getStudentGrades로 정규화된 구조 사용)
+  const gradeData = getStudentGrades(currentStu);
   const myAvg = gradeData ? calcStudentAvg(gradeData, null, currentStu) : null;
 
   const norm = s => String(s||'').trim().toLowerCase()
@@ -5529,7 +5528,7 @@ function renderMajorAdmissions() {
       // diff > 0 → 합격평균이 내 내신보다 높음 → 내가 더 좋음 → 안정
       // diff < 0 → 합격평균이 내 내신보다 낮음 → 내가 더 나쁨 → 도전
       let badge = '', badgeBg = '', badgeColor = '';
-      if(myAvg && !isNaN(passAvg)){
+      if(myAvg != null && !isNaN(passAvg)){
         const diff = passAvg - myAvg;
         if(diff >= 0.3)       { badge='안정'; badgeBg='#dbeafe'; badgeColor='#1d4ed8'; }
         else if(diff >= 0)    { badge='적정'; badgeBg='#dcfce7'; badgeColor='#15803d'; }
