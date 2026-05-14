@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>오상고 상담카드 시스템 2026</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -527,7 +527,7 @@
   /* ===== 모바일 반응형 ===== */
   .mobile-bar { display: none; }
 
-  @media (max-width: 768px) {
+  @media (max-width: 960px) {
     html, body { height: 100%; }
     body { display: flex; flex-direction: column; overflow: hidden; }
 
@@ -4873,7 +4873,13 @@ document.getElementById('classFilter').onchange = renderList;
 document.getElementById('search').oninput = renderList;
 
 // ========== 모바일 전용 ==========
-function isMobile(){ return window.innerWidth <= 768; }
+function isMobile(){
+  // 갤럭시 등 고해상도 안드로이드: innerWidth가 768 이상일 수 있음
+  // UA 체크 + 화면 너비 둘 다 확인
+  const ua = navigator.userAgent || '';
+  const isTouchDevice = /Android|iPhone|iPad|iPod/i.test(ua) || navigator.maxTouchPoints > 1;
+  return isTouchDevice || window.innerWidth <= 960;
+}
 
 const TAB_META = {
   '기본정보':    { icon:'📋', label:'기본' },
