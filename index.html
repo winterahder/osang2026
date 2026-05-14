@@ -283,6 +283,7 @@
 
   /* 3열: 게이지 | 레이더 | 역량카드 — 게이지와 레이더 동일 크기 */
   .eval-radar-grid { display: grid; grid-template-columns: 320px 320px 1fr; gap: 28px; align-items: center; }
+  .eval-gauge-radar-row { display: contents; } /* 데스크탑: 그리드 그대로 */
 
   /* 게이지 패널 */
   .eval-gauge-col { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; height: 320px; }
@@ -635,15 +636,76 @@
     .overall-eval-grid { grid-template-columns: 1fr; }
 
     /* ── 종합역량평가 모바일 ── */
-    .eval-radar-grid { grid-template-columns: 1fr; gap: 16px; }
-    .eval-gauge-col { flex-direction: row; gap: 16px; justify-content: center; }
-    .eval-gauge-wrap { width: 90px; height: 90px; }
-    .eval-gauge-wrap svg { width: 90px; height: 90px; }
-    .eval-gauge-num { font-size: 24px; }
-    .eval-radar-canvas-box { width: 220px; height: 220px; margin: 0 auto; }
-    .radar-stat-card { padding: 11px 13px; border-radius: 12px; gap: 12px; }
-    .radar-stat-grade { font-size: 28px; }
-    .eval-swot-section { grid-template-columns: 1fr; }
+    .eval-radar-card { border-radius: 10px; padding: 0; }
+    .eval-radar-card-header {
+      flex-direction: column; align-items: flex-start !important;
+      gap: 8px; padding: 12px 14px 10px;
+    }
+    .eval-radar-card-header > div:last-child {
+      width: 100%; display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    /* 진로/전공 박스: 모바일에서 전체 너비 */
+    #careerDisplay {
+      width: 100%; box-sizing: border-box;
+      justify-content: flex-start; flex-wrap: wrap;
+    }
+    #careerVal, #majorVal { max-width: 45vw !important; }
+    /* 수정/인쇄 버튼 */
+    .eval-radar-card-header button { flex: 1; justify-content: center; min-width: 80px; }
+    /* 인쇄 버튼 모바일 숨김 */
+    .eval-radar-card-header button[onclick="printCompEval()"] { display: none !important; }
+
+    /* 레이더 그리드: 세로 단일 컬럼 */
+    .eval-radar-grid { grid-template-columns: 1fr !important; gap: 0; }
+
+    /* 게이지 + 레이더 wrapper: 모바일에서 flex row */
+    .eval-gauge-radar-row {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #fff;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    /* 게이지: 왼쪽 고정 */
+    .eval-gauge-col {
+      flex-direction: column !important;
+      flex-shrink: 0; gap: 8px;
+      align-items: center; justify-content: center;
+      padding: 0; height: auto;
+      width: 90px;
+    }
+    .eval-gauge-wrap { width: 80px !important; height: 80px !important; flex-shrink: 0; }
+    .eval-gauge-wrap svg { width: 80px !important; height: 80px !important; }
+    .eval-gauge-num { font-size: 22px !important; }
+    .eval-gauge-badge { font-size: 11px !important; padding: 3px 10px; }
+    .eval-gauge-gisu { font-size: 10px !important; }
+
+    /* 레이더 차트 */
+    .eval-radar-canvas-box { width: 200px !important; height: 200px !important; margin: 0 auto; }
+
+    /* 역량 카드 */
+    .radar-stat-card { padding: 10px 12px; border-radius: 10px; gap: 10px; }
+    .radar-stat-grade { font-size: 24px !important; }
+    .radar-stat-name { font-size: 12px !important; }
+    .radar-stat-subs { font-size: 11px !important; }
+
+    /* renderCompEvalPanel 3열 → 1열 */
+    #evalGrpGrid { grid-template-columns: 1fr !important; }
+
+    /* 종합점수 배너 글자 */
+    .eval-total-score-big { font-size: 28px !important; }
+    .eval-total-score-num { font-size: 18px !important; }
+
+    /* 종합의견 */
+    .eval-opinion-text { font-size: 12.5px !important; line-height: 1.7 !important; }
+
+    /* SWOT */
+    .eval-swot-section { grid-template-columns: 1fr !important; }
+
+    /* 추천활동 탭 버튼 */
+    .rec-tab-btn { padding: 6px 10px !important; font-size: 11px !important; }
 
     /* ── 모의지원 ── */
     .apply-wrap { padding: 8px; }
@@ -3715,6 +3777,8 @@ function drawEvalRadar(eval_, container){
         </div>
       </div>
       <div class="eval-radar-grid">
+        <!-- 모바일: 게이지+레이더 나란히 wrapper -->
+        <div class="eval-gauge-radar-row">
         <!-- 1열: 게이지 -->
         <div class="eval-gauge-col">
           <div class="eval-gauge-wrap">
@@ -3734,6 +3798,7 @@ function drawEvalRadar(eval_, container){
         </div>
         <!-- 2열: 레이더 -->
         <div class="eval-radar-canvas-box"><canvas id="radarCanvas"></canvas></div>
+        </div><!-- /eval-gauge-radar-row -->
         <!-- 3열: 역량 카드 -->
         <div class="eval-radar-stat-list">
           ${statCards}
@@ -4046,13 +4111,13 @@ function renderCompEvalPanel(eval_){
     <!-- 종합 점수 배너 -->
     ${(totalGrade || totalScore != null) ? `
     <div style="margin:12px 20px 0;padding:12px 18px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:12px;">
-      <span style="font-size:36px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
-      ${totalScore != null ? `<span style="font-size:24px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
+      <span class="eval-total-score-big" style="font-size:36px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
+      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:24px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
       <span style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
     </div>` : ''}
 
     <!-- 3열 그룹 카드 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px 20px;">
+    <div id="evalGrpGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px 20px;">
       ${grpCards}
     </div>
 
@@ -4073,7 +4138,7 @@ function renderCompEvalPanel(eval_){
     ${eval_.종합의견 ? `
     <div style="margin:0 20px 18px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
       <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:6px;">💬 종합 의견</div>
-      <div style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
+      <div class="eval-opinion-text" style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
   </div>`;
 }
