@@ -1800,15 +1800,15 @@ function drawGradeChart(data, semesters){
           const raw = ds.data[pi];
           if(!raw || raw.y == null) return;
           ctx.save();
-          ctx.font = 'bold 12px -apple-system, sans-serif';
+          ctx.font = 'bold 30px -apple-system, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           const label = raw.y.toFixed(2);
           const tw = ctx.measureText(label).width;
           ctx.fillStyle = 'rgba(255,255,255,0.85)';
-          ctx.fillRect(pt.x - tw/2 - 3, pt.y - 22, tw + 6, 16);
+          ctx.fillRect(pt.x - tw/2 - 5, pt.y - 32, tw + 10, 22);
           ctx.fillStyle = ds.borderColor;
-          ctx.fillText(label, pt.x, pt.y - 8);
+          ctx.fillText(label, pt.x, pt.y - 12);
           ctx.restore();
         });
       });
