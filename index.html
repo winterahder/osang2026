@@ -5476,7 +5476,7 @@ function renderMock(el){
       const diff = dbAvg - stuInnerAvg9; // 양수 = 대학이 더 좋음(학생보다 낮은 등급 요구)
       // 학생 내신보다 1.5등급 초과 좋은 대학(너무 어려운 곳) → 제외
       // 학생 내신보다 1.5등급 초과 나쁜 대학(너무 쉬운 곳) → 제외
-      if(diff > 1.5 || diff < -1.5) return false;
+      if(diff > _suneungRange || diff < -_suneungRange) return false;
     }
 
     // [조건 B] N합 절대 불가 필터 (모의고사 있을 때만)
@@ -5574,8 +5574,8 @@ function renderMock(el){
       + '🎯 희망전공 <span style="background:#fff7ed;color:#9a3412;padding:2px 8px;border-radius:6px;font-size:11px;">' + escapeHtml(stuMajor || stuCareer) + '</span> 관련 수능최저 기준'
       + '<span style="color:#94a3b8;font-size:11px;font-weight:500;margin-left:auto;">' + latestLabel + ' 기준 · ' + uniqRows.length + '개 (전체 ' + (debugInfo.filteredCount||matchedUnivs.length) + '개)</span>'
       + '</div>'
-      + (stuInnerAvg9 != null        ? '<div style="font-size:11px;color:#92400e;margin-bottom:8px;">'          + '📌 학생 내신 <b style="color:#1e40af;">' + stuInnerAvg9.toFixed(2) + '등급</b> 기준 ±1.5등급 범위 대학 표시'          + (studentBest3Hap != null ? ' · 모의고사 3합 <b style="color:#6366f1;">' + studentBest3Hap + '점</b>' : '')          + '</div>'        : '')
-      + '<div style="display:flex;flex-direction:column;gap:5px;">'
+      + (stuInnerAvg9 != null        ? '<div style="font-size:11px;color:#92400e;margin-bottom:8px;">'          + '📌 학생 내신 <b style="color:#1e40af;">' + stuInnerAvg9.toFixed(2) + '등급</b> 기준 ±' + _suneungRange + '등급 범위 대학 표시'          + (studentBest3Hap != null ? ' · 모의고사 3합 <b style="color:#6366f1;">' + studentBest3Hap + '점</b>' : '')          + '</div>'        : '')
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">'      + '<span style="font-size:12px;color:#64748b;font-weight:700;">내신 범위:</span>'      + [{label:'좁게 (±0.5)', v:0.5},{label:'보통 (±1.0)', v:1.0},{label:'넓게 (±1.5)', v:1.5},{label:'전체 보기', v:9}].map(opt => {          const isActive = _suneungRange === opt.v;          return '<button onclick="_suneungRange=' + opt.v + ';renderTab();" '            + 'style="font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1.5px solid '            + (isActive ? '#6366f1;background:#6366f1;color:#fff;font-weight:700' : '#e2e8f0;background:#fff;color:#475569;font-weight:500')            + ';">' + opt.label + '</button>';        }).join('')      + '</div>'      + '<div style="display:flex;flex-direction:column;gap:5px;">'
       + uniqRows.map(r => {
           const nHapN = parseInt(r['N합개수']);
           const nHapTarget = parseFloat(r['N합점수']);
@@ -6313,6 +6313,7 @@ function calcStudentAvg9(stu) {
 let _admRangeAbove = 1.0;
 let _admRangeBelow = 0.8;
 let _admShowOurSchoolOnly = false;
+let _suneungRange = 1.5; // 수능최저 매칭 내신 범위 (±등급)
 let _cutoffDBReady = false; // cutoffDB 로드 완료 여부
 
 function renderMajorAdmissions() {
