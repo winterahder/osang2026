@@ -1286,7 +1286,7 @@ async function init(password){
   currentPassword = password;
   try{
     // 전체 병렬 로드 (속도 최적화)
-    const [s, m, g, sw, cc, refs, ci, hb, ev, ku, kt, al, ah, ma] = await Promise.all([
+    const [s, m, g, sw, cc, refs, ci, hb, ev, ku, kt, al, ah, ma, adm] = await Promise.all([
       apiGet({ action: 'getStudents',       password }).catch(()=>null),
       apiGet({ action: 'getMockExam',       password }).catch(()=>null),
       apiGet({ action: 'getGrades',         password }).catch(()=>null),
@@ -1301,6 +1301,7 @@ async function init(password){
       apiGet({ action: 'getAlumni',         password }).catch(()=>null),
       apiGet({ action: 'getApplyHistory',   password }).catch(()=>null),
       apiGet({ action: 'getMajorAnalysis',  password }).catch(()=>null),
+      apiGet({ action: 'getAdmissions',     password }).catch(()=>null),
     ]);
     students = s || [];
     mock     = m  || {};
@@ -1313,7 +1314,8 @@ async function init(password){
     if(ev)  evalData       = ev;
     if(ku) kbUniv   = Array.isArray(ku) ? ku : [];
     if(kt) kbTopic  = Array.isArray(kt) ? kt : [];
-    if(al) alumniKb = Array.isArray(al) ? al : [];
+    if(al)  alumniKb    = Array.isArray(al)  ? al  : [];
+    if(adm) admissionsDB = Array.isArray(adm) ? adm : [];
     // 새 시트 API — 구 code.gs면 error 반환 → 무시하고 evalData fallback 사용
     if(ah && typeof ah === 'object' && !ah.error) applyHistoryDB = ah;
     if(ma && typeof ma === 'object' && !ma.error) majorAnalysisDB = ma;
@@ -1630,424 +1632,104 @@ function renderGrades(el){
   }
 }
 
-// ── 졸업생 합불 사례 비교 ──
+// ── 졸업생(admissions) 합불 사례 비교 ──
 function renderAlumniCompare() {
-  if(!alumniKb || alumniKb.length === 0) return '';
+  if(!admissionsDB || admissionsDB.length === 0) return '';
 
   // 현재 학생 전교과 평균 계산
   const hak = String(currentStu?.hak || '');
   const gradeData = grades[hak] || grades[String(currentStu?.g2_hak)] || grades[String(currentStu?.g1_hak)];
   if(!gradeData) return '';
-
   const myAvg = calcStudentAvg(gradeData, null, currentStu);
   if(!myAvg) return '';
 
-  // 비슷한 내신 (±0.5등급) 졸업생 필터
-  const similar = alumniKb.filter(r => {
-    const avg = parseFloat(r['내신평균'] || '');
-    return !isNaN(avg) && Math.abs(avg - myAvg) <= 0.5;
-  }).slice(0, 20); // 최대 20건
+  const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
 
-  if(!similar.length) return '';
+  // 내 평균 ±0.4 이내 합격 사례 필터
+  const matched = admissionsDB.filter(r => {
+    const passAvg = parseFloat(r['합격평균등급']);
+    if(isNaN(passAvg) || passAvg <= 0) return false;
+    return Math.abs(passAvg - myAvg) <= 0.4 && parseInt(r['합격건수']||0) > 0;
+  });
 
-  const pass   = similar.filter(r => String(r['결과']||'').includes('합격'));
-  const fail   = similar.filter(r => String(r['결과']||'').includes('불합격'));
-  const passAvg = pass.length ? (pass.reduce((s,r)=>s+parseFloat(r['내신평균']||0),0)/pass.length).toFixed(2) : null;
-  const failAvg = fail.length ? (fail.reduce((s,r)=>s+parseFloat(r['내신평균']||0),0)/fail.length).toFixed(2) : null;
+  if(!matched.length) return '';
 
-  const caseRows = similar.map(r => {
-    const result = String(r['결과']||'');
-    const isPass = result.includes('합격');
-    const color  = isPass ? '#059669' : '#dc2626';
-    const bg     = isPass ? '#f0fdf4' : '#fef2f2';
-    const badge  = isPass ? '✅ 합격' : '❌ 불합격';
+  // 합격평균 기준 정렬 (내 평균과 가까운 순)
+  matched.sort((a,b) => {
+    const da = Math.abs(parseFloat(a['합격평균등급']) - myAvg);
+    const db = Math.abs(parseFloat(b['합격평균등급']) - myAvg);
+    return da - db;
+  });
+
+  const top = matched.slice(0, 30);
+
+  const rows = top.map(r => {
+    const passAvg  = parseFloat(r['합격평균등급']).toFixed(2);
+    const passHigh = r['합격최고등급'] ? parseFloat(r['합격최고등급']).toFixed(2) : '-';
+    const passLow  = r['합격최저등급'] ? parseFloat(r['합격최저등급']).toFixed(2) : '-';
+    const failAvg  = r['불합격평균등급'] ? parseFloat(r['불합격평균등급']).toFixed(2) : null;
+    const passCnt  = parseInt(r['합격건수']||0);
+    const failCnt  = parseInt(r['불합격건수']||0);
+    const diff     = (parseFloat(r['합격평균등급']) - myAvg);
+    const diffText = diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+    const diffColor = Math.abs(diff) < 0.1 ? '#059669' : Math.abs(diff) < 0.3 ? '#d97706' : '#64748b';
+
     return `
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;">
-        <div style="flex-shrink:0;min-width:54px;">
-          <span style="font-size:11px;font-weight:700;background:${bg};color:${color};padding:3px 7px;border-radius:6px;">${badge}</span>
-        </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-bottom:1px solid #f1f5f9;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px;">
-            ${escapeHtml(r['지원대학']||'-')} <span style="font-weight:500;color:#64748b;font-size:12px;">${escapeHtml(r['지원학과']||'')}</span>
+          <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:3px;">
+            ${escapeHtml(r['대학명']||'-')}
+            <span style="font-size:11.5px;font-weight:500;color:#475569;margin-left:4px;">${escapeHtml(r['모집단위']||'')}</span>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:3px;">
-            <span style="font-size:10.5px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;">${escapeHtml(r['전형유형']||'')} ${escapeHtml(r['세부전형']||'')}</span>
-            ${r['충원순위'] ? `<span style="font-size:10.5px;background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:4px;">충원 ${r['충원순위']}번</span>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+            <span style="font-size:10px;background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:4px;font-weight:600;">${escapeHtml(r['전형유형']||'')}</span>
+            <span style="font-size:10px;background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:4px;">${escapeHtml(r['계열']||'')} · ${escapeHtml(r['대학소재지']||'')}</span>
           </div>
-          <div style="font-size:11px;color:#94a3b8;">
-            내신 ${parseFloat(r['내신평균']||0).toFixed(2)}등급
-            ${r['졸업년도'] ? '· ' + r['졸업년도'] + '년' : ''}
-            ${r['메모'] ? '· ' + escapeHtml(String(r['메모']).substring(0,30)) : ''}
+          <div style="font-size:11px;color:#64748b;display:flex;gap:10px;flex-wrap:wrap;">
+            <span>✅ 합격 ${passCnt}건</span>
+            <span>범위 ${passHigh}~${passLow}등급</span>
+            ${failCnt > 0 ? `<span>❌ 불합격 ${failCnt}건 (평균 ${failAvg})</span>` : ''}
           </div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;">
+          <div style="font-size:18px;font-weight:900;color:#1e293b;">${passAvg}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-bottom:2px;">합격평균</div>
+          <div style="font-size:11px;font-weight:700;color:${diffColor};">${diffText}</div>
         </div>
       </div>`;
   }).join('');
 
+  // 통계
+  const allPassAvgs = top.map(r=>parseFloat(r['합격평균등급'])).filter(v=>!isNaN(v));
+  const minPassAvg = Math.min(...allPassAvgs).toFixed(2);
+  const maxPassAvg = Math.max(...allPassAvgs).toFixed(2);
+
   return `
     <div style="margin:16px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">
-      <!-- 헤더 -->
       <div style="padding:14px 16px 10px;border-bottom:1px solid #f1f5f9;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:15px;font-weight:800;color:#1e293b;">🎓 비슷한 내신 선배 합불 사례</span>
-            <span style="font-size:11px;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:8px;font-weight:600;">내 내신 ±0.5등급</span>
+            <span style="font-size:15px;font-weight:800;color:#1e293b;">🎓 비슷한 내신 합격 사례</span>
+            <span style="font-size:11px;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:8px;font-weight:600;">합격평균 ±0.4등급</span>
           </div>
-          <span style="font-size:12px;color:#94a3b8;">총 ${similar.length}건 (합격 ${pass.length}·불합격 ${fail.length})</span>
+          <span style="font-size:12px;color:#94a3b8;">${top.length}개 대학·학과 (전체 ${matched.length}건)</span>
         </div>
-        <!-- 요약 바 -->
-        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:120px;padding:8px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #059669;">
-            <div style="font-size:11px;color:#059669;font-weight:700;margin-bottom:2px;">✅ 합격 평균 내신</div>
-            <div style="font-size:20px;font-weight:900;color:#059669;">${passAvg || '-'}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
+        <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:100px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:3px solid #2563eb;">
+            <div style="font-size:10px;color:#2563eb;font-weight:700;margin-bottom:2px;">📊 내 전교과 평균</div>
+            <div style="font-size:20px;font-weight:900;color:#2563eb;">${myAvg.toFixed(2)}<span style="font-size:10px;"> 등급</span></div>
           </div>
-          <div style="flex:1;min-width:120px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626;">
-            <div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:2px;">❌ 불합격 평균 내신</div>
-            <div style="font-size:20px;font-weight:900;color:#dc2626;">${failAvg || '-'}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
-          </div>
-          <div style="flex:1;min-width:120px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:3px solid #2563eb;">
-            <div style="font-size:11px;color:#2563eb;font-weight:700;margin-bottom:2px;">📊 내 내신</div>
-            <div style="font-size:20px;font-weight:900;color:#2563eb;">${myAvg.toFixed(2)}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
+          <div style="flex:1;min-width:100px;padding:8px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #059669;">
+            <div style="font-size:10px;color:#059669;font-weight:700;margin-bottom:2px;">✅ 합격 사례 범위</div>
+            <div style="font-size:16px;font-weight:900;color:#059669;">${minPassAvg} ~ ${maxPassAvg}<span style="font-size:10px;"> 등급</span></div>
           </div>
         </div>
       </div>
-      <!-- 사례 목록 -->
-      <div style="max-height:360px;overflow-y:auto;">
-        ${caseRows}
-      </div>
-      <div style="padding:8px 14px;background:#f8fafc;font-size:11px;color:#94a3b8;text-align:center;">
-        ※ 오상고 졸업생 데이터 기준 · 생기부 점수·면접 등 종합 결과이므로 내신만으로 합불이 결정되지 않습니다
+      <div style="max-height:400px;overflow-y:auto;">${rows}</div>
+      <div style="padding:8px 14px;background:#f8fafc;font-size:10.5px;color:#94a3b8;text-align:center;">
+        ※ 오상고 실제 지원 데이터 기준 · 합격평균 기준 정렬 · 내신 외 생기부·면접 등 종합 결과입니다
       </div>
     </div>`;
-}
-
-function calcSemAvg(semData){
-  const subjects = semData.subjects || [];
-  let credit=0, weighted=0;
-  subjects.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ credit+=s.학점; weighted+=g*s.학점; } });
-  return credit>0 ? weighted/credit : null;
-}
-
-function getActiveSubjectFilter(){
-  // 선택된 교과들로부터 실제 교과명 배열 반환
-  if(selectedSubjectFilters.size===0) return null; // 전체
-  let result = [];
-  selectedSubjectFilters.forEach(k=>{
-    if(k==='기타') return; // 기타는 별도 처리
-    const arr = SUBJECT_FILTER_MAP[k];
-    if(arr) result = result.concat(arr);
-  });
-  return result.length > 0 ? result : null;
-}
-
-function isSubjectInFilter(subj){
-  if(selectedSubjectFilters.size===0) return subj.등급!=null; // 전체: 등급 있는 과목만
-  const group = getSubjectGroup(subj.교과||'');
-  for(const k of selectedSubjectFilters){
-    if(k==='기타'){
-      if(group==='기타' && subj.등급!=null) return true;
-    } else {
-      if(group===k) return true;
-    }
-  }
-  return false;
-}
-
-function renderGradeFilterSummary(data, semesters){
-  const filter = getActiveSubjectFilter();
-  const filterLabel = selectedSubjectFilters.size===0 ? '전체' : [...selectedSubjectFilters].join('+');
-  const allSubjects = [];
-  Object.entries(data.grades).forEach(([sem,semData])=>{ (semData.subjects||[]).forEach(sub=>{ allSubjects.push({...sub, sem}); }); });
-  const filtered = selectedSubjectFilters.size===0
-    ? allSubjects.filter(s=>s.등급!=null)
-    : allSubjects.filter(s=>isSubjectInFilter(s));
-  let totalCredit=0, weighted=0, cntWithGrade=0;
-  filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; cntWithGrade++; } });
-  const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
-  const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
-  const is9 = isStudent9Grade(currentStu);
-  const scaleLabel = is9 ? ' (9등급)' : '';
-
-  // 등수 카드
-  let rankCardHtml = '';
-  if(showRank){
-    const rankInfo = calcRank(data, filter);
-    if(rankInfo){
-      const pct = ((rankInfo.rank / rankInfo.total)*100).toFixed(0);
-      rankCardHtml = `
-        <div class="grade-stat-card rank-card">
-          <div class="sc-label">🏅 ${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"): "전체"} 학교 등수${scaleLabel}</div>
-          <div class="rank-right">
-            <span class="rank-val">${rankInfo.rank}위</span>
-            <span class="rank-sub">/ ${rankInfo.total}명 (상위 ${pct}%)</span>
-          </div>
-        </div>`;
-    } else {
-      rankCardHtml = `<div class="grade-stat-card rank-card"><div class="sc-label">🏅 등수</div><div class="rank-right"><span class="rank-val" style="font-size:14px;color:#94a3b8;">산출 불가</span></div></div>`;
-    }
-  }
-
-  return `
-    <div class="grade-summary-panel">
-      <div class="grade-stats">
-        <div class="grade-avg-big ${is9?'is9':''}">
-          <div class="avg-label">${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"):"전체"} 평균등급${scaleLabel}</div>
-          <div class="avg-val">${avg}</div>
-          <div class="avg-filter">${selectedSubjectFilters.size>0?filterLabel+' 교과 필터':'전체 등급 과목 반영'}</div>
-        </div>
-        <div class="grade-stat-row">
-          <div class="grade-stat-card"><div class="sc-label">반영 학점</div><div class="sc-val">${totalCredit}</div></div>
-          <div class="grade-stat-card"><div class="sc-label">반영 과목수</div><div class="sc-val">${cntWithGrade}</div></div>
-          ${rankCardHtml}
-        </div>
-      </div>
-      <div class="grade-chart-panel">
-        <div class="grade-chart-title">📈 학기별 평균등급 추이 ${is9?'<span style="color:#9333ea;font-size:11px;">[9등급]</span>':'<span style="color:#2563eb;font-size:11px;">[5등급]</span>'}</div>
-        <div class="grade-chart-wrap"><canvas id="gradeChart"></canvas></div>
-      </div>
-    </div>
-    ${filter?`<div style="color:#64748b;font-size:12px;margin-bottom:14px;">📌 포함 과목: ${subjNames||'없음'}</div>`:''}
-  `;
-}
-
-function drawGradeChart(data, semesters){
-  if(gradeChartInst){ gradeChartInst.destroy(); gradeChartInst=null; }
-  const ctx = document.getElementById('gradeChart');
-  if(!ctx) return;
-
-  const n = semesters.length;
-  const xPos = semesters.map((_, i) => (2 * i + 1) / (2 * n));
-  // 9등급 학생은 라벨에 등급제 표시 없이 깔끔하게, 5등급 학생만 [5등급] 안내
-  const is9 = isStudent9Grade(currentStu);
-  const semLabels = semesters.map(sem => `${sem.split('-')[0]}학년\n${sem.split('-')[1]}학기`);
-
-  // ★ 버그2 수정: null 제거 → 일부 학기만 있어도 해당 포인트만 정상 표시
-  function toXY(avgs){
-    return avgs
-      .map((v, i) => v != null ? { x: xPos[i], y: v } : null)
-      .filter(Boolean);
-  }
-
-  // 전체 평균 계산
-  function semAllAvg(semData){
-    const subjects = (semData && semData.subjects) || [];
-    let cr = 0, wt = 0;
-    subjects.forEach(s => {
-      const g = getG(s);
-      if(g != null && s.학점){ cr += s.학점; wt += g * s.학점; }
-    });
-    return cr > 0 ? wt / cr : null;
-  }
-
-  // ★ 버그3 수정: isSubjectInFilter 사용 → 기타 포함 모든 필터 정확하게 처리
-  function semFilteredAvg(semData){
-    const subjects = (semData && semData.subjects) || [];
-    let cr = 0, wt = 0;
-    subjects.forEach(s => {
-      if(!isSubjectInFilter(s)) return;
-      const g = getG(s);
-      if(g != null && s.학점){ cr += s.학점; wt += g * s.학점; }
-    });
-    return cr > 0 ? wt / cr : null;
-  }
-
-  // ★ 버그3 수정: !filter 대신 size로 직접 판단 (기타 선택시 filter=null이라 틀렸던 것)
-  const hasFilter = selectedSubjectFilters.size > 0;
-  const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
-  const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
-
-  const mainColor = is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb');
-  // 3학년(is9=true): 항상 9등급 기준
-  // 1·2학년(is9=false): 9등급 환산 버튼 눌렀을 때만(gradeScale===9) 9등급 기준, 기본은 5등급
-  const maxG = is9 ? 9 : (gradeScale === 9 ? 9 : 5);
-
-  // 포인트 위에 등급 수치를 직접 그리는 인라인 플러그인
-  const isMobileCtx = isMobile();
-  const dataLabelPlugin = {
-    id: 'gradePointLabels',
-    afterDatasetsDraw(chart){
-      const { ctx } = chart;
-      const fontSize = isMobileCtx ? 24 : 13;
-      const boxH = isMobileCtx ? 30 : 18;
-      const gap  = isMobileCtx ? 38 : 26;
-      chart.data.datasets.forEach((ds, di) => {
-        const meta = chart.getDatasetMeta(di);
-        meta.data.forEach((pt, pi) => {
-          const raw = ds.data[pi];
-          if(!raw || raw.y == null) return;
-          ctx.save();
-          ctx.font = `bold ${fontSize}px -apple-system, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          const label = raw.y.toFixed(2);
-          const tw = ctx.measureText(label).width;
-          // 흰 배경 박스
-          ctx.fillStyle = 'rgba(255,255,255,0.92)';
-          const bx = pt.x - tw/2 - 5, by = pt.y - gap;
-          ctx.beginPath();
-          ctx.roundRect(bx, by, tw + 10, boxH, 5);
-          ctx.fill();
-          ctx.fillStyle = ds.borderColor;
-          ctx.fillText(label, pt.x, pt.y - (gap - boxH + 2));
-          ctx.restore();
-        });
-      });
-    }
-  };
-
-  const datasets = [];
-  if(!hasFilter){
-    datasets.push({
-      label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
-      tension: 0.3, pointRadius: isMobileCtx?8:6, pointHoverRadius: isMobileCtx?10:8, pointBackgroundColor: mainColor,
-      fill: true, spanGaps: true
-    });
-  } else {
-    datasets.push({
-      label: [...selectedSubjectFilters].join('+'),
-      data: toXY(filtAvgs),
-      borderColor: mainColor, backgroundColor: mainColor+'22',
-      tension: 0.3, pointRadius: isMobileCtx?8:6, pointHoverRadius: isMobileCtx?10:8, pointBackgroundColor: mainColor,
-      fill: true, spanGaps: true
-    });
-  }
-
-  // 유효 데이터 없으면 차트 미생성
-  if(!datasets[0].data.length) return;
-
-  gradeChartInst = new Chart(ctx, {
-    type: 'line',
-    plugins: [dataLabelPlugin],
-    data: { datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: isMobileCtx ? (is9?38:28) : (is9?28:18), left:4, right:4 } },
-      plugins:{
-        legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
-        subtitle:{
-          display: true,
-          text: is9 ? '9등급제 (3학년)' : (gradeScale === 9 ? '5등급제 → 9등급 환산 적용 중' : '5등급제 (1·2학년) — 9등급 환산 버튼으로 전환 가능'),
-          color: is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb'),
-          font:{ size:11 }, padding:{ bottom:4 }
-        },
-        tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2)+'등급' : '-'}` } }
-      },
-      scales:{
-        y:{
-          reverse: true, min: 0.5, max: maxG + 0.5,
-          afterBuildTicks: axis => {
-            axis.ticks = Array.from({length: maxG}, (_, i) => ({ value: i + 1 }));
-          },
-          ticks:{ callback: v => v+'등급', font:{size: isMobileCtx?13:11, weight:'600'} },
-          grid:{ color:'#f1f5f9' }
-        },
-        x:{
-          type: 'linear', min: 0, max: 1,
-          ticks:{
-            callback: (val) => {
-              const idx = xPos.indexOf(val);
-              return idx >= 0 ? semLabels[idx] : '';
-            },
-            stepSize: null, includeBounds: false,
-            font: { size: isMobileCtx?12:11 }, maxTicksLimit: n + 2, autoSkip: false
-          },
-          afterBuildTicks: axis => { axis.ticks = xPos.map(v => ({ value: v })); },
-          grid:{ display: false }
-        }
-      }
-    }
-  });
-}
-
-function renderSemesterBlock(sem, semData){
-  const summary = semData.summary || {};
-  const subjects = semData.subjects || [];
-  const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
-  const filter = getActiveSubjectFilter();
-  const semIs9 = isSem9Grade(currentStu, semData);
-  let semCredit=0, semWeighted=0;
-  subjects.forEach(s=>{
-    let g;
-    if(semIs9){ g = (s.등급!=null) ? s.등급 : null; }
-    else { g = (gradeScale===9) ? (estGrade9(s)?.grade??null) : s.등급; }
-    if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; }
-  });
-  const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
-
-  // 과목별 데이터 가공
-  const subjectData = subjects.map(s=>{
-    if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return null;
-    if(selectedSubjectFilters.size === 0 && s.등급 == null) return null;
-    let g, estTag = '';
-    if(semIs9){
-      g = s.등급;
-    } else {
-      if(gradeScale===9){
-        const info = estGrade9(s);
-        g = info ? info.grade : null;
-        if(info?.source==='실제') estTag = '<span class="est-tag" style="background:#dcfce7;color:#15803d;">실제</span>';
-        else if(info?.source==='추정') estTag = '<span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>';
-      } else {
-        g = s.등급;
-      }
-    }
-    return { s, g, estTag };
-  }).filter(Boolean);
-
-  // 데스크탑: 테이블 그대로
-  const rows = subjectData.map(({s, g, estTag})=>{
-    const gradeClass = g!=null ? 'grade-'+g : '';
-    const showRankCol = semIs9 || gradeScale===9;
-    const rankCell = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
-    const gDisplay = g!=null ? g : '-';
-    return `<tr><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${gDisplay}${estTag}</td><td>${rankCell}</td></tr>`;
-  }).join('');
-
-  // 모바일 카드형
-  const showRankCol = semIs9 || gradeScale===9;
-  const mobileCards = subjectData.map(({s, g, estTag})=>{
-    const gradeClass = g!=null ? 'grade-'+g : '';
-    const gDisplay = g!=null ? g : '-';
-    // 석차/수강자수: 동석차자수가 있으면 "석차/수강자수" 형식 (중복 없이)
-    const 석차Raw = (showRankCol && s.석차 && s.수강자수)
-      ? `${s.석차}/${s.수강자수}`
-      : null;
-    // 석차 문자열에서 중복 숫자 제거 (예: 36/245/245 → 36/245)
-    const 석차 = 석차Raw ? 석차Raw.replace(/(\/\d+)\1+$/, '$1') : null;
-    return `<div class="m-grade-card ${gradeClass}">
-      <!-- 1) 과목명 (상단) -->
-      <div class="m-grade-head">
-        <span class="m-grade-cat">${s.교과||'-'}</span>
-        <span class="m-grade-subj">${s.과목}</span>
-      </div>
-      <!-- 2) 등급 (가운데 크게) -->
-      <div class="m-grade-num-row">
-        <span class="m-grade-num">${gDisplay}</span>
-        <span class="m-grade-label">등급</span>
-        ${estTag||''}
-      </div>
-      <!-- 3) 학점·원점수 -->
-      <div class="m-grade-info">
-        <div class="m-grade-info-item"><span class="k">학점</span><span class="v">${s.학점||'-'}</span></div>
-        ${s.원점수!=null?`<div class="m-grade-info-item"><span class="k">원점수</span><span class="v">${s.원점수}</span></div>`:''}
-      </div>
-      <!-- 4) 석차 -->
-      ${석차?`<div class="m-grade-rank">석차 <b>${석차}</b></div>`:''}
-    </div>`;
-  }).join('');
-
-  const scaleTag = semIs9
-    ? ' <span style="color:#9333ea;font-weight:600;">[9등급]</span>'
-    : (gradeScale===9 ? ' <span style="color:#9333ea;font-weight:600;">[9등급환산]</span>' : '');
-
-  return `<div class="semester-block">
-    <div class="semester-title">📚 ${semLabel}
-      <span class="semester-meta">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span>
-    </div>
-    <!-- 데스크탑 테이블 -->
-    <table class="grade m-hide-on-mobile"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table>
-    <!-- 모바일 카드 -->
-    <div class="m-grade-cards m-show-on-mobile">${mobileCards}</div>
-  </div>`;
 }
 
 // ========== 세특 요약 렌더링 ==========
@@ -3914,6 +3596,7 @@ function renderCompEvalTab(el){
     <div id="evalRadarArea"></div>
     <div id="evalGradeTrendArea"></div>
     <div id="evalSwotArea"></div>
+    <div id="evalAdmissionsArea"></div>
     ${decompData ? renderIndexDecompSection(decompData) : ''}
     ${recData ? renderIndexRecSection(recData) : ''}
   </div>`;
@@ -3931,6 +3614,9 @@ function renderCompEvalTab(el){
     }
     drawGradeTrend(document.getElementById('evalGradeTrendArea'));
     renderSwotSection(hak, eval_, document.getElementById('evalSwotArea'));
+    // 희망전공 합불 현황
+    const admArea = document.getElementById('evalAdmissionsArea');
+    if(admArea) admArea.innerHTML = renderMajorAdmissions();
   });
 }
 
@@ -5506,6 +5192,125 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+
+// ── 희망전공 기반 합불 현황 ──
+function renderMajorAdmissions() {
+  if(!admissionsDB || admissionsDB.length === 0) return '';
+
+  const major  = currentStu?.전공 || currentStu?.major || '';
+  const career = currentStu?.진로 || currentStu?.career || '';
+  if(!major && !career) return '';
+
+  // 내 내신 평균
+  const hak = String(currentStu?.hak || '');
+  const gradeData = grades[hak] || grades[String(currentStu?.g2_hak)] || grades[String(currentStu?.g1_hak)];
+  const myAvg = gradeData ? calcStudentAvg(gradeData, null, currentStu) : null;
+
+  const norm = s => String(s||'').trim().toLowerCase()
+    .replace(/\s/g,'').replace(/[()（）]/g,'')
+    .replace(/학과$|학부$|전공$|학전공$/, '');
+
+  const majorNorm  = norm(major);
+  const careerNorm = norm(career);
+
+  // 희망전공/진로 키워드로 admissionsDB 검색
+  const matched = admissionsDB.filter(r => {
+    if(parseInt(r['합격건수']||0) <= 0) return false;
+    const dept = norm(r['모집단위']||'');
+    const mMatch = majorNorm.length >= 2 && (dept.includes(majorNorm) || majorNorm.includes(dept));
+    const cMatch = careerNorm.length >= 2 && (dept.includes(careerNorm) || careerNorm.includes(dept));
+    return mMatch || cMatch;
+  });
+
+  if(!matched.length) return '';
+
+  // 전형유형별 그룹핑
+  const byType = {};
+  matched.forEach(r => {
+    const t = r['전형유형'] || '기타';
+    if(!byType[t]) byType[t] = [];
+    byType[t].push(r);
+  });
+
+  const typeColors = {
+    '학종': '#6366f1', '교과': '#10b981', '논술': '#f59e0b',
+    '학생부종합': '#6366f1', '학생부교과': '#10b981', '기타': '#64748b'
+  };
+
+  const typeHtml = Object.entries(byType).map(([type, items]) => {
+    const color = Object.entries(typeColors).find(([k])=>type.includes(k))?.[1] || '#64748b';
+
+    // 합격평균 기준 정렬
+    items.sort((a,b)=>parseFloat(a['합격평균등급']||9)-parseFloat(b['합격평균등급']||9));
+
+    const rows = items.slice(0,15).map(r => {
+      const passAvg  = parseFloat(r['합격평균등급']);
+      const passHigh = r['합격최고등급'] ? parseFloat(r['합격최고등급']).toFixed(2) : '-';
+      const passLow  = r['합격최저등급'] ? parseFloat(r['합격최저등급']).toFixed(2) : '-';
+      const failAvg  = r['불합격평균등급'] ? parseFloat(r['불합격평균등급']).toFixed(2) : null;
+      const passCnt  = parseInt(r['합격건수']||0);
+      const failCnt  = parseInt(r['불합격건수']||0);
+
+      // 내 내신 대비 판정
+      let badge = '', badgeBg = '';
+      if(myAvg && !isNaN(passAvg)){
+        const diff = passAvg - myAvg;
+        if(diff >= 0.3)       { badge='도전'; badgeBg='#fef2f2;color:#dc2626'; }
+        else if(diff >= 0)    { badge='소신'; badgeBg='#fef9c3;color:#92400e'; }
+        else if(diff >= -0.3) { badge='적정'; badgeBg='#dcfce7;color:#15803d'; }
+        else                  { badge='안정'; badgeBg='#dbeafe;color:#1d4ed8'; }
+      }
+
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f8fafc;">
+          ${badge ? `<span style="flex-shrink:0;font-size:10px;font-weight:800;background:${badgeBg};padding:2px 7px;border-radius:6px;">${badge}</span>` : ''}
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r['대학명']||'-')}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:1px;">
+              합격평균 <b style="color:#0f172a;">${passAvg.toFixed(2)}</b>등급
+              (범위 ${passHigh}~${passLow}) · ${passCnt}건
+              ${failCnt>0&&failAvg?`· ❌불합격평균 ${failAvg}등급`:''}
+            </div>
+          </div>
+          <div style="flex-shrink:0;font-size:10px;color:#94a3b8;">${escapeHtml(r['대학소재지']||'')}</div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div style="margin-bottom:12px;border:1px solid ${color}22;border-radius:10px;overflow:hidden;">
+        <div style="padding:8px 14px;background:${color}10;font-size:12px;font-weight:800;color:${color};">
+          ${type} · ${items.length}개 대학
+        </div>
+        ${rows}
+      </div>`;
+  }).join('');
+
+  const myAvgText = myAvg ? `<span style="font-size:12px;color:#2563eb;font-weight:700;">내 내신 ${myAvg.toFixed(2)}등급</span>` : '';
+
+  return `
+    <div style="margin:12px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">
+      <div style="padding:12px 16px 8px;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:14px;font-weight:800;color:#1e293b;">📊 희망전공 합불 현황</span>
+            <span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;">${escapeHtml(major||career)}</span>
+          </div>
+          ${myAvgText}
+        </div>
+        ${myAvg ? `
+        <div style="display:flex;gap:6px;margin-top:8px;font-size:11px;">
+          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-weight:700;">안정: 합격평균+0.3↑</span>
+          <span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:4px;font-weight:700;">적정: ±0.3</span>
+          <span style="background:#fef9c3;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:700;">소신: 0~0.3↓</span>
+          <span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:4px;font-weight:700;">도전: 0.3↓이상</span>
+        </div>` : ''}
+      </div>
+      <div style="padding:12px 14px 6px;">${typeHtml}</div>
+      <div style="padding:6px 14px 10px;font-size:10.5px;color:#94a3b8;text-align:center;">
+        ※ 오상고 실제 지원 데이터 · ${major?'희망전공 '+escapeHtml(major):''}${career?' / 희망진로 '+escapeHtml(career):''}  검색 결과
+      </div>
+    </div>`;
+}
 
 // ── 종합역량 아코디언 토글 ──
 function toggleEvalGrp(id) {
