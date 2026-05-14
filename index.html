@@ -5495,12 +5495,15 @@ function calcStudentAvg9(stu) {
 }
 
 // ── 희망전공 기반 합불 현황 (admissions + cutoff_db 통합) ──
+// 범위 상태 전역 관리
+let _admRangeAbove = 1.0;  // 내 내신보다 이만큼 낮은 대학까지 (안정권)
+let _admRangeBelow = 0.8;  // 내 내신보다 이만큼 높은 대학까지 (도전권)
+
 function renderMajorAdmissions() {
   const major  = currentStu?.전공 || currentStu?.major || '';
   const career = currentStu?.진로 || currentStu?.career || '';
   if(!major && !career) return '';
 
-  // 내 내신 (9등급 기준)
   const myAvg = calcStudentAvg9(currentStu);
   const is9native = isStudent9Grade(currentStu);
   const scaleNote = is9native ? '' : ' <span style="font-size:10px;color:#9333ea;font-weight:600;">(9등급 환산)</span>';
@@ -5518,29 +5521,26 @@ function renderMajorAdmissions() {
     return mMatch || cMatch;
   }
 
-  // ── admissions (우리학교 합불) 검색 ──
+  // ── admissions 검색 ──
   const admMatched = (admissionsDB||[]).filter(r => {
     if(parseInt(r['합격건수']||0) <= 0) return false;
-    const typeStr = String(r['전형유형']||'');
-    if(typeStr.includes('정시') || typeStr.includes('수능')) return false;
+    const t = String(r['전형유형']||'');
+    if(t.includes('정시') || t.includes('수능')) return false;
     return keywordMatch(r['모집단위']||'');
   });
 
-  // ── cutoff_db (입결컷) 검색 ──
+  // ── cutoff_db 검색 ──
   const cutMatched = (cutoffDB||[]).filter(r => {
-    const typeStr = String(r['전형']||'');
-    if(typeStr.includes('정시') || typeStr.includes('수능')) return false;
-    // 50컷 또는 70컷 데이터 있는 것만
-    const has50 = r['50컷_2026'] || r['50컷_2025'] || r['50컷_2024'];
-    const has70 = r['70컷_2026'] || r['70컷_2025'] || r['70컷_2024'];
-    if(!has50 && !has70) return false;
+    const t = String(r['전형']||'');
+    if(t.includes('정시') || t.includes('수능')) return false;
+    const has = r['50컷_2026'] || r['50컷_2025'] || r['50컷_2024'];
+    if(!has) return false;
     return keywordMatch(r['모집단위']||'');
   });
 
   if(!admMatched.length && !cutMatched.length) return '';
 
-  // ── 두 데이터를 대학+모집단위 기준으로 병합 ──
-  // cutoff_db 기준으로 Map 생성
+  // ── 두 데이터 병합 ──
   const mergeMap = new Map();
 
   cutMatched.forEach(r => {
@@ -5548,7 +5548,7 @@ function renderMajorAdmissions() {
     if(!mergeMap.has(key)) {
       mergeMap.set(key, {
         대학: r['대학'], 모집단위: r['모집단위'], 전형: r['전형'],
-        세부전형명: r['세부전형명'], 지역: r['지역'], 계열: r['계열'],
+        세부전형명: r['세부전형명']||'', 지역: r['지역']||'', 계열: r['계열']||'',
         cut50_2026: parseFloat(r['50컷_2026'])||null,
         cut50_2025: parseFloat(r['50컷_2025'])||null,
         cut50_2024: parseFloat(r['50컷_2024'])||null,
@@ -5563,7 +5563,6 @@ function renderMajorAdmissions() {
     }
   });
 
-  // admissions 데이터 매칭해서 병합
   admMatched.forEach(r => {
     const univNorm = norm(r['대학명']||'');
     const deptNorm = norm(r['모집단위']||'');
@@ -5572,58 +5571,69 @@ function renderMajorAdmissions() {
       if(matched) return;
       const [ku, kd] = k.split('||');
       if((ku.includes(univNorm)||univNorm.includes(ku)) && (kd.includes(deptNorm)||deptNorm.includes(kd))) {
-        v.adm = r;
-        matched = true;
+        v.adm = r; matched = true;
       }
     });
     if(!matched) {
-      // cutoff에 없고 admissions에만 있는 경우 추가
       const key = univNorm + '||' + deptNorm + '||adm';
       mergeMap.set(key, {
         대학: r['대학명'], 모집단위: r['모집단위'], 전형: r['전형유형']||'',
         세부전형명: '', 지역: '', 계열: r['계열']||'',
-        cut50_2026: null, cut50_2025: null, cut50_2024: null,
-        cut70_2026: null, cut70_2025: null, cut70_2024: null,
-        모집인원: null, 경쟁률: null, 추합: null,
-        adm: r
+        cut50_2026:null, cut50_2025:null, cut50_2024:null,
+        cut70_2026:null, cut70_2025:null, cut70_2024:null,
+        모집인원:null, 경쟁률:null, 추합:null, adm: r
       });
     }
   });
 
-  // 50컷 2025 기준 정렬 (없으면 뒤로)
-  const merged = [...mergeMap.values()].sort((a,b) => {
-    const ca = a.cut50_2025 || a.cut50_2024 || 99;
-    const cb = b.cut50_2025 || b.cut50_2024 || 99;
+  // ── 범위 필터 적용 ──
+  // 기준: 50컷 (있으면) or 우리학교 합격평균
+  // 방법1: 범위 밖 제외 / 방법2: 도전 초과(diff < -_admRangeBelow) 제외
+  let allMerged = [...mergeMap.values()].filter(r => {
+    const refCut = r.cut50_2025 || r.cut50_2024 || r.cut50_2026
+      || (r.adm ? parseFloat(r.adm['합격평균등급'])||null : null);
+    if(!refCut || !myAvg) return true; // 기준 없으면 포함
+    const diff = refCut - myAvg;
+    // 방법1: 너무 낮은 대학 제외 (내 내신보다 _admRangeAbove 이상 낮은 50컷)
+    if(diff > _admRangeAbove) return false;
+    // 방법2: 너무 높은 대학 제외 (도전 초과)
+    if(diff < -_admRangeBelow) return false;
+    return true;
+  });
+
+  // 50컷 기준 정렬
+  allMerged.sort((a,b) => {
+    const ca = a.cut50_2025 || a.cut50_2024 || a.cut50_2026
+      || (a.adm ? parseFloat(a.adm['합격평균등급'])||99 : 99);
+    const cb = b.cut50_2025 || b.cut50_2024 || b.cut50_2026
+      || (b.adm ? parseFloat(b.adm['합격평균등급'])||99 : 99);
     return ca - cb;
   });
 
-  if(!merged.length) return '';
-
   // ── 행 렌더링 ──
-  const rows = merged.slice(0, 40).map(r => {
-    // 배지 판정 (50컷 2025 기준, 없으면 2024)
-    const refCut = r.cut50_2025 || r.cut50_2024;
+  const rows = allMerged.map(r => {
+    const refCut = r.cut50_2025 || r.cut50_2024 || r.cut50_2026;
+    const admAvg = r.adm ? parseFloat(r.adm['합격평균등급'])||null : null;
+    const baseCut = refCut || admAvg;
+
     let badge = '', badgeBg = '', badgeColor = '';
-    if(myAvg != null && refCut) {
-      const diff = refCut - myAvg; // 양수 = 컷이 높음 = 내가 유리 = 안정
+    if(myAvg != null && baseCut) {
+      const diff = baseCut - myAvg;
       if(diff >= 0.3)       { badge='안정'; badgeBg='#dbeafe'; badgeColor='#1d4ed8'; }
       else if(diff >= 0)    { badge='적정'; badgeBg='#dcfce7'; badgeColor='#15803d'; }
       else if(diff >= -0.3) { badge='소신'; badgeBg='#fef9c3'; badgeColor='#92400e'; }
       else                  { badge='도전'; badgeBg='#fef2f2'; badgeColor='#dc2626'; }
     }
     const badgeHtml = badge
-      ? '<span style="flex-shrink:0;font-size:11px;font-weight:800;background:' + badgeBg + ';color:' + badgeColor + ';padding:3px 8px;border-radius:6px;min-width:30px;text-align:center;">' + badge + '</span>'
-      : '<span style="flex-shrink:0;min-width:38px;"></span>';
+      ? '<span style="flex-shrink:0;font-size:11px;font-weight:800;background:' + badgeBg + ';color:' + badgeColor + ';padding:3px 8px;border-radius:6px;min-width:32px;text-align:center;">' + badge + '</span>'
+      : '<span style="flex-shrink:0;min-width:40px;"></span>';
 
-    // 50컷 표시 (2026→2025→2024 순)
     const cut50 = r.cut50_2026 || r.cut50_2025 || r.cut50_2024;
     const cut70 = r.cut70_2026 || r.cut70_2025 || r.cut70_2024;
-    const cutYear = r.cut50_2026 ? '26' : r.cut50_2025 ? '25' : '24';
+    const cutYear = r.cut50_2026 ? '26년' : r.cut50_2025 ? '25년' : '24년';
 
-    // 우리학교 합불 정보
-    const adm = r.adm;
-    const admHtml = adm
-      ? '<span style="font-size:10px;background:#f0fdf4;color:#15803d;padding:1px 5px;border-radius:4px;font-weight:600;">우리학교 합격 ' + parseInt(adm['합격건수']||0) + '건 · 평균 ' + parseFloat(adm['합격평균등급']).toFixed(2) + '등급</span>'
+    const admHtml = r.adm
+      ? '<span style="font-size:10px;background:#f0fdf4;color:#15803d;padding:1px 6px;border-radius:4px;font-weight:600;">🟢 우리학교 합격 ' + parseInt(r.adm['합격건수']||0) + '건 · ' + parseFloat(r.adm['합격평균등급']).toFixed(2) + '등급</span>'
       : '';
 
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #f8fafc;">'
@@ -5631,25 +5641,42 @@ function renderMajorAdmissions() {
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:13px;font-weight:800;color:#0f172a;">' + escapeHtml(r['대학']||'-')
       + ' <span style="font-size:11px;font-weight:500;color:#475569;">' + escapeHtml(r['모집단위']||'') + '</span></div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;align-items:center;">'
       + (r['전형'] ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:1px 6px;border-radius:4px;">' + escapeHtml(r['전형']) + ' ' + escapeHtml(r['세부전형명']||'') + '</span>' : '')
       + (r['지역'] ? '<span style="font-size:10px;color:#94a3b8;">' + escapeHtml(r['지역']) + '</span>' : '')
       + admHtml
       + '</div>'
       + '</div>'
-      + '<div style="flex-shrink:0;text-align:right;min-width:70px;">'
-      + (cut50 ? '<div style="font-size:17px;font-weight:900;color:#1e293b;">' + cut50.toFixed(2) + '<span style="font-size:9px;color:#94a3b8;font-weight:400;">  ' + cutYear + '년 50컷</span></div>' : '')
-      + (cut70 ? '<div style="font-size:11px;color:#64748b;">70컷 ' + cut70.toFixed(2) + '</div>' : '')
+      + '<div style="flex-shrink:0;text-align:right;min-width:72px;">'
+      + (cut50 ? '<div style="font-size:17px;font-weight:900;color:#1e293b;">' + cut50.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;font-weight:400;">' + cutYear + ' 50컷</span></div>' : (admAvg ? '<div style="font-size:15px;font-weight:700;color:#64748b;">' + admAvg.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;">합격평균</span></div>' : ''))
+      + (cut70 ? '<div style="font-size:11px;color:#94a3b8;">70컷 ' + cut70.toFixed(2) + '</div>' : '')
       + (r['경쟁률'] ? '<div style="font-size:10px;color:#94a3b8;">경쟁률 ' + parseFloat(r['경쟁률']).toFixed(1) + '</div>' : '')
       + '</div>'
       + '</div>';
   }).join('');
 
-  const myAvgText = myAvg != null
-    ? myAvg.toFixed(2) + '등급' + scaleNote
-    : '내신 없음';
+  const myAvgText = myAvg != null ? myAvg.toFixed(2) + '등급' + scaleNote : '-';
+  const totalCount = mergeMap.size;
 
-  const admOnlyCount = merged.filter(r=>r.adm && !r.cut50_2025 && !r.cut50_2024).length;
+  // 범위 조정 버튼
+  const rangeButtons =
+    '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;">'
+    + '<span style="font-size:11px;color:#64748b;font-weight:600;">표시 범위:</span>'
+    + [
+        {label:'좁게 (±0.5)', a:0.5, b:0.5},
+        {label:'보통 (±1.0)', a:1.0, b:0.8},
+        {label:'넓게 (±1.5)', a:1.5, b:1.2},
+        {label:'전체 보기',   a:9,   b:9},
+      ].map(opt => {
+        const isActive = (_admRangeAbove===opt.a && _admRangeBelow===opt.b);
+        return '<button onclick="_admRangeAbove=' + opt.a + ';_admRangeBelow=' + opt.b + ';renderTab();" '
+          + 'style="font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1.5px solid '
+          + (isActive ? '#6366f1;background:#6366f1;color:#fff' : '#e2e8f0;background:#fff;color:#475569')
+          + ';font-weight:' + (isActive ? '700' : '500') + ';">'
+          + opt.label + '</button>';
+      }).join('')
+    + '<span style="font-size:10.5px;color:#94a3b8;margin-left:4px;">' + allMerged.length + '개 / 전체 ' + totalCount + '개</span>'
+    + '</div>';
 
   return '<div style="margin:16px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">'
     + '<div style="padding:13px 16px 10px;border-bottom:1px solid #f1f5f9;">'
@@ -5666,11 +5693,12 @@ function renderMajorAdmissions() {
     + '<span style="background:#fef9c3;color:#92400e;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">소신: 0~0.3↓</span>'
     + '<span style="background:#fef2f2;color:#dc2626;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">도전: 0.3↓이상</span>'
     + '</div>' : '')
+    + rangeButtons
     + '</div>'
-    + '<div style="max-height:480px;overflow-y:auto;">' + rows + '</div>'
+    + (allMerged.length ? '<div style="max-height:500px;overflow-y:auto;">' + rows + '</div>' : '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">해당 범위 내 데이터가 없습니다. 범위를 넓혀보세요.</div>')
     + '<div style="padding:7px 14px;background:#f8fafc;font-size:10px;color:#94a3b8;display:flex;gap:12px;flex-wrap:wrap;">'
     + '<span>📌 50컷 기준 정렬 · 정시 제외</span>'
-    + '<span>🟢 우리학교 합불 데이터 포함 ' + admMatched.length + '개 학과</span>'
+    + '<span>🟢 우리학교 합불 데이터 ' + admMatched.length + '개 학과</span>'
     + '<span>📋 입결컷 데이터 ' + cutMatched.length + '개 학과</span>'
     + '</div>'
     + '</div>';
