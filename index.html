@@ -643,8 +643,8 @@
     table.info td:first-child { width: 88px; }
 
     /* 차트 */
-    .chart-wrap { height: 180px; }
-    .grade-chart-wrap { min-height: 100px; }
+    .chart-wrap { height: 200px; }
+    .grade-chart-wrap { min-height: 200px !important; height: 200px; }
 
     /* 내신 모바일 - 표시 토글 */
     .m-show-on-mobile { display: block !important; }
@@ -702,30 +702,41 @@
     }
     /* 2) 등급 (가운데 크게) */
     .m-grade-num-row {
-      display: flex; align-items: baseline;
-      justify-content: center; gap: 5px;
-      padding: 6px 0;
-      background: #f8fafc; border-radius: 10px;
+      display: flex; align-items: center;
+      justify-content: center; gap: 6px;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: #f1f5f9; /* 기본 배경 (등급 없을 때) */
     }
+    /* 등급별 배경색 */
+    .m-grade-num-row:has(.grade-1) { background: #1d4ed8; }
+    .m-grade-num-row:has(.grade-2) { background: #2563eb; }
+    .m-grade-num-row:has(.grade-3) { background: #059669; }
+    .m-grade-num-row:has(.grade-4) { background: #0891b2; }
+    .m-grade-num-row:has(.grade-5) { background: #d97706; }
+    .m-grade-num-row:has(.grade-6) { background: #ea580c; }
+    .m-grade-num-row:has(.grade-7) { background: #dc2626; }
+    .m-grade-num-row:has(.grade-8) { background: #b91c1c; }
+    .m-grade-num-row:has(.grade-9) { background: #7f1d1d; }
     .m-grade-num {
-      font-size: 38px; font-weight: 900;
-      line-height: 1; color: #0f172a;
+      font-size: 40px; font-weight: 900;
+      line-height: 1; color: #fff;
       letter-spacing: -2px;
     }
     .m-grade-label {
-      font-size: 11px; color: #94a3b8;
+      font-size: 12px; color: rgba(255,255,255,.75);
       font-weight: 700; letter-spacing: 0.02em;
     }
-    /* 등급별 색상 */
-    .m-grade-num.grade-1 { color: #1d4ed8; }
-    .m-grade-num.grade-2 { color: #2563eb; }
-    .m-grade-num.grade-3 { color: #10b981; }
-    .m-grade-num.grade-4 { color: #14b8a6; }
-    .m-grade-num.grade-5 { color: #f59e0b; }
-    .m-grade-num.grade-6 { color: #f97316; }
-    .m-grade-num.grade-7 { color: #ef4444; }
-    .m-grade-num.grade-8 { color: #dc2626; }
-    .m-grade-num.grade-9 { color: #991b1b; }
+    /* 등급별 배경색 + 흰 숫자 */
+    .m-grade-num.grade-1 { color: #fff; }
+    .m-grade-num.grade-2 { color: #fff; }
+    .m-grade-num.grade-3 { color: #fff; }
+    .m-grade-num.grade-4 { color: #fff; }
+    .m-grade-num.grade-5 { color: #fff; }
+    .m-grade-num.grade-6 { color: #fff; }
+    .m-grade-num.grade-7 { color: #fff; }
+    .m-grade-num.grade-8 { color: #fff; }
+    .m-grade-num.grade-9 { color: #fff; }
 
     /* 3) 학점·원점수 등 정보 */
     .m-grade-info {
@@ -814,6 +825,10 @@
   body.is-mobile .mobile-bar { display: flex !important; }
   body.is-mobile .layout { flex-direction: column !important; }
   body.is-mobile main { overflow: hidden; }
+  /* 모바일 표시 토글 */
+  body.is-mobile .m-show-on-mobile { display: block !important; }
+  body.is-mobile .m-grade-cards { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  body.is-mobile .m-hide-on-mobile { display: none !important; }
 </style>
 </head>
 <body>
@@ -1757,25 +1772,33 @@ function drawGradeChart(data, semesters){
   const maxG = is9 ? 9 : (gradeScale === 9 ? 9 : 5);
 
   // 포인트 위에 등급 수치를 직접 그리는 인라인 플러그인
+  const isMobileCtx = isMobile();
   const dataLabelPlugin = {
     id: 'gradePointLabels',
     afterDatasetsDraw(chart){
       const { ctx } = chart;
+      const fontSize = isMobileCtx ? 15 : 12;
+      const boxH = isMobileCtx ? 22 : 16;
+      const gap  = isMobileCtx ? 28 : 22;
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((pt, pi) => {
           const raw = ds.data[pi];
           if(!raw || raw.y == null) return;
           ctx.save();
-          ctx.font = 'bold 12px -apple-system, sans-serif';
+          ctx.font = `bold ${fontSize}px -apple-system, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           const label = raw.y.toFixed(2);
           const tw = ctx.measureText(label).width;
-          ctx.fillStyle = 'rgba(255,255,255,0.85)';
-          ctx.fillRect(pt.x - tw/2 - 3, pt.y - 22, tw + 6, 16);
+          // 흰 배경 박스
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          const bx = pt.x - tw/2 - 5, by = pt.y - gap;
+          ctx.beginPath();
+          ctx.roundRect(bx, by, tw + 10, boxH, 5);
+          ctx.fill();
           ctx.fillStyle = ds.borderColor;
-          ctx.fillText(label, pt.x, pt.y - 8);
+          ctx.fillText(label, pt.x, pt.y - (gap - boxH + 2));
           ctx.restore();
         });
       });
@@ -1786,7 +1809,7 @@ function drawGradeChart(data, semesters){
   if(!hasFilter){
     datasets.push({
       label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
-      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      tension: 0.3, pointRadius: isMobileCtx?8:6, pointHoverRadius: isMobileCtx?10:8, pointBackgroundColor: mainColor,
       fill: true, spanGaps: true
     });
   } else {
@@ -1794,7 +1817,7 @@ function drawGradeChart(data, semesters){
       label: [...selectedSubjectFilters].join('+'),
       data: toXY(filtAvgs),
       borderColor: mainColor, backgroundColor: mainColor+'22',
-      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      tension: 0.3, pointRadius: isMobileCtx?8:6, pointHoverRadius: isMobileCtx?10:8, pointBackgroundColor: mainColor,
       fill: true, spanGaps: true
     });
   }
@@ -1808,7 +1831,7 @@ function drawGradeChart(data, semesters){
     data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: is9 ? 28 : 18 } },
+      layout: { padding: { top: isMobileCtx ? (is9?38:28) : (is9?28:18), left:4, right:4 } },
       plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
         subtitle:{
@@ -1825,7 +1848,7 @@ function drawGradeChart(data, semesters){
           afterBuildTicks: axis => {
             axis.ticks = Array.from({length: maxG}, (_, i) => ({ value: i + 1 }));
           },
-          ticks:{ callback: v => v+'등급', font:{size:11} },
+          ticks:{ callback: v => v+'등급', font:{size: isMobileCtx?13:11, weight:'600'} },
           grid:{ color:'#f1f5f9' }
         },
         x:{
@@ -1836,7 +1859,7 @@ function drawGradeChart(data, semesters){
               return idx >= 0 ? semLabels[idx] : '';
             },
             stepSize: null, includeBounds: false,
-            font: { size: 11 }, maxTicksLimit: n + 2, autoSkip: false
+            font: { size: isMobileCtx?12:11 }, maxTicksLimit: n + 2, autoSkip: false
           },
           afterBuildTicks: axis => { axis.ticks = xPos.map(v => ({ value: v })); },
           grid:{ display: false }
@@ -1895,7 +1918,12 @@ function renderSemesterBlock(sem, semData){
   const mobileCards = subjectData.map(({s, g, estTag})=>{
     const gradeClass = g!=null ? 'grade-'+g : '';
     const gDisplay = g!=null ? g : '-';
-    const 석차 = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : null;
+    // 석차/수강자수: 동석차자수가 있으면 "석차/수강자수" 형식 (중복 없이)
+    const 석차Raw = (showRankCol && s.석차 && s.수강자수)
+      ? `${s.석차}/${s.수강자수}`
+      : null;
+    // 석차 문자열에서 중복 숫자 제거 (예: 36/245/245 → 36/245)
+    const 석차 = 석차Raw ? 석차Raw.replace(/(\/\d+)\1+$/, '$1') : null;
     return `<div class="m-grade-card">
       <!-- 1) 과목명 (상단) -->
       <div class="m-grade-head">
