@@ -658,12 +658,12 @@
     .grade-avg-big .avg-filter { font-size: 12px !important; }
 
     /* 필터 버튼 (교과 선택) */
-    .toggle-btn { font-size: 13px !important; padding: 7px 13px !important; }
-    .filter-label { font-size: 13px !important; }
+    .toggle-btn { font-size: 15px !important; padding: 8px 14px !important; }
+    .filter-label { font-size: 15px !important; font-weight: 700 !important; }
 
     /* 차트 (학기별 추이) */
     .chart-wrap, .grade-chart-wrap { padding: 8px 4px; }
-    .grade-chart-title { font-size: 16px !important; font-weight: 800 !important; }
+    .grade-chart-title { font-size: 20px !important; font-weight: 900 !important; }
 
     /* 내신 카드 - 4열 그리드 */
     .m-grade-cards {
@@ -689,6 +689,13 @@
     .m-grade-card.grade-7 { background: linear-gradient(160deg,#9a3412,#f97316); } /* 주황 — C+ */
     .m-grade-card.grade-8 { background: linear-gradient(160deg,#991b1b,#ef4444); } /* 빨강 — C0 */
     .m-grade-card.grade-9 { background: linear-gradient(160deg,#7f1d1d,#b91c1c); } /* 진빨강 — D */
+
+    /* 5등급제 카드 색상 (1~5등급을 골고루) */
+    .m-grade-card.grade5-1 { background: linear-gradient(160deg,#3730a3,#4f46e5); } /* 인디고 */
+    .m-grade-card.grade5-2 { background: linear-gradient(160deg,#065f46,#10b981); } /* 에메랄드 */
+    .m-grade-card.grade5-3 { background: linear-gradient(160deg,#0e7490,#06b6d4); } /* 하늘 */
+    .m-grade-card.grade5-4 { background: linear-gradient(160deg,#9a3412,#f97316); } /* 주황 */
+    .m-grade-card.grade5-5 { background: linear-gradient(160deg,#991b1b,#ef4444); } /* 빨강 */
 
     /* 과목명 */
     .m-grade-head {
@@ -1919,7 +1926,8 @@ function renderSemesterBlock(sem, semData){
 
   // 모바일: 카드 (4열 그리드, 전체 배경색)
   const mobileCards = subjectData.map(({s, g, estTag})=>{
-    const gradeClass = g!=null ? 'grade-'+g : '';
+    // 5등급제: grade-5-1 ~ grade-5-5 클래스 사용 (9등급제는 grade-1~9)
+    const gradeClass = g!=null ? (semIs9 ? 'grade-'+g : 'grade5-'+g) : '';
     const gDisplay = g!=null ? g : '-';
     const 석차Raw = (showRankCol && s.석차 && s.수강자수)
       ? `${s.석차}/${s.수강자수}`.replace(/(\/\d+)\1+$/, '$1')
@@ -5596,7 +5604,7 @@ function renderMajorAdmissions() {
       else                  { badge='도전'; badgeBg='#fef2f2'; badgeColor='#dc2626'; }
     }
     const badgeHtml = badge
-      ? '<span style="flex-shrink:0;font-size:11px;font-weight:800;background:' + badgeBg + ';color:' + badgeColor + ';padding:3px 8px;border-radius:6px;min-width:32px;text-align:center;">' + badge + '</span>'
+      ? '<span style="flex-shrink:0;font-size:14px;font-weight:800;background:' + badgeBg + ';color:' + badgeColor + ';padding:4px 10px;border-radius:6px;min-width:38px;text-align:center;">' + badge + '</span>'
       : '<span style="flex-shrink:0;min-width:40px;"></span>';
 
     const cut50 = r.cut50_2026 || r.cut50_2025 || r.cut50_2024;
@@ -5610,8 +5618,8 @@ function renderMajorAdmissions() {
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #f8fafc;">'
       + badgeHtml
       + '<div style="flex:1;min-width:0;">'
-      + '<div style="font-size:13px;font-weight:800;color:#0f172a;">' + escapeHtml(r['대학']||'-')
-      + ' <span style="font-size:11px;font-weight:500;color:#475569;">' + escapeHtml(r['모집단위']||'') + '</span></div>'
+      + '<div style="font-size:17px;font-weight:900;color:#0f172a;">' + escapeHtml(r['대학']||'-')
+      + ' <span style="font-size:14px;font-weight:500;color:#475569;">' + escapeHtml(r['모집단위']||'') + '</span></div>'
       + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;align-items:center;">'
       + (r['전형'] ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:1px 6px;border-radius:4px;">' + escapeHtml(r['전형']) + ' ' + escapeHtml(r['세부전형명']||'') + '</span>' : '')
       + (r['지역'] ? '<span style="font-size:10px;color:#94a3b8;">' + escapeHtml(r['지역']) + '</span>' : '')
@@ -5619,7 +5627,7 @@ function renderMajorAdmissions() {
       + '</div>'
       + '</div>'
       + '<div style="flex-shrink:0;text-align:right;min-width:72px;">'
-      + (cut50 ? '<div style="font-size:17px;font-weight:900;color:#1e293b;">' + cut50.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;font-weight:400;">' + cutYear + ' 50컷</span></div>' : (admAvg ? '<div style="font-size:15px;font-weight:700;color:#64748b;">' + admAvg.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;">합격평균</span></div>' : ''))
+      + (cut50 ? '<div style="font-size:22px;font-weight:900;color:#1e293b;">' + cut50.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;font-weight:400;">' + cutYear + ' 50컷</span></div>' : (admAvg ? '<div style="font-size:15px;font-weight:700;color:#64748b;">' + admAvg.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;">합격평균</span></div>' : ''))
       + (cut70 ? '<div style="font-size:11px;color:#94a3b8;">70컷 ' + cut70.toFixed(2) + '</div>' : '')
       + (r['경쟁률'] ? '<div style="font-size:10px;color:#94a3b8;">경쟁률 ' + parseFloat(r['경쟁률']).toFixed(1) + '</div>' : '')
       + '</div>'
@@ -5632,7 +5640,7 @@ function renderMajorAdmissions() {
   // 범위 조정 버튼
   const rangeButtons =
     '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;">'
-    + '<span style="font-size:11px;color:#64748b;font-weight:600;">표시 범위:</span>'
+    + '<span style="font-size:14px;color:#64748b;font-weight:700;">표시 범위:</span>'
     + [
         {label:'좁게 (±0.5)', a:0.5, b:0.5},
         {label:'보통 (±1.0)', a:1.0, b:0.8},
@@ -5641,7 +5649,7 @@ function renderMajorAdmissions() {
       ].map(opt => {
         const isActive = (_admRangeAbove===opt.a && _admRangeBelow===opt.b);
         return '<button onclick="_admRangeAbove=' + opt.a + ';_admRangeBelow=' + opt.b + ';renderTab();" '
-          + 'style="font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1.5px solid '
+          + 'style="font-size:14px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1.5px solid '
           + (isActive ? '#6366f1;background:#6366f1;color:#fff' : '#e2e8f0;background:#fff;color:#475569')
           + ';font-weight:' + (isActive ? '700' : '500') + ';">'
           + opt.label + '</button>';
@@ -5650,7 +5658,7 @@ function renderMajorAdmissions() {
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">'
     + '<button onclick="_admShowOurSchoolOnly=!' + '_admShowOurSchoolOnly;renderTab();" '
-    + 'style="font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1.5px solid '
+    + 'style="font-size:14px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1.5px solid '
     + (_admShowOurSchoolOnly ? '#10b981;background:#10b981;color:#fff;font-weight:700' : '#e2e8f0;background:#fff;color:#475569;font-weight:500')
     + ';">🟢 우리학교 합불자료 있는 곳만</button>'
     + '<span style="font-size:10px;color:#94a3b8;">(' + admMatched.length + '개 학과 보유)</span>'
@@ -5660,16 +5668,16 @@ function renderMajorAdmissions() {
     + '<div style="padding:13px 16px 10px;border-bottom:1px solid #f1f5f9;">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
     + '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<span style="font-size:15px;font-weight:800;color:#1e293b;">📊 희망전공 합불 현황</span>'
+    + '<span style="font-size:22px;font-weight:900;color:#1e293b;">📊 희망전공 합불 현황</span>'
     + '<span style="font-size:11px;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:6px;font-weight:600;">' + escapeHtml(major||career) + '</span>'
     + '</div>'
-    + '<span style="font-size:12px;font-weight:700;color:#2563eb;">내 내신 ' + myAvgText + '</span>'
+    + '<span style="font-size:16px;font-weight:800;color:#2563eb;">내 내신 ' + myAvgText + '</span>'
     + '</div>'
     + (myAvg != null ? '<div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;">'
-    + '<span style="background:#dbeafe;color:#1d4ed8;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">안정: 50컷+0.3↑</span>'
-    + '<span style="background:#dcfce7;color:#15803d;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">적정: ±0.3</span>'
-    + '<span style="background:#fef9c3;color:#92400e;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">소신: 0~0.3↓</span>'
-    + '<span style="background:#fef2f2;color:#dc2626;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:700;">도전: 0.3↓이상</span>'
+    + '<span style="background:#dbeafe;color:#1d4ed8;font-size:13px;padding:3px 9px;border-radius:4px;font-weight:700;">안정: 50컷+0.3↑</span>'
+    + '<span style="background:#dcfce7;color:#15803d;font-size:13px;padding:3px 9px;border-radius:4px;font-weight:700;">적정: ±0.3</span>'
+    + '<span style="background:#fef9c3;color:#92400e;font-size:13px;padding:3px 9px;border-radius:4px;font-weight:700;">소신: 0~0.3↓</span>'
+    + '<span style="background:#fef2f2;color:#dc2626;font-size:13px;padding:3px 9px;border-radius:4px;font-weight:700;">도전: 0.3↓이상</span>'
     + '</div>' : '')
     + rangeButtons
     + '</div>'
