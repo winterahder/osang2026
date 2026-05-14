@@ -1632,6 +1632,31 @@ function renderGrades(el){
   }
 }
 
+function getActiveSubjectFilter(){
+  // 선택된 교과들로부터 실제 교과명 배열 반환
+  if(selectedSubjectFilters.size===0) return null; // 전체
+  let result = [];
+  selectedSubjectFilters.forEach(k=>{
+    if(k==='기타') return; // 기타는 별도 처리
+    const arr = SUBJECT_FILTER_MAP[k];
+    if(arr) result = result.concat(arr);
+  });
+  return result.length > 0 ? result : null;
+}
+
+function isSubjectInFilter(subj){
+  if(selectedSubjectFilters.size===0) return subj.등급!=null; // 전체: 등급 있는 과목만
+  const group = getSubjectGroup(subj.교과||'');
+  for(const k of selectedSubjectFilters){
+    if(k==='기타'){
+      if(group==='기타' && subj.등급!=null) return true;
+    } else {
+      if(group===k) return true;
+    }
+  }
+  return false;
+}
+
 function renderGradeFilterSummary(data, semesters){
   const filter = getActiveSubjectFilter();
   const filterLabel = selectedSubjectFilters.size===0 ? '전체' : [...selectedSubjectFilters].join('+');
@@ -5495,18 +5520,18 @@ function renderMajorAdmissions() {
       // diff = passAvg - myAvg
       // diff > 0 → 합격평균이 내 내신보다 높음 → 내가 더 좋음 → 안정
       // diff < 0 → 합격평균이 내 내신보다 낮음 → 내가 더 나쁨 → 도전
-      let badge = '', badgeBg = '';
+      let badge = '', badgeBg = '', badgeColor = '';
       if(myAvg && !isNaN(passAvg)){
         const diff = passAvg - myAvg;
-        if(diff >= 0.3)       { badge='안정'; badgeBg='#dbeafe;color:#1d4ed8'; }
-        else if(diff >= 0)    { badge='적정'; badgeBg='#dcfce7;color:#15803d'; }
-        else if(diff >= -0.3) { badge='소신'; badgeBg='#fef9c3;color:#92400e'; }
-        else                  { badge='도전'; badgeBg='#fef2f2;color:#dc2626'; }
+        if(diff >= 0.3)       { badge='안정'; badgeBg='#dbeafe'; badgeColor='#1d4ed8'; }
+        else if(diff >= 0)    { badge='적정'; badgeBg='#dcfce7'; badgeColor='#15803d'; }
+        else if(diff >= -0.3) { badge='소신'; badgeBg='#fef9c3'; badgeColor='#92400e'; }
+        else                  { badge='도전'; badgeBg='#fef2f2'; badgeColor='#dc2626'; }
       }
 
       return `
         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f8fafc;">
-          ${badge ? `<span style="flex-shrink:0;font-size:10px;font-weight:800;background:${badgeBg};padding:2px 7px;border-radius:6px;">${badge}</span>` : ''}
+          ${badge ? `<span style="flex-shrink:0;font-size:11px;font-weight:800;background:${badgeBg};color:${badgeColor};padding:3px 8px;border-radius:6px;">${badge}</span>` : ''}
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r['대학명']||'-')}</div>
             <div style="font-size:11px;color:#64748b;margin-top:1px;">
