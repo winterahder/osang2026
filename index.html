@@ -15,7 +15,29 @@
 <script src="https://accounts.google.com/gsi/client" async defer onload="window._googleGsiLoaded=true"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* 모바일 타이포 시스템 */
+    --m-title:    16px;   /* 학생 이름, 큰 제목 */
+    --m-section:  15px;   /* 섹션 제목 (학기 등) */
+    --m-body:     14px;   /* 일반 본문 */
+    --m-meta:     12px;   /* 메타 정보, 회색 텍스트 */
+    --m-tiny:     11px;   /* 뱃지, 라벨 */
+    --m-num-big:  28px;   /* 큰 숫자 (평균, 점수) */
+    --m-num-mid:  20px;   /* 중간 숫자 (등급) */
+    /* 색상 */
+    --m-text:     #0f172a;
+    --m-text-sub: #64748b;
+    --m-text-lt:  #94a3b8;
+    --m-border:   #e5e7eb;
+    --m-border-l: #f1f5f9;
+    --m-bg:       #ffffff;
+    --m-bg-soft:  #f8fafc;
+  }
   body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f5f6fa; color: #222; font-size: 14px; }
+
+  /* 데스크탑/모바일 토글 (기본은 데스크탑) */
+  .m-show-on-mobile { display: none; }
+  .m-hide-on-mobile { display: table; }
   /* ===== 구글 로그인 화면 ===== */
   #lockScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
   #lockScreen.hidden { display: none; }
@@ -623,9 +645,69 @@
     .chart-wrap { height: 180px; }
     .grade-chart-wrap { min-height: 100px; }
 
+    /* 내신 모바일 - 표시 토글 */
+    .m-show-on-mobile { display: block !important; }
+    .m-hide-on-mobile { display: none !important; }
+
     /* 내신 */
     .grade-summary-panel { grid-template-columns: 1fr; }
     .grade-avg-big .avg-val { font-size: 40px; }
+
+    /* 내신 카드형 */
+    .m-grade-cards { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+    .m-grade-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 13px;
+      background: #fff; border: 1px solid #f1f5f9;
+      border-radius: 10px;
+    }
+    .m-grade-card-left { flex: 1; min-width: 0; }
+    .m-grade-subj-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+    .m-grade-cat {
+      font-size: 10px; font-weight: 700;
+      color: #6366f1; background: #eef2ff;
+      padding: 2px 6px; border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .m-grade-subj { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .m-grade-meta {
+      font-size: 11px; color: #94a3b8; line-height: 1.5;
+      display: flex; flex-wrap: wrap; gap: 0 2px;
+    }
+    .m-grade-meta b { color: #475569; font-weight: 700; }
+    .m-grade-rank {
+      font-size: 10.5px; color: #64748b; margin-top: 3px;
+      font-weight: 600;
+    }
+    .m-grade-card-right {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-width: 50px; flex-shrink: 0;
+      padding-left: 8px;
+      border-left: 1px solid #f1f5f9;
+    }
+    .m-grade-num {
+      font-size: 26px; font-weight: 900; line-height: 1;
+      color: #0f172a; letter-spacing: -1px;
+    }
+    .m-grade-label {
+      font-size: 9px; color: #cbd5e1; font-weight: 700;
+      letter-spacing: 0.04em; margin-top: 2px;
+    }
+    /* 등급별 색상 */
+    .m-grade-num.grade-1 { color: #1d4ed8; }
+    .m-grade-num.grade-2 { color: #2563eb; }
+    .m-grade-num.grade-3 { color: #10b981; }
+    .m-grade-num.grade-4 { color: #14b8a6; }
+    .m-grade-num.grade-5 { color: #f59e0b; }
+    .m-grade-num.grade-6 { color: #f97316; }
+    .m-grade-num.grade-7 { color: #ef4444; }
+    .m-grade-num.grade-8 { color: #dc2626; }
+    .m-grade-num.grade-9 { color: #991b1b; }
+
+    /* 학기 제목 */
+    .semester-block { margin-bottom: 18px; }
+    .semester-title { font-size: 14px; font-weight: 800; color: #0f172a; padding: 0 4px 8px; }
+    .semester-meta { display: block; margin-top: 3px; font-size: 11.5px; color: #64748b; font-weight: 500; }
 
     /* 세특 */
     .acc-left { max-width: 100%; padding-right: 4px; }
@@ -1716,7 +1798,7 @@ function renderSemesterBlock(sem, semData){
   const subjects = semData.subjects || [];
   const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
   const filter = getActiveSubjectFilter();
-  const semIs9 = isSem9Grade(currentStu, semData); // 이 학기의 등급제
+  const semIs9 = isSem9Grade(currentStu, semData);
   let semCredit=0, semWeighted=0;
   subjects.forEach(s=>{
     let g;
@@ -1725,9 +1807,11 @@ function renderSemesterBlock(sem, semData){
     if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; }
   });
   const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
-  const rows = subjects.map(s=>{
-    if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return '';
-    if(selectedSubjectFilters.size === 0 && s.등급 == null) return '';
+
+  // 과목별 데이터 가공
+  const subjectData = subjects.map(s=>{
+    if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return null;
+    if(selectedSubjectFilters.size === 0 && s.등급 == null) return null;
     let g, estTag = '';
     if(semIs9){
       g = s.등급;
@@ -1741,16 +1825,59 @@ function renderSemesterBlock(sem, semData){
         g = s.등급;
       }
     }
+    return { s, g, estTag };
+  }).filter(Boolean);
+
+  // 데스크탑: 테이블 그대로
+  const rows = subjectData.map(({s, g, estTag})=>{
     const gradeClass = g!=null ? 'grade-'+g : '';
     const showRankCol = semIs9 || gradeScale===9;
     const rankCell = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
     const gDisplay = g!=null ? g : '-';
     return `<tr><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${gDisplay}${estTag}</td><td>${rankCell}</td></tr>`;
   }).join('');
+
+  // 모바일 카드형
+  const showRankCol = semIs9 || gradeScale===9;
+  const mobileCards = subjectData.map(({s, g, estTag})=>{
+    const gradeClass = g!=null ? 'grade-'+g : '';
+    const gDisplay = g!=null ? g : '-';
+    const 석차 = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : null;
+    return `<div class="m-grade-card">
+      <div class="m-grade-card-left">
+        <div class="m-grade-subj-row">
+          <span class="m-grade-cat">${s.교과||'-'}</span>
+          <span class="m-grade-subj">${s.과목}</span>
+        </div>
+        <div class="m-grade-meta">
+          <span>${s.학점||'-'}학점</span>
+          ${s.원점수!=null?`<span>· 원점수 <b>${s.원점수}</b></span>`:''}
+          ${s.과목평균!=null?`<span>· 평균 ${s.과목평균}</span>`:''}
+          ${s.성취도?`<span>· ${s.성취도}</span>`:''}
+        </div>
+        ${석차?`<div class="m-grade-rank">📊 석차 ${석차}</div>`:''}
+      </div>
+      <div class="m-grade-card-right">
+        <div class="m-grade-num ${gradeClass}">${gDisplay}</div>
+        <div class="m-grade-label">등급</div>
+        ${estTag}
+      </div>
+    </div>`;
+  }).join('');
+
   const scaleTag = semIs9
     ? ' <span style="color:#9333ea;font-weight:600;">[9등급]</span>'
     : (gradeScale===9 ? ' <span style="color:#9333ea;font-weight:600;">[9등급환산]</span>' : '');
-  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+
+  return `<div class="semester-block">
+    <div class="semester-title">📚 ${semLabel}
+      <span class="semester-meta">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span>
+    </div>
+    <!-- 데스크탑 테이블 -->
+    <table class="grade m-hide-on-mobile"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table>
+    <!-- 모바일 카드 -->
+    <div class="m-grade-cards m-show-on-mobile">${mobileCards}</div>
+  </div>`;
 }
 
 // ========== 세특 요약 렌더링 ==========
