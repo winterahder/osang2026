@@ -145,6 +145,8 @@
   .overall-eval-header-title { font-size: 15px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px; }
   .overall-eval-scope { font-size: 12px; color: #94a3b8; font-weight: 500; background: #f1f5f9; padding: 3px 10px; border-radius: 20px; }
   .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: stretch; }
+  @media(max-width: 860px){ .overall-eval-grid { grid-template-columns: 1fr; } }
+  @media(max-width: 860px){ .eval-radar-grid { grid-template-columns: 1fr !important; } .eval-gauge-col,.eval-radar-canvas-box { width:100% !important; height:auto !important; } }
 
   /* 역량 카드 — 등급별 배경색 */
   .overall-eval-group { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); transition: box-shadow .2s; border: none; }
@@ -979,74 +981,64 @@ async function apiPost(body, timeoutMs = 20000){
 // ========== 구글 로그인 ==========
 const SESSION_KEY = 'osh_google_session';
 
-// ── Google 로그인 처리 (팝업 없이 리다이렉트 방식 — PC/모바일 통일) ──
-async function processGoogleToken(accessToken){
-  googleToken = accessToken;
-  document.getElementById('lockSpinner').classList.add('show');
-  document.getElementById('lockError').textContent = '';
-  try {
-    const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    }).then(r => r.json());
-
-    const email = userInfo.email;
-    if(!email || !email.endsWith('@osang.hs.kr')) {
-      document.getElementById('lockSpinner').classList.remove('show');
-      showLockError('오상고 계정(@osang.hs.kr)만 접속 가능합니다.');
-      return;
-    }
-    currentEmail = email;
-
-    const result = await apiGet({ action: 'checkEmail', email });
-
-    if(result.role === 'pending') {
-      document.getElementById('lockSpinner').classList.remove('show');
-      document.getElementById('lockError').innerHTML =
-        '<div class="pending-box">⏳ <strong>승인 대기 중</strong><br>' + email + '<br>관리자가 역할을 지정하면 접속 가능합니다.</div>';
-      return;
-    }
-
-    currentRole = result.role;
-    currentPassword = result.token;
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp: 9999999999999 }));
-
-    await init(result.token);
-    document.getElementById('lockScreen').classList.add('hidden');
-    showLogoutBtn(email);
-
-  } catch(e) {
-    document.getElementById('lockSpinner').classList.remove('show');
-    showLockError('오류: ' + e.message);
-  }
-}
-
 function handleGoogleLogin() {
-  // 팝업 없이 리다이렉트 방식으로 통일 (모바일/PC 모두 동작)
-  const redirectUri = location.origin + location.pathname.replace(/\/$/, '') + '/';
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'token',
-    scope: 'email profile',
-    include_granted_scopes: 'true',
-    prompt: 'select_account',
-  });
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-}
-
-// ── 리다이렉트 후 URL 해시에서 access_token 자동 처리 ──
-(function handleRedirectCallback(){
-  if(!location.hash) return;
-  const params = new URLSearchParams(location.hash.slice(1));
-  const token = params.get('access_token');
-  if(!token) return;
-  history.replaceState(null, '', location.pathname); // URL에서 토큰 제거
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', () => processGoogleToken(token), { once: true });
-  } else {
-    processGoogleToken(token);
+  if(typeof google === 'undefined' || !google?.accounts?.oauth2){
+    showLockError('구글 로그인 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    return;
   }
-})();
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'email profile',
+    callback: async (resp) => {
+      if(resp.error) { showLockError('로그인 실패: ' + resp.error); return; }
+      googleToken = resp.access_token;
+      document.getElementById('lockSpinner').classList.add('show');
+      document.getElementById('lockError').textContent = '';
+      try {
+        // 구글에서 이메일 가져오기
+        const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + googleToken }
+        }).then(r => r.json());
+
+        const email = userInfo.email;
+        if(!email.endsWith('@osang.hs.kr')) {
+          document.getElementById('lockSpinner').classList.remove('show');
+          showLockError('오상고 계정(@osang.hs.kr)만 접속 가능합니다.');
+          return;
+        }
+        currentEmail = email;
+
+        // Apps Script에 이메일로 역할 조회 (없으면 자동 가입)
+        const result = await apiGet({ action: 'checkEmail', email });
+
+        if(result.role === 'pending') {
+          document.getElementById('lockSpinner').classList.remove('show');
+          document.getElementById('lockError').innerHTML =
+            '<div class="pending-box">⏳ <strong>승인 대기 중</strong><br>' + email + '<br>관리자가 역할을 지정하면 접속 가능합니다.</div>';
+          return;
+        }
+
+        currentRole = result.role;
+        currentPassword = result.token; // 앱스스크립트용 임시 토큰
+
+        // 세션 저장
+        const exp = Date.now() + 8 * 60 * 60 * 1000; // 8시간
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role: result.role, token: result.token, exp: 9999999999999 })); // 로그아웃 전까지 유지
+
+        await init(result.token);
+        document.getElementById('lockScreen').classList.add('hidden');
+
+        // 로그아웃 버튼 표시
+        showLogoutBtn(email);
+
+      } catch(e) {
+        document.getElementById('lockSpinner').classList.remove('show');
+        showLockError('오류: ' + e.message);
+      }
+    }
+  });
+  client.requestAccessToken();
+}
 
 function showLockError(msg) {
   document.getElementById('lockError').innerHTML = msg;
@@ -3575,23 +3567,22 @@ function renderCompEvalTab(el){
     || (g2hak ? evalData[g2hak]?.맞춤활동추천 : null) || null;
 
   el.innerHTML = `<div class="card" style="padding:16px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-      <button onclick="printCompEval()" class="print-no" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;"
-        onmouseover="this.style.background='#eff6ff';this.style.borderColor='#6366f1';this.style.color='#6366f1';"
-        onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#475569';">
-        🖨️ 종합역량평가 인쇄
-      </button>
-    </div>
     <div id="evalRadarArea"></div>
     <div id="evalGradeTrendArea"></div>
     <div id="evalSwotArea"></div>
-    ${renderCompEvalPanel(eval_)}
     ${decompData ? renderIndexDecompSection(decompData) : ''}
     ${recData ? renderIndexRecSection(recData) : ''}
   </div>`;
 
   requestAnimationFrame(() => {
     drawEvalRadar(eval_, document.getElementById('evalRadarArea'));
+    // 레이더 아래에 종합역량평가 패널 삽입
+    const radArea = document.getElementById('evalRadarArea');
+    if(radArea){
+      const panelDiv = document.createElement('div');
+      panelDiv.innerHTML = renderCompEvalPanel(eval_);
+      radArea.after(panelDiv);
+    }
     drawGradeTrend(document.getElementById('evalGradeTrendArea'));
     renderSwotSection(hak, eval_, document.getElementById('evalSwotArea'));
   });
@@ -3611,7 +3602,7 @@ function drawEvalRadar(eval_, container){
     '학업역량':  {icon:'📚',color:'#6366f1',bg:'rgba(99,102,241,.08)',barColor:'#818cf8',
       subs:[['성취도','학업성취도'],['태도','학업태도'],['탐구력','탐구력']]},
     '진로역량':  {icon:'🎯',color:'#f59e0b',bg:'rgba(245,158,11,.08)',barColor:'#fbbf24',
-      subs:[['전공적합','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
+      subs:[['교과이수','전공관련교과이수'],['교과성취','전공관련교과성취도'],['진로탐색','진로탐색활동']]},
     '공동체역량':{icon:'🤝',color:'#10b981',bg:'rgba(16,185,129,.08)',barColor:'#34d399',
       subs:[['협업','협업소통'],['나눔','나눔배려'],['성실','성실규칙준수'],['리더십','리더십']]}
   };
@@ -3619,7 +3610,8 @@ function drawEvalRadar(eval_, container){
     {label:'학업성취도',grp:'학업역량',  sub:'학업성취도'},
     {label:'학업태도',  grp:'학업역량',  sub:'학업태도'},
     {label:'탐구력',    grp:'학업역량',  sub:'탐구력'},
-    {label:'전공적합성',grp:'진로역량',  sub:'전공관련교과성취도'},
+    {label:'교과이수',  grp:'진로역량',  sub:'전공관련교과이수'},
+    {label:'교과성취도',grp:'진로역량',  sub:'전공관련교과성취도'},
     {label:'진로탐색',  grp:'진로역량',  sub:'진로탐색활동'},
     {label:'협업·소통', grp:'공동체역량',sub:'협업소통'},
     {label:'나눔·배려', grp:'공동체역량',sub:'나눔배려'},
@@ -3631,11 +3623,11 @@ function drawEvalRadar(eval_, container){
   function gColor(g){return GC[g||'-']||'#cbd5e1';}
   function gPct(g){return GN[g]||16;}
 
-  // 종합 점수
+  // 종합 점수 — admin이 저장한 값 우선, 없으면 계산
   const grps=Object.keys(GRP);
-  const grpScores=grps.map(k=>GN[eval_[k]?.grade]||0);
-  const total=Math.round(grpScores.reduce((a,b)=>a+b,0)/grps.length);
-  const overallGrade=total>=83?'A':total>=66?'B':total>=50?'C':'D';
+  const total = eval_.종합점수 != null ? Math.round(eval_.종합점수) :
+    Math.round(grps.map(k=>GN[eval_[k]?.grade]||0).reduce((a,b)=>a+b,0)/grps.length);
+  const overallGrade = eval_.종합등급 || (total>=97?'A+':total>=91?'A0':total>=84?'A-':total>=78?'B+':total>=72?'B0':total>=66?'B-':total>=60?'C+':total>=54?'C0':total>=48?'C-':'D');
   const color=GC[overallGrade]||'#64748b';
 
   // 게이지 SVG
@@ -3680,6 +3672,9 @@ function drawEvalRadar(eval_, container){
     `<span class="radar-hint-grade" style="background:${GC[g]}18;color:${gColor(g)}">${g}</span>`
   ).join('');
 
+  const 진로Val = currentStu?.진로 || currentStu?.career || '미입력';
+  const 전공Val = currentStu?.전공 || currentStu?.major  || '미입력';
+
   container.innerHTML=`
     <div class="eval-radar-card">
       <div class="eval-radar-card-header">
@@ -3687,6 +3682,28 @@ function drawEvalRadar(eval_, container){
           <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:inline-block;"></span>
           역량 레이더
           <span class="radar-card-badge">종합역량 프로필</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <!-- 진로/전공 표시 -->
+          <div id="careerDisplay" style="display:flex;align-items:center;gap:5px;font-size:12px;padding:5px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+            <span style="color:#94a3b8;font-weight:500;">희망진로</span>
+            <span id="careerVal" style="font-weight:700;color:#1e293b;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(진로Val)}">${escapeHtml(진로Val)}</span>
+            <span style="color:#e2e8f0;margin:0 2px;">|</span>
+            <span style="color:#94a3b8;font-weight:500;">희망전공</span>
+            <span id="majorVal" style="font-weight:700;color:#1e293b;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(전공Val)}">${escapeHtml(전공Val)}</span>
+          </div>
+          <!-- 수정 버튼 -->
+          <button onclick="openCareerEditModal()" class="print-no"
+            style="display:flex;align-items:center;gap:4px;padding:5px 11px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;font-size:12px;font-weight:600;color:#16a34a;cursor:pointer;white-space:nowrap;">
+            ✏️ 수정
+          </button>
+          <!-- 인쇄 버튼 -->
+          <button onclick="printCompEval()" class="print-no"
+            style="display:flex;align-items:center;gap:5px;padding:5px 14px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap;"
+            onmouseover="this.style.background='#eff6ff';this.style.borderColor='#6366f1';this.style.color='#6366f1';"
+            onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#475569';">
+            🖨️ 종합역량평가 인쇄
+          </button>
         </div>
       </div>
       <div class="eval-radar-grid">
@@ -3943,61 +3960,115 @@ function buildSwotHTML(swot){
 // ========== 종합 역량 평가 패널 (내신+세특+창체+행발 종합) ==========
 function renderCompEvalPanel(eval_){
   if(!eval_) return '';
-  const GC={'A+':'#4f46e5','A0':'#10b981','A-':'#34d399','B+':'#06b6d4','B0':'#0891b2','B-':'#0e7490','C+':'#f59e0b','C0':'#d97706','C-':'#b45309','D':'#ef4444','S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b'};
-  const BGC={'A+':'#ede9fe','A0':'#e0f2fe','A-':'#dcfce7','B+':'#e0f2fe','B0':'#dbeafe','B-':'#e0e7ff','C+':'#fef9c3','C0':'#fef3c7','C-':'#fde68a','D':'#fee2e2','S':'#ede9fe','A':'#e0f2fe','B':'#dcfce7','C':'#fef9c3'};
-  const pid=`cp-${Math.random().toString(36).slice(2,6)}`;
+  const GC  = {'A+':'#4f46e5','A0':'#10b981','A-':'#059669','B+':'#06b6d4','B0':'#0891b2','B-':'#0e7490','C+':'#f59e0b','C0':'#d97706','C-':'#b45309','D':'#ef4444','S':'#6366f1','A':'#10b981','B':'#06b6d4','C':'#f59e0b'};
+  const BGC = {'A+':'#ede9fe','A0':'#d1fae5','A-':'#d1fae5','B+':'#e0f2fe','B0':'#dbeafe','B-':'#e0e7ff','C+':'#fef9c3','C0':'#fef3c7','C-':'#fde68a','D':'#fee2e2','S':'#ede9fe','A':'#d1fae5','B':'#e0f2fe','C':'#fef9c3'};
+  const pid = `cp-${Math.random().toString(36).slice(2,6)}`;
 
-  const subItems=(items)=>items.map(([label,key,grp])=>{
-    const d=eval_[grp]?.[key]; if(!d) return '';
-    return `<div class="overall-sub-row"><span class="overall-sub-name">${label}</span><span class="overall-sub-grade" style="color:${GC[d.grade]||'#94a3b8'}">${dispGrade(d.grade)}</span></div>`;
+  const totalGrade  = eval_.종합등급 || null;
+  const totalScore  = eval_.종합점수 ?? null;
+  const bannerColor = GC[totalGrade] || '#6d28d9';
+  const bannerBg    = BGC[totalGrade] || '#f5f3ff';
+
+  // 그룹별 카드 — 서브항목 정의 (데이터 키와 완전 일치)
+  const GROUPS = [
+    { key:'학업역량',  icon:'📚', color:'#6366f1', label:'학업역량',
+      subs:[ ['학업성취도','학업성취도'], ['학업태도','학업태도'], ['탐구력','탐구력'] ] },
+    { key:'진로역량',  icon:'🎯', color:'#f59e0b', label:'진로역량',
+      subs:[ ['교과이수','전공관련교과이수'], ['교과성취도','전공관련교과성취도'], ['진로탐색','진로탐색활동'] ] },
+    { key:'공동체역량', icon:'🤝', color:'#10b981', label:'공동체역량',
+      subs:[ ['협업·소통','협업소통'], ['나눔·배려','나눔배려'], ['성실성','성실규칙준수'], ['리더십','리더십'] ] },
+  ];
+
+  const grpCards = GROUPS.map(g => {
+    const d = eval_[g.key]; if(!d) return '';
+    const grd   = d.grade || '-';
+    const gColor = GC[grd] || '#94a3b8';
+    const gBg    = BGC[grd] || '#f1f5f9';
+
+    // 서브항목 행
+    const subRows = g.subs.map(([lbl, subKey]) => {
+      const sd = d[subKey]; if(!sd) return '';
+      const sg    = (typeof sd === 'string') ? sd : (sd.grade || '-');
+      const sColor = GC[sg] || '#94a3b8';
+      const comment = (typeof sd === 'object' && sd.comment) ? sd.comment : '';
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.04);">
+        <span style="font-size:12px;font-weight:600;color:#64748b;min-width:64px;flex-shrink:0;">${lbl}</span>
+        <span style="font-size:13px;font-weight:800;color:${sColor};min-width:28px;flex-shrink:0;">${dispGrade(sg)}</span>
+        ${comment ? `<span style="font-size:11.5px;color:#94a3b8;line-height:1.55;flex:1;">${escapeHtml(comment)}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div style="background:#fff;border:1.5px solid #e8edf5;border-top:3px solid ${gColor};border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="font-size:18px;line-height:1;">${g.icon}</span>
+          <span style="font-size:14px;font-weight:800;color:#1e293b;">${g.label}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;">
+          <span style="font-size:28px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
+          <span style="font-size:10px;font-weight:600;color:#cbd5e1;letter-spacing:.04em;">등급</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid #f1f5f9;padding-top:4px;">${subRows}</div>
+    </div>`;
   }).join('');
 
-  const card=(grp,label,items)=>{
-    const d=eval_[grp]; if(!d) return '';
-    const color=GC[d.grade]||'#64748b';
-    const bg=BGC[d.grade]||'#f1f5f9';
-    const pid2=`cp2-${grp}-${Math.random().toString(36).slice(2,5)}`;
-    const comments=items.map(([lbl,key])=>{
-      const item=d[key]; if(!item?.comment) return '';
-      return `<div style="margin-bottom:8px;"><span style="font-size:12px;font-weight:700;color:#475569;">${lbl}</span><br><span style="font-size:12px;color:#334155;line-height:1.6;">${escapeHtml(item.comment)}</span></div>`;
+  // 근거 토글
+  const reasonBlocks = GROUPS.map(g => {
+    const d = eval_[g.key]; if(!d) return '';
+    const subComments = g.subs.map(([lbl, subKey]) => {
+      const sd = d[subKey]; if(!sd || typeof sd !== 'object' || !sd.comment) return '';
+      return `<div style="margin-bottom:10px;">
+        <span style="font-size:12px;font-weight:700;color:#475569;">${g.label} — ${lbl}</span>
+        <div style="font-size:12px;color:#64748b;line-height:1.65;margin-top:3px;">${escapeHtml(sd.comment)}</div>
+      </div>`;
     }).join('');
-    return `<div class="overall-eval-group" style="background:${bg};border-top:3px solid ${color};">
-      <div class="overall-group-header"><div class="overall-group-label">${label}</div></div>
-      <div class="overall-group-body">
-        <div class="overall-group-grade" style="color:${color};flex:0 0 38%;text-align:center;">${dispGrade(d.grade)}</div>
-        <div class="overall-sub-list">${subItems(items)}</div>
+    return subComments;
+  }).join('');
+
+  const hasReason = reasonBlocks.trim().length > 0;
+
+  return `<div style="background:#fff;border:2px solid #ede9fe;border-radius:16px;padding:0;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,102,241,.08);">
+    <!-- 헤더 -->
+    <div style="padding:14px 20px 0;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:15px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
+      <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 9px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
+    </div>
+
+    <!-- 종합 점수 배너 -->
+    ${(totalGrade || totalScore != null) ? `
+    <div style="margin:12px 20px 0;padding:12px 18px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:36px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
+      ${totalScore != null ? `<span style="font-size:24px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
+      <span style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
+    </div>` : ''}
+
+    <!-- 3열 그룹 카드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px 20px;">
+      ${grpCards}
+    </div>
+
+    <!-- 세부 근거 토글 -->
+    ${hasReason ? `
+    <div style="padding:0 20px 4px;">
+      <button id="${pid}-btn" onclick="toggleAllReason('${pid}')"
+        style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer;">
+        <span id="${pid}-arr" style="font-size:10px;">▶</span>
+        <span id="${pid}-lbl">세부 근거 보기</span>
+      </button>
+      <div class="overall-reason-bar" data-pid="${pid}" style="display:none;padding:14px 2px 4px;">
+        ${reasonBlocks}
       </div>
-      ${comments?`<div class="overall-reason-bar" data-pid="${pid}" style="display:none;">${comments}</div>`:''}
-    </div>`;
-  };
+    </div>` : ''}
 
-  const totalGrade = eval_.종합등급 || null;
-  const totalScore = eval_.종합점수 ?? null;
-  const bannerColor = GC[totalGrade] || '#8b5cf6';
-  const scoreBanner = (totalGrade||totalScore!=null) ? `
-    <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:${BGC[totalGrade]||'#f5f3ff'};border-radius:10px;margin-bottom:12px;">
-      <div style="font-size:32px;font-weight:900;color:${bannerColor};line-height:1;">${dispGrade(totalGrade)||'?'}</div>
-      ${totalScore!=null?`<div style="font-size:22px;font-weight:700;color:${bannerColor};">${totalScore}점</div>`:''}
-      <div style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</div>
-    </div>` : '';
-
-  return `<div class="overall-eval-panel" style="border:2px solid #8b5cf6;margin-bottom:10px;">
-    <div class="overall-eval-header">
-      <div class="overall-eval-header-title">🏆 종합 역량 평가 <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:10px;margin-left:6px;">내신 + 세특 + 창체 + 행발 종합</span></div>
-    </div>
-    ${scoreBanner}
-    <div class="overall-eval-grid">
-      ${card('학업역량','📚 학업역량',[['학업성취도','학업성취도','학업역량'],['학업태도','학업태도','학업역량'],['탐구력','탐구력','학업역량']])}
-      ${card('진로역량','🎯 진로역량',[['교과이수','전공관련교과이수','진로역량'],['교과성취도','전공관련교과성취도','진로역량'],['진로탐색','진로탐색활동','진로역량']])}
-      ${card('공동체역량','🤝 공동체역량',[['협업·소통','협업소통','공동체역량'],['나눔·배려','나눔배려','공동체역량'],['성실성','성실규칙준수','공동체역량'],['리더십','리더십','공동체역량']])}
-    </div>
-    <div class="overall-reason-toggle-row" onclick="toggleAllReason('${pid}')">
-      <span id="${pid}-arr">▶</span><span id="${pid}-lbl">세부 근거 보기</span>
-    </div>
-    ${eval_.종합의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f5f3ff;border-radius:8px;border-left:3px solid #8b5cf6;"><span style="font-size:15px;font-weight:700;color:#6d28d9;display:block;margin-bottom:5px;">💬 종합 의견</span>${escapeHtml(eval_.종합의견)}</div>`:''}
+    <!-- 종합 의견 -->
+    ${eval_.종합의견 ? `
+    <div style="margin:0 20px 18px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
+      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:6px;">💬 종합 의견</div>
+      <div style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
+    </div>` : ''}
   </div>`;
 }
-
 // ========== AI 종합 평가 패널 (admin에서 생성한 데이터) ==========
 function renderAIOverallPanel(overall, title, scope){
   if(!overall) return '';
