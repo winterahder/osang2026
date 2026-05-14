@@ -663,114 +663,105 @@
 
     /* 차트 (학기별 추이) */
     .chart-wrap, .grade-chart-wrap { padding: 8px 4px; }
+    .grade-chart-title { font-size: 24px !important; font-weight: 900 !important; }
 
-    /* 내신 카드 - 그리드 (2열) */
+    /* 내신 카드 - 4열 그리드 */
     .m-grade-cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      padding: 4px 0 10px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      padding: 4px 0 12px;
     }
-    /* 폭이 너무 좁으면 1열 (폴드 접힘 등) */
-    @media (max-width: 380px) {
-      .m-grade-cards { grid-template-columns: 1fr; }
-    }
+
+    /* 카드 전체 배경 = 등급 색 */
     .m-grade-card {
       display: flex; flex-direction: column;
-      padding: 12px 11px;
-      background: #fff;
-      border: 1.5px solid #e8edf5;
-      border-radius: 12px;
-      gap: 9px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.03);
+      border-radius: 10px; overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,.12);
+      background: #94a3b8;
     }
-    /* 1) 상단: 교과 + 과목명 */
+    .m-grade-card.grade-1 { background: linear-gradient(160deg,#1e3a8a,#1d4ed8); }
+    .m-grade-card.grade-2 { background: linear-gradient(160deg,#1e40af,#2563eb); }
+    .m-grade-card.grade-3 { background: linear-gradient(160deg,#065f46,#059669); }
+    .m-grade-card.grade-4 { background: linear-gradient(160deg,#0e7490,#0891b2); }
+    .m-grade-card.grade-5 { background: linear-gradient(160deg,#92400e,#d97706); }
+    .m-grade-card.grade-6 { background: linear-gradient(160deg,#9a3412,#ea580c); }
+    .m-grade-card.grade-7 { background: linear-gradient(160deg,#991b1b,#dc2626); }
+    .m-grade-card.grade-8 { background: linear-gradient(160deg,#7f1d1d,#b91c1c); }
+    .m-grade-card.grade-9 { background: linear-gradient(160deg,#450a0a,#7f1d1d); }
+
+    /* 과목명 */
     .m-grade-head {
-      display: flex; flex-direction: column; gap: 3px;
-      min-height: 40px;
+      padding: 7px 7px 2px;
+      display: flex; flex-direction: column; gap: 1px;
     }
     .m-grade-cat {
-      font-size: 10px; font-weight: 700;
-      color: #6366f1; background: #eef2ff;
-      padding: 2px 7px; border-radius: 5px;
-      width: fit-content;
+      font-size: 9px; font-weight: 700;
+      color: rgba(255,255,255,.65); letter-spacing: 0.02em;
     }
     .m-grade-subj {
-      font-size: 15px; font-weight: 800; color: #0f172a;
-      line-height: 1.25; letter-spacing: -0.3px;
-      word-break: keep-all;
+      font-size: 13px; font-weight: 800; color: #fff;
+      line-height: 1.2; letter-spacing: -0.3px; word-break: keep-all;
     }
-    /* 2) 등급 (가운데 크게) */
-    .m-grade-num-row {
-      display: flex; align-items: center;
-      justify-content: center; gap: 6px;
-      padding: 8px 4px;
-      border-radius: 10px;
-      background: #f1f5f9; /* 기본 배경 (등급 없을 때) */
-    }
-    /* 등급별 배경색 */
-    .m-grade-num-row:has(.grade-1) { background: #1d4ed8; }
-    .m-grade-num-row:has(.grade-2) { background: #2563eb; }
-    .m-grade-num-row:has(.grade-3) { background: #059669; }
-    .m-grade-num-row:has(.grade-4) { background: #0891b2; }
-    .m-grade-num-row:has(.grade-5) { background: #d97706; }
-    .m-grade-num-row:has(.grade-6) { background: #ea580c; }
-    .m-grade-num-row:has(.grade-7) { background: #dc2626; }
-    .m-grade-num-row:has(.grade-8) { background: #b91c1c; }
-    .m-grade-num-row:has(.grade-9) { background: #7f1d1d; }
-    .m-grade-num {
-      font-size: 40px; font-weight: 900;
-      line-height: 1; color: #fff;
-      letter-spacing: -2px;
-    }
-    .m-grade-label {
-      font-size: 12px; color: rgba(255,255,255,.75);
-      font-weight: 700; letter-spacing: 0.02em;
-    }
-    /* 등급별 배경색 + 흰 숫자 */
-    .m-grade-num.grade-1 { color: #fff; }
-    .m-grade-num.grade-2 { color: #fff; }
-    .m-grade-num.grade-3 { color: #fff; }
-    .m-grade-num.grade-4 { color: #fff; }
-    .m-grade-num.grade-5 { color: #fff; }
-    .m-grade-num.grade-6 { color: #fff; }
-    .m-grade-num.grade-7 { color: #fff; }
-    .m-grade-num.grade-8 { color: #fff; }
-    .m-grade-num.grade-9 { color: #fff; }
 
-    /* 3) 학점·원점수 등 정보 */
+    /* 등급 숫자 */
+    .m-grade-num-row {
+      display: flex; align-items: baseline;
+      justify-content: center; gap: 3px;
+      padding: 4px 4px 2px;
+    }
+    /* 등급별 배경 제거 (카드 자체가 배경) */
+    .m-grade-num-row:has(.grade-1),
+    .m-grade-num-row:has(.grade-2),
+    .m-grade-num-row:has(.grade-3),
+    .m-grade-num-row:has(.grade-4),
+    .m-grade-num-row:has(.grade-5),
+    .m-grade-num-row:has(.grade-6),
+    .m-grade-num-row:has(.grade-7),
+    .m-grade-num-row:has(.grade-8),
+    .m-grade-num-row:has(.grade-9) { background: transparent; }
+    .m-grade-num {
+      font-size: 32px; font-weight: 900; line-height: 1;
+      color: #fff; letter-spacing: -2px;
+      text-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .m-grade-num.grade-1,.m-grade-num.grade-2,.m-grade-num.grade-3,
+    .m-grade-num.grade-4,.m-grade-num.grade-5,.m-grade-num.grade-6,
+    .m-grade-num.grade-7,.m-grade-num.grade-8,.m-grade-num.grade-9 { color: #fff; }
+    .m-grade-label {
+      font-size: 10px; color: rgba(255,255,255,.65); font-weight: 700;
+    }
+
+    /* 학점·원점수 */
     .m-grade-info {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      margin: 2px 5px 3px;
+      padding: 4px 5px;
+      background: rgba(255,255,255,.15);
+      border-radius: 6px;
+      display: flex; justify-content: space-between; gap: 4px;
     }
     .m-grade-info-item {
-      display: flex; justify-content: space-between;
-      align-items: baseline;
-      padding: 3px 1px; gap: 4px;
+      display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 1;
     }
-    .m-grade-info-item .k {
-      font-size: 11px; color: #94a3b8; font-weight: 600;
-    }
-    .m-grade-info-item .v {
-      font-size: 13px; color: #1e293b; font-weight: 800;
-    }
+    .m-grade-info-item .k { font-size: 9px; color: rgba(255,255,255,.6); font-weight: 600; }
+    .m-grade-info-item .v { font-size: 12px; color: #fff; font-weight: 800; }
 
-    /* 4) 석차 */
+    /* 석차 */
     .m-grade-rank {
-      font-size: 11.5px; color: #64748b;
-      padding-top: 6px; border-top: 1px dashed #e2e8f0;
-      font-weight: 600; text-align: center;
+      font-size: 9.5px; color: rgba(255,255,255,.7);
+      padding: 2px 6px 6px; text-align: center; font-weight: 600;
     }
-    .m-grade-rank b { color: #475569; font-weight: 800; }
+    .m-grade-rank b { color: #fff; font-weight: 900; }
 
     /* 학기 제목 */
-    .semester-block { margin-bottom: 22px; }
+    .semester-block { margin-bottom: 20px; }
     .semester-title {
-      font-size: 17px; font-weight: 800; color: #0f172a;
-      padding: 4px 4px 6px; letter-spacing: -0.4px;
+      font-size: 24px; font-weight: 900; color: #0f172a;
+      padding: 6px 2px 3px; letter-spacing: -0.5px;
     }
     .semester-meta {
-      display: block; margin-top: 3px;
-      font-size: 12.5px; color: #64748b; font-weight: 500;
+      display: block; margin-top: 2px;
+      font-size: 13px; color: #64748b; font-weight: 500;
     }
 
     /* 세특 */
@@ -827,7 +818,7 @@
   body.is-mobile main { overflow: hidden; }
   /* 모바일 표시 토글 */
   body.is-mobile .m-show-on-mobile { display: block !important; }
-  body.is-mobile .m-grade-cards { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  body.is-mobile .m-grade-cards { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; }
   body.is-mobile .m-hide-on-mobile { display: none !important; }
 </style>
 </head>
@@ -1777,9 +1768,9 @@ function drawGradeChart(data, semesters){
     id: 'gradePointLabels',
     afterDatasetsDraw(chart){
       const { ctx } = chart;
-      const fontSize = isMobileCtx ? 15 : 12;
-      const boxH = isMobileCtx ? 22 : 16;
-      const gap  = isMobileCtx ? 28 : 22;
+      const fontSize = isMobileCtx ? 24 : 13;
+      const boxH = isMobileCtx ? 30 : 18;
+      const gap  = isMobileCtx ? 38 : 26;
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((pt, pi) => {
@@ -1924,7 +1915,7 @@ function renderSemesterBlock(sem, semData){
       : null;
     // 석차 문자열에서 중복 숫자 제거 (예: 36/245/245 → 36/245)
     const 석차 = 석차Raw ? 석차Raw.replace(/(\/\d+)\1+$/, '$1') : null;
-    return `<div class="m-grade-card">
+    return `<div class="m-grade-card ${gradeClass}">
       <!-- 1) 과목명 (상단) -->
       <div class="m-grade-head">
         <span class="m-grade-cat">${s.교과||'-'}</span>
@@ -1932,19 +1923,17 @@ function renderSemesterBlock(sem, semData){
       </div>
       <!-- 2) 등급 (가운데 크게) -->
       <div class="m-grade-num-row">
-        <span class="m-grade-num ${gradeClass}">${gDisplay}</span>
+        <span class="m-grade-num">${gDisplay}</span>
         <span class="m-grade-label">등급</span>
         ${estTag||''}
       </div>
-      <!-- 3) 학점·원점수·평균·성취도 -->
+      <!-- 3) 학점·원점수 -->
       <div class="m-grade-info">
         <div class="m-grade-info-item"><span class="k">학점</span><span class="v">${s.학점||'-'}</span></div>
         ${s.원점수!=null?`<div class="m-grade-info-item"><span class="k">원점수</span><span class="v">${s.원점수}</span></div>`:''}
-        ${s.과목평균!=null?`<div class="m-grade-info-item"><span class="k">평균</span><span class="v">${s.과목평균}</span></div>`:''}
-        ${s.성취도?`<div class="m-grade-info-item"><span class="k">성취도</span><span class="v">${s.성취도}</span></div>`:''}
       </div>
       <!-- 4) 석차 -->
-      ${석차?`<div class="m-grade-rank">📊 석차 <b>${석차}</b></div>`:''}
+      ${석차?`<div class="m-grade-rank">석차 <b>${석차}</b></div>`:''}
     </div>`;
   }).join('');
 
