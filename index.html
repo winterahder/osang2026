@@ -1632,6 +1632,246 @@ function renderGrades(el){
   }
 }
 
+function renderGradeFilterSummary(data, semesters){
+  const filter = getActiveSubjectFilter();
+  const filterLabel = selectedSubjectFilters.size===0 ? '전체' : [...selectedSubjectFilters].join('+');
+  const allSubjects = [];
+  Object.entries(data.grades).forEach(([sem,semData])=>{ (semData.subjects||[]).forEach(sub=>{ allSubjects.push({...sub, sem}); }); });
+  const filtered = selectedSubjectFilters.size===0
+    ? allSubjects.filter(s=>s.등급!=null)
+    : allSubjects.filter(s=>isSubjectInFilter(s));
+  let totalCredit=0, weighted=0, cntWithGrade=0;
+  filtered.forEach(s=>{ const g=getG(s); if(g!=null && s.학점){ totalCredit+=s.학점; weighted+=g*s.학점; cntWithGrade++; } });
+  const avg = totalCredit>0 ? (weighted/totalCredit).toFixed(2) : '-';
+  const subjNames = [...new Set(filtered.map(s=>s.과목))].join(', ');
+  const is9 = isStudent9Grade(currentStu);
+  const scaleLabel = is9 ? ' (9등급)' : '';
+
+  // 등수 카드
+  let rankCardHtml = '';
+  if(showRank){
+    const rankInfo = calcRank(data, filter);
+    if(rankInfo){
+      const pct = ((rankInfo.rank / rankInfo.total)*100).toFixed(0);
+      rankCardHtml = `
+        <div class="grade-stat-card rank-card">
+          <div class="sc-label">🏅 ${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"): "전체"} 학교 등수${scaleLabel}</div>
+          <div class="rank-right">
+            <span class="rank-val">${rankInfo.rank}위</span>
+            <span class="rank-sub">/ ${rankInfo.total}명 (상위 ${pct}%)</span>
+          </div>
+        </div>`;
+    } else {
+      rankCardHtml = `<div class="grade-stat-card rank-card"><div class="sc-label">🏅 등수</div><div class="rank-right"><span class="rank-val" style="font-size:14px;color:#94a3b8;">산출 불가</span></div></div>`;
+    }
+  }
+
+  return `
+    <div class="grade-summary-panel">
+      <div class="grade-stats">
+        <div class="grade-avg-big ${is9?'is9':''}">
+          <div class="avg-label">${selectedSubjectFilters.size>0?[...selectedSubjectFilters].join("+"):"전체"} 평균등급${scaleLabel}</div>
+          <div class="avg-val">${avg}</div>
+          <div class="avg-filter">${selectedSubjectFilters.size>0?filterLabel+' 교과 필터':'전체 등급 과목 반영'}</div>
+        </div>
+        <div class="grade-stat-row">
+          <div class="grade-stat-card"><div class="sc-label">반영 학점</div><div class="sc-val">${totalCredit}</div></div>
+          <div class="grade-stat-card"><div class="sc-label">반영 과목수</div><div class="sc-val">${cntWithGrade}</div></div>
+          ${rankCardHtml}
+        </div>
+      </div>
+      <div class="grade-chart-panel">
+        <div class="grade-chart-title">📈 학기별 평균등급 추이 ${is9?'<span style="color:#9333ea;font-size:11px;">[9등급]</span>':'<span style="color:#2563eb;font-size:11px;">[5등급]</span>'}</div>
+        <div class="grade-chart-wrap"><canvas id="gradeChart"></canvas></div>
+      </div>
+    </div>
+    ${filter?`<div style="color:#64748b;font-size:12px;margin-bottom:14px;">📌 포함 과목: ${subjNames||'없음'}</div>`:''}
+  `;
+}
+
+function drawGradeChart(data, semesters){
+  if(gradeChartInst){ gradeChartInst.destroy(); gradeChartInst=null; }
+  const ctx = document.getElementById('gradeChart');
+  if(!ctx) return;
+
+  const n = semesters.length;
+  const xPos = semesters.map((_, i) => (2 * i + 1) / (2 * n));
+  // 9등급 학생은 라벨에 등급제 표시 없이 깔끔하게, 5등급 학생만 [5등급] 안내
+  const is9 = isStudent9Grade(currentStu);
+  const semLabels = semesters.map(sem => `${sem.split('-')[0]}학년\n${sem.split('-')[1]}학기`);
+
+  // ★ 버그2 수정: null 제거 → 일부 학기만 있어도 해당 포인트만 정상 표시
+  function toXY(avgs){
+    return avgs
+      .map((v, i) => v != null ? { x: xPos[i], y: v } : null)
+      .filter(Boolean);
+  }
+
+  // 전체 평균 계산
+  function semAllAvg(semData){
+    const subjects = (semData && semData.subjects) || [];
+    let cr = 0, wt = 0;
+    subjects.forEach(s => {
+      const g = getG(s);
+      if(g != null && s.학점){ cr += s.학점; wt += g * s.학점; }
+    });
+    return cr > 0 ? wt / cr : null;
+  }
+
+  // ★ 버그3 수정: isSubjectInFilter 사용 → 기타 포함 모든 필터 정확하게 처리
+  function semFilteredAvg(semData){
+    const subjects = (semData && semData.subjects) || [];
+    let cr = 0, wt = 0;
+    subjects.forEach(s => {
+      if(!isSubjectInFilter(s)) return;
+      const g = getG(s);
+      if(g != null && s.학점){ cr += s.학점; wt += g * s.학점; }
+    });
+    return cr > 0 ? wt / cr : null;
+  }
+
+  // ★ 버그3 수정: !filter 대신 size로 직접 판단 (기타 선택시 filter=null이라 틀렸던 것)
+  const hasFilter = selectedSubjectFilters.size > 0;
+  const allAvgs  = semesters.map(sem => semAllAvg(data.grades[sem]));
+  const filtAvgs = hasFilter ? semesters.map(sem => semFilteredAvg(data.grades[sem])) : null;
+
+  const mainColor = is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb');
+  // 3학년(is9=true): 항상 9등급 기준
+  // 1·2학년(is9=false): 9등급 환산 버튼 눌렀을 때만(gradeScale===9) 9등급 기준, 기본은 5등급
+  const maxG = is9 ? 9 : (gradeScale === 9 ? 9 : 5);
+
+  // 포인트 위에 등급 수치를 직접 그리는 인라인 플러그인
+  const dataLabelPlugin = {
+    id: 'gradePointLabels',
+    afterDatasetsDraw(chart){
+      const { ctx } = chart;
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((pt, pi) => {
+          const raw = ds.data[pi];
+          if(!raw || raw.y == null) return;
+          ctx.save();
+          ctx.font = 'bold 12px -apple-system, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          const label = raw.y.toFixed(2);
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(pt.x - tw/2 - 3, pt.y - 22, tw + 6, 16);
+          ctx.fillStyle = ds.borderColor;
+          ctx.fillText(label, pt.x, pt.y - 8);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  const datasets = [];
+  if(!hasFilter){
+    datasets.push({
+      label:'전체 평균', data: toXY(allAvgs), borderColor: mainColor, backgroundColor: mainColor+'22',
+      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      fill: true, spanGaps: true
+    });
+  } else {
+    datasets.push({
+      label: [...selectedSubjectFilters].join('+'),
+      data: toXY(filtAvgs),
+      borderColor: mainColor, backgroundColor: mainColor+'22',
+      tension: 0.3, pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: mainColor,
+      fill: true, spanGaps: true
+    });
+  }
+
+  // 유효 데이터 없으면 차트 미생성
+  if(!datasets[0].data.length) return;
+
+  gradeChartInst = new Chart(ctx, {
+    type: 'line',
+    plugins: [dataLabelPlugin],
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: is9 ? 28 : 18 } },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:14 } },
+        subtitle:{
+          display: true,
+          text: is9 ? '9등급제 (3학년)' : (gradeScale === 9 ? '5등급제 → 9등급 환산 적용 중' : '5등급제 (1·2학년) — 9등급 환산 버튼으로 전환 가능'),
+          color: is9 ? '#9333ea' : (gradeScale === 9 ? '#9333ea' : '#2563eb'),
+          font:{ size:11 }, padding:{ bottom:4 }
+        },
+        tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2)+'등급' : '-'}` } }
+      },
+      scales:{
+        y:{
+          reverse: true, min: 0.5, max: maxG + 0.5,
+          afterBuildTicks: axis => {
+            axis.ticks = Array.from({length: maxG}, (_, i) => ({ value: i + 1 }));
+          },
+          ticks:{ callback: v => v+'등급', font:{size:11} },
+          grid:{ color:'#f1f5f9' }
+        },
+        x:{
+          type: 'linear', min: 0, max: 1,
+          ticks:{
+            callback: (val) => {
+              const idx = xPos.indexOf(val);
+              return idx >= 0 ? semLabels[idx] : '';
+            },
+            stepSize: null, includeBounds: false,
+            font: { size: 11 }, maxTicksLimit: n + 2, autoSkip: false
+          },
+          afterBuildTicks: axis => { axis.ticks = xPos.map(v => ({ value: v })); },
+          grid:{ display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderSemesterBlock(sem, semData){
+  const summary = semData.summary || {};
+  const subjects = semData.subjects || [];
+  const semLabel = `${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`;
+  const filter = getActiveSubjectFilter();
+  const semIs9 = isSem9Grade(currentStu, semData); // 이 학기의 등급제
+  let semCredit=0, semWeighted=0;
+  subjects.forEach(s=>{
+    let g;
+    if(semIs9){ g = (s.등급!=null) ? s.등급 : null; }
+    else { g = (gradeScale===9) ? (estGrade9(s)?.grade??null) : s.등급; }
+    if(g!=null && s.학점){ semCredit+=s.학점; semWeighted+=g*s.학점; }
+  });
+  const semAvg = semCredit>0 ? (semWeighted/semCredit).toFixed(2) : '-';
+  const rows = subjects.map(s=>{
+    if(selectedSubjectFilters.size > 0 && !isSubjectInFilter(s)) return '';
+    if(selectedSubjectFilters.size === 0 && s.등급 == null) return '';
+    let g, estTag = '';
+    if(semIs9){
+      g = s.등급;
+    } else {
+      if(gradeScale===9){
+        const info = estGrade9(s);
+        g = info ? info.grade : null;
+        if(info?.source==='실제') estTag = '<span class="est-tag" style="background:#dcfce7;color:#15803d;">실제</span>';
+        else if(info?.source==='추정') estTag = '<span class="est-tag" style="background:#fef3c7;color:#92400e;">추정</span>';
+      } else {
+        g = s.등급;
+      }
+    }
+    const gradeClass = g!=null ? 'grade-'+g : '';
+    const showRankCol = semIs9 || gradeScale===9;
+    const rankCell = (showRankCol && s.석차 && s.수강자수) ? `${s.석차}/${s.수강자수}` : (s.수강자수||'-');
+    const gDisplay = g!=null ? g : '-';
+    return `<tr><td>${s.교과||'-'}</td><td class="subj">${s.과목}</td><td>${s.학점||'-'}</td><td>${s.원점수!=null?s.원점수:'-'}</td><td>${s.과목평균!=null?s.과목평균:'-'}</td><td>${s.성취도||'-'}</td><td class="${gradeClass}">${gDisplay}${estTag}</td><td>${rankCell}</td></tr>`;
+  }).join('');
+  const scaleTag = semIs9
+    ? ' <span style="color:#9333ea;font-weight:600;">[9등급]</span>'
+    : (gradeScale===9 ? ' <span style="color:#9333ea;font-weight:600;">[9등급환산]</span>' : '');
+  return `<div class="semester-block"><div class="semester-title">📚 ${semLabel}  <span style="font-weight:400;color:#64748b;font-size:13px;">· 평균 ${semAvg}등급${scaleTag} · 총 ${summary.총학점||'-'}학점 (등급 ${summary.등급대상학점||'-'}학점)</span></div><table class="grade"><thead><tr><th>교과</th><th>과목</th><th>학점</th><th>원점수</th><th>평균</th><th>성취도</th><th>등급</th><th>석차/수강자</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 // ── 졸업생(admissions) 합불 사례 비교 ──
 function renderAlumniCompare() {
   if(!admissionsDB || admissionsDB.length === 0) return '';
