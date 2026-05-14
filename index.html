@@ -663,7 +663,7 @@
 
     /* 차트 (학기별 추이) */
     .chart-wrap, .grade-chart-wrap { padding: 8px 4px; }
-    .grade-chart-title { font-size: 24px !important; font-weight: 900 !important; }
+    .grade-chart-title { font-size: 16px !important; font-weight: 800 !important; }
 
     /* 내신 카드 - 4열 그리드 */
     .m-grade-cards {
@@ -1620,6 +1620,104 @@ function renderGrades(el){
 
   // 학기별 추이 차트 그리기
   drawGradeChart(data, semesters);
+
+  // 졸업생 합불 사례 섹션 추가
+  const alumniSection = renderAlumniCompare();
+  if(alumniSection) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = alumniSection;
+    el.appendChild(wrapper);
+  }
+}
+
+// ── 졸업생 합불 사례 비교 ──
+function renderAlumniCompare() {
+  if(!alumniKb || alumniKb.length === 0) return '';
+
+  // 현재 학생 전교과 평균 계산
+  const hak = String(currentStu?.hak || '');
+  const gradeData = grades[hak] || grades[String(currentStu?.g2_hak)] || grades[String(currentStu?.g1_hak)];
+  if(!gradeData) return '';
+
+  const myAvg = calcStudentAvg(gradeData, null, currentStu);
+  if(!myAvg) return '';
+
+  // 비슷한 내신 (±0.5등급) 졸업생 필터
+  const similar = alumniKb.filter(r => {
+    const avg = parseFloat(r['내신평균'] || '');
+    return !isNaN(avg) && Math.abs(avg - myAvg) <= 0.5;
+  }).slice(0, 20); // 최대 20건
+
+  if(!similar.length) return '';
+
+  const pass   = similar.filter(r => String(r['결과']||'').includes('합격'));
+  const fail   = similar.filter(r => String(r['결과']||'').includes('불합격'));
+  const passAvg = pass.length ? (pass.reduce((s,r)=>s+parseFloat(r['내신평균']||0),0)/pass.length).toFixed(2) : null;
+  const failAvg = fail.length ? (fail.reduce((s,r)=>s+parseFloat(r['내신평균']||0),0)/fail.length).toFixed(2) : null;
+
+  const caseRows = similar.map(r => {
+    const result = String(r['결과']||'');
+    const isPass = result.includes('합격');
+    const color  = isPass ? '#059669' : '#dc2626';
+    const bg     = isPass ? '#f0fdf4' : '#fef2f2';
+    const badge  = isPass ? '✅ 합격' : '❌ 불합격';
+    return `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;">
+        <div style="flex-shrink:0;min-width:54px;">
+          <span style="font-size:11px;font-weight:700;background:${bg};color:${color};padding:3px 7px;border-radius:6px;">${badge}</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px;">
+            ${escapeHtml(r['지원대학']||'-')} <span style="font-weight:500;color:#64748b;font-size:12px;">${escapeHtml(r['지원학과']||'')}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:3px;">
+            <span style="font-size:10.5px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;">${escapeHtml(r['전형유형']||'')} ${escapeHtml(r['세부전형']||'')}</span>
+            ${r['충원순위'] ? `<span style="font-size:10.5px;background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:4px;">충원 ${r['충원순위']}번</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:#94a3b8;">
+            내신 ${parseFloat(r['내신평균']||0).toFixed(2)}등급
+            ${r['졸업년도'] ? '· ' + r['졸업년도'] + '년' : ''}
+            ${r['메모'] ? '· ' + escapeHtml(String(r['메모']).substring(0,30)) : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="margin:16px 0;background:#fff;border:1.5px solid #e8edf5;border-radius:14px;overflow:hidden;">
+      <!-- 헤더 -->
+      <div style="padding:14px 16px 10px;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;font-weight:800;color:#1e293b;">🎓 비슷한 내신 선배 합불 사례</span>
+            <span style="font-size:11px;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:8px;font-weight:600;">내 내신 ±0.5등급</span>
+          </div>
+          <span style="font-size:12px;color:#94a3b8;">총 ${similar.length}건 (합격 ${pass.length}·불합격 ${fail.length})</span>
+        </div>
+        <!-- 요약 바 -->
+        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;padding:8px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #059669;">
+            <div style="font-size:11px;color:#059669;font-weight:700;margin-bottom:2px;">✅ 합격 평균 내신</div>
+            <div style="font-size:20px;font-weight:900;color:#059669;">${passAvg || '-'}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
+          </div>
+          <div style="flex:1;min-width:120px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626;">
+            <div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:2px;">❌ 불합격 평균 내신</div>
+            <div style="font-size:20px;font-weight:900;color:#dc2626;">${failAvg || '-'}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
+          </div>
+          <div style="flex:1;min-width:120px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:3px solid #2563eb;">
+            <div style="font-size:11px;color:#2563eb;font-weight:700;margin-bottom:2px;">📊 내 내신</div>
+            <div style="font-size:20px;font-weight:900;color:#2563eb;">${myAvg.toFixed(2)}<span style="font-size:11px;font-weight:500;"> 등급</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 사례 목록 -->
+      <div style="max-height:360px;overflow-y:auto;">
+        ${caseRows}
+      </div>
+      <div style="padding:8px 14px;background:#f8fafc;font-size:11px;color:#94a3b8;text-align:center;">
+        ※ 오상고 졸업생 데이터 기준 · 생기부 점수·면접 등 종합 결과이므로 내신만으로 합불이 결정되지 않습니다
+      </div>
+    </div>`;
 }
 
 function calcSemAvg(semData){
@@ -4308,11 +4406,62 @@ function renderCompEvalPanel(eval_){
 
     <!-- 종합 의견 -->
     ${eval_.종합의견 ? `
-    <div style="margin:0 20px 18px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
+    <div style="margin:0 20px 14px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
       <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:6px;">💬 종합 의견</div>
       <div class="eval-opinion-text" style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
+
+    <!-- 우수 문장 발췌 -->
+    ${(eval_.우수문장 && eval_.우수문장.length) ? renderBestSentences(eval_.우수문장) : ''}
   </div>`;
+}
+
+// ── 우수문장 발췌 패널 렌더링 ──
+function renderBestSentences(sentences) {
+  if(!sentences || !sentences.length) return '';
+  const GC2 = {'학업역량':'#6366f1','진로역량':'#f59e0b','공동체역량':'#10b981'};
+
+  // 역량별 그룹핑
+  const groups = {};
+  sentences.forEach(s => {
+    const key = s.역량 || '기타';
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  });
+
+  const groupHtml = Object.entries(groups).map(([역량, items]) => {
+    const color = GC2[역량] || '#64748b';
+    const rows = items.map(item => `
+      <div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:700;background:${color}18;color:${color};padding:2px 7px;border-radius:10px;">${escapeHtml(item.구분||'')}</span>
+          <span style="font-size:10px;color:#94a3b8;">${item.학년 ? item.학년+'학년' : ''} ${escapeHtml(item.출처||'')}</span>
+        </div>
+        <div style="font-size:12.5px;color:#334155;line-height:1.7;">
+          <span style="color:${color};font-size:14px;font-weight:900;margin-right:4px;">"</span>${escapeHtml(item.문장||'')}
+        </div>
+      </div>`).join('');
+
+    return `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 12px 4px;font-size:13px;font-weight:800;color:${color};">
+          ${역량==='학업역량'?'📚':역량==='진로역량'?'🎯':'🤝'} ${역량}에서 좋은 평가를 받은 기록
+        </div>
+        <div style="border:1px solid ${color}22;border-radius:10px;overflow:hidden;">${rows}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="margin:0 20px 18px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:14px;font-weight:800;color:#1e293b;">⭐ 좋은 평가를 받은 기록</span>
+        <span style="font-size:11px;background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:8px;font-weight:600;">AI 자동 발췌</span>
+      </div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;">
+        📌 아래 기록들은 학생부종합전형에서 긍정적인 평가를 받을 수 있는 문장입니다. 더 발전시켜 나가세요.
+      </div>
+      ${groupHtml}
+    </div>`;
 }
 // ========== AI 종합 평가 패널 (admin에서 생성한 데이터) ==========
 function renderAIOverallPanel(overall, title, scope){
