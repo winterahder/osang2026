@@ -1177,10 +1177,7 @@ function renderMain(){
   const s = currentStu;
   const genderClass = s.gender==='남'?'gender-m':'gender-f';
   const isStudent = currentRole && currentRole.startsWith('student_');
-  const tabs = ['기본정보','모의고사','내신','세특','창체','행발',
-    // 3학년은 수상·독서 대입 미반영 → 탭 숨김
-    ...(isStudent9Grade(currentStu) ? [] : ['수상','독서']),
-    '종합역량평가','모의지원'];
+  const tabs = ['기본정보','모의고사','내신','세특','창체','행발','종합역량평가','모의지원'];
 
   if(isMobile()){
     // ===== 모바일 레이아웃 =====
@@ -1287,23 +1284,7 @@ function renderHaengbal(el){
 
   let html = `<div style="display:flex;flex-direction:column;gap:14px;padding:16px;">`;
 
-  // 키워드 요약 패널
-  if(allHbKws.length){
-    html += `<div class="overall-eval-panel">
-      <div class="overall-eval-header">
-        <div class="overall-eval-header-title">🏷 행발 핵심 키워드</div>
-        <span class="overall-eval-scope">${allHbKws.length}개</span>
-      </div>
-      <div class="kw-wrap" style="margin-top:4px;">${allHbKws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>
-    </div>`;
-  } else {
-    html += `<div class="overall-eval-panel">
-      <div class="overall-eval-header">
-        <div class="overall-eval-header-title">🏷 행발 핵심 키워드</div>
-      </div>
-      <div class="kw-empty" style="padding:8px 0 4px;">선생님이 분석 중입니다 — 곧 표시됩니다 😊</div>
-    </div>`;
-  }
+
 
   allGradeKeys.forEach(g => {
     const rawText = 원문[g];
@@ -1318,7 +1299,7 @@ function renderHaengbal(el){
         ${summary ? `<div style="background:#f0fdf4;border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;line-height:1.8;color:#15803d;">
           ${Array.isArray(summary) ? summary.map((t,i)=>`<div style="margin-bottom:4px;"><span style="font-weight:700;margin-right:4px;">${['①','②','③'][i]||i+1}</span>${t}</div>`).join('') : summary}
         </div>` : ''}
-        ${kws && kws.length ? `<div class="kw-wrap" style="margin-bottom:10px;">${kws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>` : ''}
+
         ${rawText ? `<details>
           <summary style="font-size:12px;color:#64748b;cursor:pointer;margin-bottom:6px;">원문 보기 (${rawText.length}자)</summary>
           <div style="font-size:13px;line-height:1.9;color:#334155;white-space:pre-wrap;margin-top:8px;">${rawText}</div>
@@ -4223,20 +4204,7 @@ function renderSewtuk(el){
     ? [...new Set(data.subjects.flatMap(s=>Array.isArray(s.키워드)?s.키워드:[]))]
     : [...new Set(filtered.flatMap(s=>Array.isArray(s.키워드)?s.키워드:[]))];
 
-  const kwSummaryPanel = allKws.length
-    ? `<div class="overall-eval-panel">
-        <div class="overall-eval-header">
-          <div class="overall-eval-header-title">🏷 핵심 키워드 요약</div>
-          <span class="overall-eval-scope">${sewtukCat==='전체 과목'?'전체 세특':filterTitle} · ${allKws.length}개</span>
-        </div>
-        <div class="kw-wrap" style="margin-top:4px;">${allKws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>
-      </div>`
-    : `<div class="overall-eval-panel">
-        <div class="overall-eval-header">
-          <div class="overall-eval-header-title">🏷 핵심 키워드</div>
-        </div>
-        <div class="kw-empty" style="padding:8px 0 4px;">선생님이 분석 중입니다 — 곧 표시됩니다 😊</div>
-      </div>`;
+  const kwSummaryPanel = '';
 
   let html = `
     <div class="sewtuk-top-wrap">
@@ -4256,12 +4224,7 @@ function renderSewtuk(el){
     filtered.forEach(s=>{
       const key = `${s.학년}-${s.학기}-${s.과목}`;
       const isOpen = openAccordions.has(key);
-      const _kwKey = `${s.교과}-${s.과목}-${s.학년}`;
-      const kws = (Array.isArray(s.키워드) && s.키워드.length ? s.키워드 : null) ||
-                  (evalData[String(currentStu?.hak)]?.세특활동분해?.[_kwKey]?.키워드 || null);
-      const kwBlock = kws
-        ? `<div class="kw-wrap">${kws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>`
-        : '';
+      const kwBlock = '';
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
           <div class="accordion-head">
@@ -4274,7 +4237,7 @@ function renderSewtuk(el){
                   <span class="status-badge ${Array.isArray(s.요약)&&s.요약.length>0?'sb-done':'sb-none'}">
                     ${Array.isArray(s.요약)&&s.요약.length>0?'✓ 요약':'요약 미완료'}
                   </span>
-                  ${kws?'<span class="status-badge" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);">🏷 키워드</span>':''}
+
                 </div>
               </div>
               ${renderSummary(s.요약)}
@@ -4338,21 +4301,7 @@ function renderChangche(el){
   const ccOverall = data?.창체종합평가 || null;
 
   // 창체 키워드 수집
-  const ccAllKws = [...new Set(filtered.flatMap(a=>Array.isArray(a.키워드)?a.키워드:[]))];
-  const ccKwPanel = ccAllKws.length
-    ? `<div class="overall-eval-panel">
-        <div class="overall-eval-header">
-          <div class="overall-eval-header-title">🏷 핵심 키워드 요약</div>
-          <span class="overall-eval-scope">창체 · ${ccAllKws.length}개</span>
-        </div>
-        <div class="kw-wrap" style="margin-top:4px;">${ccAllKws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>
-      </div>`
-    : `<div class="overall-eval-panel">
-        <div class="overall-eval-header">
-          <div class="overall-eval-header-title">🏷 핵심 키워드</div>
-        </div>
-        <div class="kw-empty" style="padding:8px 0 4px;">선생님이 분석 중입니다 — 곧 표시됩니다 😊</div>
-      </div>`;
+  const ccKwPanel = '';
 
   let html = `
     <div class="sewtuk-top-wrap">
@@ -4375,11 +4324,7 @@ function renderChangche(el){
       const actIdx = allActs.findIndex(x=>x.학년===a.학년&&x.분류===a.분류&&x.활동명===a.활동명);
       const saved = data?.창체요약?.[actIdx] || a.요약 || '';
       const _ccIdx = allActs.indexOf(a);
-      const kws = (Array.isArray(a.키워드) && a.키워드.length ? a.키워드 : null) ||
-                  (evalData[String(currentStu?.hak)]?.창체활동분해?.[_ccIdx]?.키워드 || null);
-      const kwBlock = kws
-        ? `<div class="kw-wrap">${kws.map(k=>`<span class="kw-pill">${escapeHtml(k)}</span>`).join('')}</div>`
-        : '';
+      const kwBlock = '';
 
       html += `
         <div class="accordion ${isOpen?'open':''}" data-key="${key}">
@@ -4391,7 +4336,7 @@ function renderChangche(el){
                 <span class="sub-meta">${a.학년}학년</span>
                 <div class="status-badges">
                   <span class="status-badge ${saved?'sb-done':'sb-none'}">${saved?'✓ 요약':'요약 미완료'}</span>
-                  ${kws?'<span class="status-badge" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.25);">🏷 키워드</span>':''}
+
                 </div>
               </div>
               ${renderSummary(saved)}
