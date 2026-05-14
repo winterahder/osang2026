@@ -527,152 +527,157 @@
   /* ===== 모바일 반응형 ===== */
   .mobile-bar { display: none; }
 
-  @media (max-width: 960px) {
+  /* ── 모바일 전용 (body.is-mobile 또는 @media) ── */
+  @media (max-width: 960px), (pointer: coarse) and (max-width: 1200px) {
+
     html, body { height: 100%; }
     body { display: flex; flex-direction: column; overflow: hidden; }
 
-    /* ── 헤더 ── */
+    /* 헤더 */
     header {
-      flex-shrink: 0; padding: 0 12px;
-      height: 48px; min-height: 48px;
-      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      flex-shrink: 0; padding: 0 14px;
+      height: 50px; min-height: 50px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
-    header h1 { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-    header h1 span.year { font-size: 10px; }
-    #status { font-size: 10px; flex-shrink: 0; gap: 4px; }
-    #status > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
-    .logout-btn { font-size: 10px; padding: 3px 6px; }
+    header h1 { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    header h1 span.year { font-size: 11px; }
+    #status { font-size: 11px; flex-shrink: 0; gap: 4px; }
+    #status > span { white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+    .logout-btn { font-size: 11px; padding: 4px 8px; }
 
-    /* ── 데스크탑 요소 완전 숨김 ── */
+    /* 데스크탑 요소 숨김 */
     aside { display: none !important; }
-    .mobile-bar { display: flex !important; }
 
-    /* ── 모바일 학생 선택 바 ── */
+    /* 모바일 학생 선택 바 */
     .mobile-bar {
-      gap: 5px; padding: 6px 10px;
-      background: #fff; border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+      display: flex !important; gap: 6px; padding: 8px 12px;
+      background: #fff; border-bottom: 2px solid #e5e7eb;
+      flex-shrink: 0;
     }
     .m-sel {
-      flex: 1; padding: 6px 4px;
-      border: 1px solid #e2e8f0; border-radius: 6px;
-      font-size: 12px; background: #f8fafc; color: #334155;
+      flex: 1; padding: 9px 8px;
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      background: #f8fafc; color: #1e293b;
       min-width: 0; outline: none;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 24px;
     }
+    .m-sel:focus { border-color: #6366f1; background-color: #fff; }
 
-    /* ── 전체 레이아웃 ── */
+    /* 레이아웃 */
     .layout { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0; gap: 0; }
     main   { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f5f6fa; }
 
-    /* ── 학생 헤더 ── */
+    /* 학생 헤더 */
     .m-stu-header {
-      padding: 8px 12px; background: #fff;
+      padding: 10px 14px; background: #fff;
       border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .m-stu-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
+    .m-stu-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
+    .m-stu-header .badges { display: flex; gap: 4px; flex-wrap: wrap; }
 
-    /* ── 상단 가로 스크롤 탭 ── */
+    /* 가로 스크롤 탭 */
     .m-htabs-wrap {
       flex-shrink: 0; background: #fff;
-      border-bottom: 2px solid #e5e7eb; overflow: hidden;
+      border-bottom: 1px solid #e5e7eb;
     }
     .m-htabs {
       display: flex; overflow-x: auto; gap: 0;
       scrollbar-width: none; -webkit-overflow-scrolling: touch;
-      padding: 0 4px;
+      padding: 0 2px;
     }
     .m-htabs::-webkit-scrollbar { display: none; }
     .m-htab {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 2px;
-      padding: 7px 10px; cursor: pointer; flex-shrink: 0;
-      border-bottom: 2px solid transparent; margin-bottom: -2px;
-      color: #94a3b8; min-width: 48px;
-      transition: all 0.12s;
+      justify-content: center; gap: 3px;
+      padding: 8px 12px; cursor: pointer; flex-shrink: 0;
+      border-bottom: 3px solid transparent;
+      color: #94a3b8; transition: all 0.15s;
+      min-width: 56px;
     }
-    .m-htab.active { border-bottom-color: #2563eb; color: #2563eb; background: #eff6ff; }
-    .m-htab-icon  { font-size: 16px; line-height: 1; }
-    .m-htab-label { font-size: 9px; font-weight: 600; white-space: nowrap; }
+    .m-htab.active {
+      border-bottom-color: #6366f1; color: #6366f1;
+      background: linear-gradient(to bottom, rgba(99,102,241,.06), transparent);
+    }
+    .m-htab-icon  { font-size: 18px; line-height: 1; }
+    .m-htab-label { font-size: 10px; font-weight: 600; white-space: nowrap; letter-spacing: -0.2px; }
 
-    /* ── 콘텐츠 영역 ── */
-    .m-content,
+    /* 콘텐츠 */
     #tabContent { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* ── 카드 ── */
-    .card { border-radius: 8px; padding: 11px 12px; margin: 8px; }
-    .card.placeholder { margin: 40px 16px; }
+    /* 카드 */
+    .card { border-radius: 10px; padding: 12px 13px; margin: 8px; }
+    .card.placeholder { margin: 40px 16px; text-align: center; }
 
-    /* ── 테이블 ── */
-    .m-content table, #tabContent table { font-size: 11px; }
-    .m-content table th, .m-content table td,
-    #tabContent table th, #tabContent table td { padding: 4px 3px; }
-    table.info td:first-child { width: 90px; }
+    /* 테이블 */
+    #tabContent table { font-size: 11px; }
+    #tabContent table th, #tabContent table td { padding: 5px 4px; }
+    table.info td:first-child { width: 88px; }
 
-    /* ── 차트 ── */
+    /* 차트 */
     .chart-wrap { height: 180px; }
     .grade-chart-wrap { min-height: 100px; }
 
-    /* ── 내신 요약 ── */
+    /* 내신 */
     .grade-summary-panel { grid-template-columns: 1fr; }
     .grade-avg-big .avg-val { font-size: 40px; }
 
-    /* ── 세특 아코디언 ── */
+    /* 세특 */
     .acc-left { max-width: 100%; padding-right: 4px; }
     .acc-right { display: none; }
+    .sewtuk-top-wrap { flex-direction: column !important; }
 
-    /* ── 종합평가 그리드 → 1열 ── */
+    /* 종합평가 */
     .overall-eval-grid { grid-template-columns: 1fr !important; }
 
-    /* ── 종합역량평가 ── */
+    /* 종합역량 - 레이더 카드 */
     .eval-radar-card { border-radius: 10px; }
     .eval-radar-card-header {
       flex-direction: column !important; align-items: flex-start !important;
       gap: 8px; padding: 12px 14px 8px;
     }
-    .eval-radar-card-header > div:last-child {
-      width: 100%; display: flex; flex-wrap: wrap; gap: 6px;
-    }
-    #careerDisplay { width: 100%; box-sizing: border-box; flex-wrap: wrap; }
-    #careerVal, #majorVal { max-width: 40vw !important; }
+    .eval-radar-card-header > div:last-child { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+    #careerDisplay { width: 100% !important; box-sizing: border-box; }
+    #careerVal, #majorVal { max-width: 38vw !important; }
     .eval-radar-card-header button[onclick="printCompEval()"] { display: none !important; }
     .eval-radar-card-header button { flex: 1; justify-content: center; }
 
-    /* 레이더 그리드 */
     .eval-radar-grid { grid-template-columns: 1fr !important; gap: 0; }
     .eval-gauge-radar-row {
       display: flex !important; align-items: center;
       gap: 10px; padding: 10px 12px;
     }
-    .eval-gauge-col {
-      flex-direction: column !important; width: 88px; flex-shrink: 0;
-      gap: 6px; padding: 0; height: auto;
-    }
+    .eval-gauge-col { flex-direction: column !important; width: 86px; flex-shrink: 0; gap: 6px; padding: 0; height: auto; }
     .eval-gauge-wrap { width: 80px !important; height: 80px !important; }
     .eval-gauge-wrap svg { width: 80px !important; height: 80px !important; }
-    .eval-gauge-num { font-size: 21px !important; }
+    .eval-gauge-num { font-size: 20px !important; }
     .eval-gauge-badge { font-size: 10px !important; padding: 2px 8px; }
-    .eval-radar-canvas-box { width: 200px !important; height: 200px !important; margin: 0 auto; }
-    .radar-stat-card { padding: 9px 11px; border-radius: 10px; gap: 9px; }
+    .eval-radar-canvas-box { width: 190px !important; height: 190px !important; margin: 0 auto; }
+    .radar-stat-card { padding: 9px 11px; gap: 8px; }
     .radar-stat-grade { font-size: 22px !important; }
-    .radar-stat-name { font-size: 11px !important; }
-    .radar-stat-subs { font-size: 10px !important; }
 
-    /* renderCompEvalPanel */
+    /* 종합역량 패널 */
     #evalGrpGrid { flex-direction: column !important; }
     .eval-total-score-big { font-size: 26px !important; }
     .eval-total-score-num { font-size: 18px !important; }
     .eval-opinion-text { font-size: 12px !important; line-height: 1.7 !important; }
-
-    /* SWOT */
     .eval-swot-section { grid-template-columns: 1fr !important; }
-
-    /* 추천활동 탭 */
     .rec-tab-btn { padding: 5px 9px !important; font-size: 10px !important; }
 
     /* 모의지원 */
     .apply-wrap { padding: 6px; }
-    .apply-input-row { grid-template-columns: 1fr; }
+    .apply-input-row { grid-template-columns: 1fr !important; }
   }
+
+  /* body.is-mobile — JS로 추가되는 클래스 (CSS @media가 안 먹힐 때 보험) */
+  body.is-mobile aside { display: none !important; }
+  body.is-mobile .mobile-bar { display: flex !important; }
+  body.is-mobile .layout { flex-direction: column !important; }
+  body.is-mobile main { overflow: hidden; }
 </style>
 </head>
 <body>
@@ -1234,13 +1239,14 @@ function renderMain(){
     // ===== 모바일 레이아웃 =====
     mainEl.innerHTML = `
       <div class="m-stu-header">
-        <div>
-          <h2>${s.name}</h2>
-          <div class="badges" style="margin-top:4px;">
-            <span class="badge">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
-            <span class="badge ${genderClass}">${s.gender}</span>
+        <div style="flex:1;min-width:0;">
+          <h2 style="font-size:17px;font-weight:800;color:#0f172a;">${s.name}</h2>
+          <div class="badges" style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;">
+            <span class="badge" style="font-size:11px;padding:2px 8px;">${String(s.hak)[0]}학년 ${parseInt(String(s.hak).substring(1,3))}반 ${parseInt(String(s.hak).substring(3,5))}번</span>
+            <span class="badge ${genderClass}" style="font-size:11px;padding:2px 8px;">${s.gender}</span>
           </div>
         </div>
+        <button onclick="currentStu=null;renderMain();" style="flex-shrink:0;border:none;background:#f1f5f9;border-radius:8px;padding:6px 10px;font-size:12px;color:#64748b;cursor:pointer;">✕ 닫기</button>
       </div>
       <div class="m-htabs-wrap">
         <div class="m-htabs" id="mHTabs">
@@ -4896,6 +4902,14 @@ const TAB_META = {
 
 function initMobileUI(){
   if(!isMobile()) return;
+
+  // JS로 aside 강제 숨김 (CSS @media가 안 먹히는 경우 대비)
+  const asideEl = document.querySelector('aside');
+  if(asideEl) asideEl.style.setProperty('display', 'none', 'important');
+
+  // body에 mobile 클래스 추가 → CSS 선택자 확실히 적용
+  document.body.classList.add('is-mobile');
+
   const bar = document.getElementById('mobileBar');
   const isStudent = currentRole && currentRole.startsWith('student_');
 
