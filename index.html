@@ -6704,17 +6704,17 @@ function buildCapabilityGapBlock(analysis, eval_) {
     const tags = capMap[grp] || [];
     const tagBlock = tags.length
       ? tags.slice(0,6).map(t =>
-          `<span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600;">${escapeHtml(t)}</span>`
+          `<span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:12px;padding:2px 9px;font-size:13px;font-weight:600;">${escapeHtml(t)}</span>`
         ).join('')
-      : '<span style="color:#94a3b8;font-size:11px;">데이터 수집 중</span>';
+      : '<span style="color:#94a3b8;font-size:13px;">데이터 수집 중</span>';
     const gradeBadge = stuGrade
-      ? `<span style="background:${GRADE_COLOR[stuGrade]||'#94a3b8'}22;color:${GRADE_COLOR[stuGrade]||'#94a3b8'};border:1px solid ${GRADE_COLOR[stuGrade]||'#94a3b8'}55;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;">${stuGrade}</span>`
-      : '<span style="color:#94a3b8;font-size:11px;">평가 없음</span>';
+      ? `<span style="background:${GRADE_COLOR[stuGrade]||'#94a3b8'}22;color:${GRADE_COLOR[stuGrade]||'#94a3b8'};border:1px solid ${GRADE_COLOR[stuGrade]||'#94a3b8'}55;border-radius:8px;padding:2px 8px;font-size:13px;font-weight:800;">${stuGrade}</span>`
+      : '<span style="color:#94a3b8;font-size:13px;">평가 없음</span>';
     let gapMsg = '';
     if (stuScore !== null) {
-      if (stuScore >= 91)      gapMsg = '<span style="color:#10b981;font-size:10px;font-weight:700;">✅ 합격권 수준</span>';
-      else if (stuScore >= 78) gapMsg = '<span style="color:#f59e0b;font-size:10px;font-weight:700;">⚠️ 보완 권장</span>';
-      else                     gapMsg = '<span style="color:#ef4444;font-size:10px;font-weight:700;">🔴 집중 보완 필요</span>';
+      if (stuScore >= 91)      gapMsg = '<span style="color:#10b981;font-size:12px;font-weight:700;">✅ 합격권 수준</span>';
+      else if (stuScore >= 78) gapMsg = '<span style="color:#f59e0b;font-size:12px;font-weight:700;">⚠️ 보완 권장</span>';
+      else                     gapMsg = '<span style="color:#ef4444;font-size:12px;font-weight:700;">🔴 집중 보완 필요</span>';
     }
     return `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div style="min-width:100px;flex-shrink:0;">
@@ -6722,7 +6722,7 @@ function buildCapabilityGapBlock(analysis, eval_) {
         <div style="display:flex;align-items:center;gap:5px;">${gradeBadge}${gapMsg ? '<span style="margin-left:4px;">'+gapMsg+'</span>' : ''}</div>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:5px;">합격사례 핵심 역량 패턴</div>
+        <div style="font-size:12px;color:#94a3b8;font-weight:600;margin-bottom:5px;">합격사례 핵심 역량 패턴</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">${tagBlock}</div>
       </div>
     </div>`;
@@ -6731,7 +6731,7 @@ function buildCapabilityGapBlock(analysis, eval_) {
   return `<div style="margin-bottom:14px;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;">
     <div style="padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">
       🔍 역량 갭 분석
-      <span style="font-size:10px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">합격사례 역량 패턴 vs 이 학생 평가</span>
+      <span style="font-size:12px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">합격사례 역량 패턴 vs 이 학생 평가</span>
     </div>
     ${rows}
   </div>`;
@@ -6782,13 +6782,13 @@ function renderSuccessCasesSection() {
   }).join('');
 
   const aiRatio = analysis.aiAnalyzedCount > 0
-    ? '<span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
-    : '<span style="font-size:10px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
+    ? '<span style="font-size:12px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
+    : '<span style="font-size:12px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
 
   // 합격포인트 요약
   const pointsBlock = analysis.topPoints.length
     ? '<div style="margin-top:10px;padding:10px 12px;background:#fff;border-radius:8px;border-left:3px solid #7c3aed;">'
-      + '<div style="font-size:11px;font-weight:800;color:#5b21b6;margin-bottom:6px;">💡 합격 핵심 포인트 (AI 요약)</div>'
+      + '<div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:6px;">💡 합격 핵심 포인트 (AI 요약)</div>'
       + analysis.topPoints.map(p =>
           '<div style="font-size:12px;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:5px;">'
           + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;">▸</span>' + escapeHtml(p) + '</div>'
@@ -6807,25 +6807,25 @@ function renderSuccessCasesSection() {
       ? (parseFloat(innerAvg) - stuAvg).toFixed(2) : null;
     const diffBadge = diff != null
       ? (parseFloat(diff) > 0
-          ? '<span style="background:#fee2e2;color:#dc2626;font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 +' + diff + '</span>'
+          ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 +' + diff + '</span>'
           : parseFloat(diff) < 0
-          ? '<span style="background:#dcfce7;color:#16a34a;font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 ' + diff + '</span>'
-          : '<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;">동일</span>')
+          ? '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 ' + diff + '</span>'
+          : '<span style="background:#dbeafe;color:#1d4ed8;font-size:12px;padding:1px 6px;border-radius:6px;font-weight:700;">동일</span>')
       : '';
 
     const caseKw = String(c['핵심키워드'] || '').trim();
     const casePoint = String(c['합격포인트'] || '').trim();
     const aiChip = caseKw
-      ? '<span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:1px 7px;border-radius:6px;font-weight:600;">🤖 AI분석</span>'
+      ? '<span style="background:#ede9fe;color:#6d28d9;font-size:12px;padding:1px 7px;border-radius:6px;font-weight:600;">🤖 AI분석</span>'
       : '';
 
     const aiInlineBlock = (caseKw || casePoint)
       ? '<div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;margin-bottom:12px;">'
-        + '<div style="font-size:11px;font-weight:800;color:#5b21b6;margin-bottom:7px;">🤖 AI 분석 결과</div>'
+        + '<div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:7px;">🤖 AI 분석 결과</div>'
         + (casePoint ? '<div style="font-size:12px;color:#4c1d95;font-weight:600;margin-bottom:7px;padding:6px 10px;background:#fff;border-radius:6px;border-left:3px solid #7c3aed;">💡 ' + escapeHtml(casePoint) + '</div>' : '')
         + (caseKw ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">'
             + caseKw.split(/[,，、]/).map(k=>k.trim()).filter(Boolean).map(k =>
-                '<span style="background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600;">' + escapeHtml(k) + '</span>'
+                '<span style="background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:12px;padding:2px 9px;font-size:13px;font-weight:600;">' + escapeHtml(k) + '</span>'
               ).join('')
             + '</div>' : '')
         + '</div>'
@@ -6835,13 +6835,13 @@ function renderSuccessCasesSection() {
       + '<div onclick="toggleSuccessCase(\'' + uid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:#fff;transition:background .15s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'
       + '<div style="display:flex;flex-direction:column;align-items:center;background:#f5f3ff;padding:6px 10px;border-radius:8px;min-width:55px;">'
       + '<span style="font-size:18px;font-weight:900;color:#6d28d9;line-height:1;">' + innerAvg + '</span>'
-      + '<span style="font-size:9px;color:#94a3b8;font-weight:600;margin-top:2px;">내신</span>'
+      + '<span style="font-size:13px;color:#94a3b8;font-weight:600;margin-top:2px;">내신</span>'
       + '</div>'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:14px;font-weight:800;color:#0f172a;">' + escapeHtml(c['지원대학']||'-')
       + ' <span style="font-size:12px;font-weight:500;color:#475569;">' + escapeHtml(c['지원학과']||'') + '</span></div>'
       + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">'
-      + '<span style="font-size:11px;color:#94a3b8;">' + escapeHtml(c['전형명']||'') + '</span>'
+      + '<span style="font-size:13px;color:#94a3b8;">' + escapeHtml(c['전형명']||'') + '</span>'
       + diffBadge + aiChip
       + '</div></div>'
       + '<span id="' + uid + '_arr" style="color:#94a3b8;font-size:12px;flex-shrink:0;transition:transform .2s;">▼</span>'
@@ -6850,25 +6850,25 @@ function renderSuccessCasesSection() {
       + aiInlineBlock
       + (c['특이사항']
         ? '<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #d97706;border-radius:8px;padding:11px 14px;margin-bottom:12px;">'
-          + '<div style="font-size:11px;font-weight:800;color:#92400e;margin-bottom:6px;">⭐ 합격의 요인</div>'
+          + '<div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px;">⭐ 합격의 요인</div>'
           + '<div style="font-size:13px;color:#1e293b;line-height:1.7;white-space:pre-line;">' + escapeHtml(c['특이사항']) + '</div>'
           + '</div>'
         : '')
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
       + '<div style="background:#fff;border:1px solid #e8edf5;border-radius:8px;padding:8px 10px;">'
-      + '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📚 내신</div>'
+      + '<div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📚 내신</div>'
       + '<div style="font-size:12px;color:#334155;">전과목 <b>' + (c['내신_전과목']||'-') + '</b> · 국영수사 ' + (c['내신_국영수사']||'-') + ' · 국영수과 ' + (c['내신_국영수과']||'-') + '</div>'
-      + (c['내신_특이점'] ? '<div style="font-size:11px;color:#64748b;margin-top:2px;">' + escapeHtml(c['내신_특이점']) + '</div>' : '')
+      + (c['내신_특이점'] ? '<div style="font-size:13px;color:#64748b;margin-top:2px;">' + escapeHtml(c['내신_특이점']) + '</div>' : '')
       + '</div>'
       + '<div style="background:#fff;border:1px solid #e8edf5;border-radius:8px;padding:8px 10px;">'
-      + '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📝 수능</div>'
+      + '<div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📝 수능</div>'
       + '<div style="font-size:12px;color:#334155;">국' + (c['수능_국어']||'-') + ' 수' + (c['수능_수학']||'-') + ' 영' + (c['수능_영어']||'-') + ' 탐' + (c['수능_탐구1']||'-') + '/' + (c['수능_탐구2']||'-') + ' 한' + (c['수능_한국사']||'-') + '</div>'
-      + (c['수능_선택과목'] ? '<div style="font-size:10px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
+      + (c['수능_선택과목'] ? '<div style="font-size:12px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
       + '</div></div>'
-      + (c['교과세특'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['교과세특']) + '</div></div>' : '')
-      + (c['동아리'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['동아리']) + '</div></div>' : '')
-      + (c['자율봉사진로'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['자율봉사진로']) + '</div></div>' : '')
-      + (c['독서'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['독서']) + '</div></div>' : '')
+      + (c['교과세특'] ? '<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['교과세특']) + '</div></div>' : '')
+      + (c['동아리'] ? '<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['동아리']) + '</div></div>' : '')
+      + (c['자율봉사진로'] ? '<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['자율봉사진로']) + '</div></div>' : '')
+      + (c['독서'] ? '<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['독서']) + '</div></div>' : '')
       + '</div></div>';
   }).join('');
 
@@ -6877,21 +6877,21 @@ function renderSuccessCasesSection() {
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
     + '<div>'
     + '<div style="font-size:16px;font-weight:900;color:#5b21b6;">🏆 학종 합격사례 벤치마크</div>'
-    + '<div style="font-size:11px;color:#7c3aed;margin-top:3px;">희망전공 <b>' + escapeHtml(major || career) + '</b> 관련 · 2025학년도 학종 합격사례 (경북진학지원센터)</div>'
+    + '<div style="font-size:13px;color:#7c3aed;margin-top:3px;">희망전공 <b>' + escapeHtml(major || career) + '</b> 관련 · 2025학년도 학종 합격사례 (경북진학지원센터)</div>'
     + '</div>'
     + '<div style="text-align:right;">'
-    + '<div style="font-size:11px;color:#94a3b8;">매칭된 사례</div>'
-    + '<div style="font-size:20px;font-weight:900;color:#7c3aed;">' + filtered.length + '<span style="font-size:11px;font-weight:500;color:#94a3b8;"> / 전체 ' + matched.length + '건</span></div>'
+    + '<div style="font-size:13px;color:#94a3b8;">매칭된 사례</div>'
+    + '<div style="font-size:20px;font-weight:900;color:#7c3aed;">' + filtered.length + '<span style="font-size:13px;font-weight:500;color:#94a3b8;"> / 전체 ' + matched.length + '건</span></div>'
     + '</div></div></div>'
     + '<div style="padding:14px 18px;background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border-bottom:1px solid #ddd6fe;">'
     + '<div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">⭐ 합격의 핵심 키워드 분석 ' + aiRatio + '</div>'
     + '<div style="margin-bottom:8px;">' + (kwTags || '<span style="color:#94a3b8;font-size:12px;">키워드 분석 데이터 수집 중 (AI 분석 진행 중)</span>') + '</div>'
-    + (analysis.avgGrade ? '<div style="font-size:11px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
+    + (analysis.avgGrade ? '<div style="font-size:13px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
     + pointsBlock
     + '</div>'
     + (gapBlock ? '<div style="padding:14px 18px;border-bottom:1px solid #ddd6fe;">' + gapBlock + '</div>' : '')
     + '<div style="padding:14px;display:flex;flex-direction:column;gap:8px;">' + caseCards + '</div>'
-    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:10px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
+    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:12px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
     + '</div>';
 }
 
