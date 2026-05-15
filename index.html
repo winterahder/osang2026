@@ -6785,13 +6785,13 @@ function renderSuccessCasesSection() {
     ? '<span style="font-size:12px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
     : '<span style="font-size:12px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
 
-  // 합격포인트 요약
+  // 합격포인트 요약 (맞춤형 활동 추천과 동일한 글자 크기로)
   const pointsBlock = analysis.topPoints.length
-    ? '<div style="margin-top:10px;padding:10px 12px;background:#fff;border-radius:8px;border-left:3px solid #7c3aed;">'
-      + '<div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:6px;">💡 합격 핵심 포인트 (AI 요약)</div>'
+    ? '<div style="margin-top:12px;padding:14px 16px;background:#fff;border-radius:10px;border-left:3px solid #7c3aed;">'
+      + '<div style="font-size:14px;font-weight:800;color:#5b21b6;margin-bottom:10px;">💡 합격 핵심 포인트 (AI 요약)</div>'
       + analysis.topPoints.map(p =>
-          '<div style="font-size:12px;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:5px;">'
-          + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;">▸</span>' + escapeHtml(p) + '</div>'
+          '<div style="font-size:15px;color:#334155;line-height:1.85;margin-bottom:8px;display:flex;align-items:flex-start;gap:7px;">'
+          + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;font-size:16px;">▸</span><span>' + escapeHtml(p) + '</span></div>'
         ).join('')
       + '</div>'
     : '';
