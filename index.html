@@ -450,20 +450,20 @@
   .eval-grade-trend-no-data { color: #cbd5e1; font-size: 13px; text-align: center; padding: 20px; }
   /* ② 강점/보완점 */
   .eval-swot-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .eval-swot-card { border-radius: 14px; padding: 20px 22px; border: 1.5px solid; position: relative; overflow: hidden; }
+  .eval-swot-card { border-radius: 14px; padding: 18px 20px; border: 1.5px solid; position: relative; overflow: hidden; }
   .eval-swot-card::before { content: ''; position: absolute; top: -24px; right: -24px; width: 90px; height: 90px; border-radius: 50%; opacity: .08; }
   .eval-swot-card.strength { background: #f0fdf4; border-color: #86efac; }
   .eval-swot-card.strength::before { background: #16a34a; }
   .eval-swot-card.weakness { background: #fff7ed; border-color: #fdba74; }
   .eval-swot-card.weakness::before { background: #ea580c; }
-  .eval-swot-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
-  .eval-swot-item { display: flex; align-items: flex-start; gap: 9px; font-size: 15px; color: #1e293b; line-height: 1.75; margin-bottom: 10px; }
+  .eval-swot-title { font-size: 13px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .eval-swot-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #1e293b; line-height: 1.65; margin-bottom: 8px; }
   .eval-swot-item:last-child { margin-bottom: 0; }
-  .eval-swot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 9px; }
+  .eval-swot-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
   .eval-swot-gen-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 10px; border: 1.5px dashed #cbd5e1; background: #f8fafc; color: #64748b; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; grid-column: 1 / -1; }
   .eval-swot-gen-btn:hover { border-color: #6366f1; color: #6366f1; background: #ede9fe; }
-  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 12px; line-height: 1.6; }
-  .eval-swot-summary-icon { font-size: 22px; flex-shrink: 0; }
+  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 13px 18px; font-size: 14px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 10px; }
+  .eval-swot-summary-icon { font-size: 18px; flex-shrink: 0; }
 
   /* ③ 내신 연동 배지 */
   .grade-link-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
@@ -567,23 +567,14 @@
     body * { visibility: hidden; }
     #printArea, #printArea * { visibility: visible; }
     #printArea {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      padding: 12px 20px;
+      position: fixed; inset: 0;
+      padding: 16px 20px;
       background: #fff;
       font-family: 'Pretendard', -apple-system, sans-serif;
-      font-size: 13px;
+      font-size: 12px;
       color: #1e293b;
-      box-sizing: border-box;
     }
-    /* 인쇄 시 페이지 중간 강제 잘림 방지 */
-    #printArea .eval-grp-acc,
-    #printArea .eval-swot-card,
-    #printArea .eval-swot-section { page-break-inside: avoid; }
     .print-no { display: none !important; }
-    /* 레이더 카드 버튼 행 숨김 */
-    .eval-radar-card-header { flex-wrap: nowrap; }
   }
   .apply-history-item:hover { background: #f1f5f9; color: #6366f1; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
@@ -3990,133 +3981,6 @@ async function deleteMajorAnalysis(dept){
 
 
 
-// ========== 진로/전공 수정 모달 (관리자 + 교사 전용) ==========
-function openCareerEditModal(){
-  if(!currentStu){ alert('학생을 먼저 선택하세요.'); return; }
-  if(currentRole && currentRole.startsWith('student_')){
-    alert('학생은 진로/전공을 수정할 수 없습니다.\n담임 선생님께 요청해주세요.');
-    return;
-  }
-
-  const 진로Cur = currentStu.진로 || currentStu.career || '';
-  const 전공Cur = currentStu.전공 || currentStu.major  || '';
-  const stuName = currentStu.name || '';
-  const stuHak  = String(currentStu.hak || '');
-
-  const modal = document.createElement('div');
-  modal.id = 'careerEditModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-      <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:6px;">✏️ 희망 진로 · 전공 수정</div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:20px;"><span style="color:#1e40af;font-weight:600;">${escapeHtml(stuName)}</span> (${escapeHtml(stuHak)}) 학생의 희망 진로와 전공을 수정합니다.</div>
-
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">희망 진로 (직업)</label>
-        <input id="careerEditInput" placeholder="예: 의사, 교사, 변호사, 개발자"
-          value="${escapeHtml(진로Cur)}"
-          style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;"
-          onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
-      </div>
-
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">희망 전공 (학과)</label>
-        <input id="majorEditInput" placeholder="예: 의예과, 경영학과, 컴퓨터공학과"
-          value="${escapeHtml(전공Cur)}"
-          style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;"
-          onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
-      </div>
-
-      <div id="careerEditStatus" style="min-height:20px;font-size:12px;color:#64748b;margin-bottom:14px;"></div>
-
-      <div style="display:flex;gap:8px;">
-        <button onclick="saveCareerEdit()" id="careerEditSaveBtn"
-          style="flex:1;padding:11px;background:linear-gradient(135deg,#16a34a,#22c55e);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
-          💾 저장
-        </button>
-        <button onclick="document.getElementById('careerEditModal').remove()"
-          style="padding:11px 18px;background:#f1f5f9;border:none;border-radius:9px;font-size:14px;color:#475569;cursor:pointer;font-family:inherit;">
-          닫기
-        </button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-
-  // 배경 클릭시 닫기
-  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
-
-  // ESC로 닫기
-  const escHandler = e => {
-    if(e.key === 'Escape'){
-      modal.remove();
-      document.removeEventListener('keydown', escHandler);
-    }
-  };
-  document.addEventListener('keydown', escHandler);
-
-  // 진로 필드에 포커스
-  setTimeout(() => document.getElementById('careerEditInput')?.focus(), 50);
-}
-
-async function saveCareerEdit(){
-  const 진로Input = document.getElementById('careerEditInput');
-  const 전공Input = document.getElementById('majorEditInput');
-  const statusEl  = document.getElementById('careerEditStatus');
-  const saveBtn   = document.getElementById('careerEditSaveBtn');
-
-  if(!진로Input || !전공Input) return;
-
-  const 진로New = 진로Input.value.trim();
-  const 전공New = 전공Input.value.trim();
-
-  // 변경사항이 없으면 저장 스킵
-  const 진로Cur = currentStu.진로 || currentStu.career || '';
-  const 전공Cur = currentStu.전공 || currentStu.major  || '';
-  if(진로New === 진로Cur && 전공New === 전공Cur){
-    if(statusEl) statusEl.innerHTML = '<span style="color:#94a3b8;">변경사항이 없습니다.</span>';
-    return;
-  }
-
-  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = '⏳ 저장 중...'; }
-  if(statusEl) statusEl.innerHTML = '<span style="color:#6366f1;">서버에 저장하고 있습니다...</span>';
-
-  try {
-    const hak = String(currentStu.hak);
-    const res = await apiPost({
-      action: 'saveStudentField',
-      password: currentPassword,
-      hak: hak,
-      fields: { 진로: 진로New, 전공: 전공New }
-    }, 15000);
-
-    if(res?.success){
-      // ── 로컬 students 배열도 갱신 (재로딩 없이 즉시 반영) ──
-      const idx = students.findIndex(s => String(s.hak) === hak);
-      if(idx >= 0){
-        students[idx].진로 = 진로New;
-        students[idx].전공 = 전공New;
-      }
-      currentStu.진로 = 진로New;
-      currentStu.전공 = 전공New;
-
-      if(statusEl) statusEl.innerHTML = '<span style="color:#16a34a;font-weight:600;">✅ 저장 완료!</span>';
-
-      // 종합역량평가 탭 재렌더 (진로/전공 표시 갱신)
-      setTimeout(() => {
-        document.getElementById('careerEditModal')?.remove();
-        if(currentTab === '종합역량평가') renderTab();
-      }, 600);
-    } else {
-      throw new Error(res?.error || '알 수 없는 오류');
-    }
-  } catch(e) {
-    if(statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ ${escapeHtml(e.message || '저장 실패')}</span>`;
-    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '💾 저장'; }
-  }
-}
-
-
-
 // ========== 독서 탭 (1·2학년 전용 — 세특에서 독서역량 파악) ==========
 function renderBookTab(el){
   const hak = String(currentStu.hak);
@@ -4203,15 +4067,14 @@ function renderCompEvalTab(el){
   const recData = evalData[hak]?.맞춤활동추천
     || (g2hak ? evalData[g2hak]?.맞춤활동추천 : null) || null;
 
-  // [순서] A안: 결론 먼저 → 액션 → 보조 데이터 → 참고 자료(맨 아래)
   el.innerHTML = `<div class="card" style="padding:16px;">
     <div id="evalRadarArea"></div>
-    <div id="evalSwotArea"></div>
-    ${decompData ? renderIndexDecompSection(decompData) : ''}
-    ${recData ? renderIndexRecSection(recData) : ''}
     <div id="evalGradeTrendArea"></div>
+    <div id="evalSwotArea"></div>
     <div id="evalSuccessCasesArea"></div>
     <div id="evalAdmissionsArea"></div>
+    ${decompData ? renderIndexDecompSection(decompData) : ''}
+    ${recData ? renderIndexRecSection(recData) : ''}
   </div>`;
 
   requestAnimationFrame(() => {
@@ -4340,12 +4203,11 @@ function drawEvalRadar(eval_, container){
             <span style="color:#94a3b8;font-weight:500;">희망전공</span>
             <span id="majorVal" style="font-weight:700;color:#1e293b;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(전공Val)}">${escapeHtml(전공Val)}</span>
           </div>
-          <!-- 수정 버튼 (학생 역할에는 숨김) -->
-          ${(currentRole && currentRole.startsWith('student_')) ? '' : `
+          <!-- 수정 버튼 -->
           <button onclick="openCareerEditModal()" class="print-no"
             style="display:flex;align-items:center;gap:4px;padding:5px 11px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;font-size:12px;font-weight:600;color:#16a34a;cursor:pointer;white-space:nowrap;">
             ✏️ 수정
-          </button>`}
+          </button>
           <!-- 인쇄 버튼 -->
           <button onclick="printCompEval()" class="print-no"
             style="display:flex;align-items:center;gap:5px;padding:5px 14px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap;"
@@ -4643,10 +4505,10 @@ function renderCompEvalPanel(eval_){
       const sg    = (typeof sd === 'string') ? sd : (sd.grade || '-');
       const sColor = GC[sg] || '#94a3b8';
       const comment = (typeof sd === 'object' && sd.comment) ? sd.comment : '';
-      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <span style="font-size:14px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
-        <span style="font-size:15px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
-        ${comment ? `<span style="font-size:14px;color:#475569;line-height:1.7;flex:1;">${escapeHtml(comment)}</span>` : ''}
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.04);">
+        <span style="font-size:12px;font-weight:600;color:#64748b;min-width:64px;flex-shrink:0;">${lbl}</span>
+        <span style="font-size:13px;font-weight:800;color:${sColor};min-width:28px;flex-shrink:0;">${dispGrade(sg)}</span>
+        ${comment ? `<span style="font-size:11.5px;color:#94a3b8;line-height:1.55;flex:1;">${escapeHtml(comment)}</span>` : ''}
       </div>`;
     }).join('');
 
@@ -4654,29 +4516,29 @@ function renderCompEvalPanel(eval_){
     const subSummary = g.subs.map(([lbl, subKey]) => {
       const sd = d[subKey]; if(!sd) return '';
       const sg = (typeof sd === 'string') ? sd : (sd.grade || '-');
-      return `<span style="font-size:12px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
+      return `<span style="font-size:10px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
     }).filter(Boolean).join('<span style="color:#e2e8f0;margin:0 3px;">·</span>');
 
     return `<div class="eval-grp-acc" style="border:1.5px solid #e8edf5;border-top:3px solid ${gColor};border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04);">
       <!-- 헤더 (항상 보임) -->
       <div onclick="toggleEvalGrp('${accId}')"
-        style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:20px;line-height:1;">${g.icon}</span>
+        style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:17px;line-height:1;">${g.icon}</span>
           <div>
-            <div style="font-size:16px;font-weight:800;color:#1e293b;">${g.label}</div>
-            <div class="eval-grp-sub-summary" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;">${subSummary}</div>
+            <div style="font-size:13px;font-weight:800;color:#1e293b;">${g.label}</div>
+            <div class="eval-grp-sub-summary" style="margin-top:2px;display:flex;flex-wrap:wrap;gap:4px;">${subSummary}</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
           <div style="text-align:right;">
-            <span style="font-size:30px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
+            <span style="font-size:26px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
           </div>
-          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:13px;color:#94a3b8;transition:transform .2s;">▼</span>
+          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:11px;color:#94a3b8;transition:transform .2s;">▼</span>
         </div>
       </div>
       <!-- 펼쳐지는 내용 -->
-      <div id="${accId}" style="display:none;padding:0 18px 14px;border-top:1px solid #f1f5f9;">
+      <div id="${accId}" style="display:none;padding:0 16px 12px;border-top:1px solid #f1f5f9;">
         ${subRows}
       </div>
     </div>`;
@@ -4687,21 +4549,21 @@ function renderCompEvalPanel(eval_){
 
   return `<div style="background:#fff;border:2px solid #ede9fe;border-radius:16px;padding:0;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,102,241,.08);">
     <!-- 헤더 -->
-    <div style="padding:16px 22px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span style="font-size:17px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
-      <span style="font-size:12px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:3px 10px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
+    <div style="padding:14px 20px 0;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:15px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
+      <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 9px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
     </div>
 
     <!-- 종합 점수 배너 -->
     ${(totalGrade || totalScore != null) ? `
-    <div style="margin:14px 22px 0;padding:14px 20px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-      <span class="eval-total-score-big" style="font-size:42px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
-      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:28px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
-      <span style="font-size:12px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
+    <div style="margin:12px 20px 0;padding:12px 18px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:12px;">
+      <span class="eval-total-score-big" style="font-size:36px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
+      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:24px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
+      <span style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
     </div>` : ''}
 
     <!-- 3열 그룹 카드 -->
-    <div id="evalGrpGrid" style="display:flex;flex-direction:column;gap:10px;padding:16px 22px;">
+    <div id="evalGrpGrid" style="display:flex;flex-direction:column;gap:10px;padding:14px 20px;">
       ${grpCards}
     </div>
 
@@ -4709,9 +4571,9 @@ function renderCompEvalPanel(eval_){
 
     <!-- 종합 의견 -->
     ${eval_.종합의견 ? `
-    <div style="margin:0 22px 16px;padding:16px 18px;background:#f5f3ff;border-radius:10px;border-left:4px solid #8b5cf6;">
-      <div style="font-size:15px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
-      <div class="eval-opinion-text" style="font-size:15px;color:#334155;line-height:1.8;">${escapeHtml(eval_.종합의견)}</div>
+    <div style="margin:0 20px 14px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
+      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:6px;">💬 종합 의견</div>
+      <div class="eval-opinion-text" style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
 
     <!-- 우수 문장 발췌 -->
@@ -4735,19 +4597,19 @@ function renderBestSentences(sentences) {
   const groupHtml = Object.entries(groups).map(([역량, items]) => {
     const color = GC2[역량] || '#64748b';
     const rows = items.map(item => `
-      <div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:5px;">
+      <div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:12px;font-weight:700;background:${color}18;color:${color};padding:3px 9px;border-radius:10px;">${escapeHtml(item.구분||'')}</span>
-          <span style="font-size:11.5px;color:#94a3b8;">${item.학년 ? item.학년+'학년' : ''} ${escapeHtml(item.출처||'')}</span>
+          <span style="font-size:10px;font-weight:700;background:${color}18;color:${color};padding:2px 7px;border-radius:10px;">${escapeHtml(item.구분||'')}</span>
+          <span style="font-size:10px;color:#94a3b8;">${item.학년 ? item.학년+'학년' : ''} ${escapeHtml(item.출처||'')}</span>
         </div>
-        <div style="font-size:14.5px;color:#334155;line-height:1.75;">
-          <span style="color:${color};font-size:18px;font-weight:900;margin-right:4px;">"</span>${escapeHtml(item.문장||'')}
+        <div style="font-size:12.5px;color:#334155;line-height:1.7;">
+          <span style="color:${color};font-size:14px;font-weight:900;margin-right:4px;">"</span>${escapeHtml(item.문장||'')}
         </div>
       </div>`).join('');
 
     return `
-      <div style="margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:6px;padding:10px 14px 6px;font-size:15px;font-weight:800;color:${color};">
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 12px 4px;font-size:13px;font-weight:800;color:${color};">
           ${역량==='학업역량'?'📚':역량==='진로역량'?'🎯':'🤝'} ${역량}에서 좋은 평가를 받은 기록
         </div>
         <div style="border:1px solid ${color}22;border-radius:10px;overflow:hidden;">${rows}</div>
@@ -4755,12 +4617,12 @@ function renderBestSentences(sentences) {
   }).join('');
 
   return `
-    <div style="margin:0 22px 20px;">
+    <div style="margin:0 20px 18px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:16px;font-weight:800;color:#1e293b;">⭐ 좋은 평가를 받은 기록</span>
-        <span style="font-size:12px;background:#fef9c3;color:#92400e;padding:3px 9px;border-radius:8px;font-weight:600;">AI 자동 발췌</span>
+        <span style="font-size:14px;font-weight:800;color:#1e293b;">⭐ 좋은 평가를 받은 기록</span>
+        <span style="font-size:11px;background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:8px;font-weight:600;">AI 자동 발췌</span>
       </div>
-      <div style="font-size:13px;color:#94a3b8;margin-bottom:12px;padding:9px 12px;background:#f8fafc;border-radius:8px;">
+      <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;">
         📌 아래 기록들은 학생부종합전형에서 긍정적인 평가를 받을 수 있는 문장입니다. 더 발전시켜 나가세요.
       </div>
       ${groupHtml}
@@ -5159,11 +5021,11 @@ function renderIndexDecompSection(data){
     const tags = data[c.key] || [];
     if(!tags.length) return '';
     const pills = tags.map(t =>
-      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:4px 13px;font-size:14px;font-weight:600;">${escapeHtml(t)}</span>`
+      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:3px 11px;font-size:12px;font-weight:600;">${escapeHtml(t)}</span>`
     ).join('');
-    return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
-      <span style="font-size:14px;color:#94a3b8;font-weight:700;min-width:64px;padding-top:4px;">${c.icon} ${c.key}</span>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">${pills}</div>
+    return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+      <span style="font-size:12px;color:#94a3b8;font-weight:700;min-width:58px;padding-top:3px;">${c.icon} ${c.key}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">${pills}</div>
     </div>`;
   }).filter(Boolean).join('');
 
@@ -5171,15 +5033,15 @@ function renderIndexDecompSection(data){
   const 사회적맥락 = data.사회적맥락 || '';
   if(!tagRows && !사고흐름 && !사회적맥락) return '';
 
-  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 22px;margin-top:14px;">
-    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-top:14px;">
+    <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
       🔍 <span>활동 분해</span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:${(사고흐름||사회적맥락)?'16px':'0'};">
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${(사고흐름||사회적맥락)?'14px':'0'};">
       ${tagRows}
     </div>
-    ${사고흐름 ? `<div style="font-size:15px;color:#334155;line-height:1.85;padding:14px 16px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
-    ${사회적맥락 ? `<div style="font-size:14px;color:#64748b;line-height:1.85;padding:14px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:13px;font-weight:700;color:#d97706;display:block;margin-bottom:6px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
+    ${사고흐름 ? `<div style="font-size:13px;color:#334155;line-height:1.8;padding:12px 14px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
+    ${사회적맥락 ? `<div style="font-size:12px;color:#64748b;line-height:1.8;padding:10px 14px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:11px;font-weight:700;color:#d97706;display:block;margin-bottom:4px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
   </div>`;
 }
 
@@ -5199,43 +5061,43 @@ function renderIndexRecSection(data){
 
   const tabBtns = IDX_REC_TYPES.map(t => {
     const isActive = t.key === idxCurrentRecTab;
-    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:11px 18px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:14px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
+    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:10px 16px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:13px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
   }).join('');
 
   const section = (label, text) => text
-    ? `<div style="margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${label}</div>
-        <div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(text)}</div>
+    ? `<div style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${label}</div>
+        <div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(text)}</div>
       </div>` : '';
 
   const twoCol = (l1,t1,l2,t2) => (t1||t2) ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
-      ${t1?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t1)}</div></div>`:''}
-      ${t2?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t2)}</div></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      ${t1?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t1)}</div></div>`:''}
+      ${t2?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t2)}</div></div>`:''}
     </div>` : '';
 
   const qBlock = Array.isArray(d.탐구질문) && d.탐구질문.length
-    ? `<div style="margin-top:8px;padding:14px 16px;background:#f8fafc;border-radius:10px;">
-        <div style="font-size:14px;font-weight:700;color:#94a3b8;margin-bottom:10px;">❓ 탐구 질문</div>
-        ${d.탐구질문.map((q,i)=>`<div style="font-size:15px;color:#334155;margin-bottom:8px;line-height:1.7;"><b style="color:${active.color};margin-right:8px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
+    ? `<div style="margin-top:6px;padding:12px 14px;background:#f8fafc;border-radius:10px;">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:8px;">❓ 탐구 질문</div>
+        ${d.탐구질문.map((q,i)=>`<div style="font-size:13px;color:#334155;margin-bottom:6px;"><b style="color:${active.color};margin-right:6px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
       </div>` : '';
 
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;overflow:hidden;">
-    <div style="padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
-      <div style="font-size:16px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
+    <div style="padding:16px 20px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
     </div>
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
-    <div style="padding:18px 22px;">
-      <div style="margin-bottom:16px;">
-        <div style="font-size:13px;color:${active.color};font-weight:600;margin-bottom:5px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
-        <div style="font-size:18px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
-        ${d.태그?`<span style="display:inline-block;margin-top:6px;font-size:12.5px;background:${active.bg};color:${active.color};border-radius:10px;padding:3px 12px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
+    <div style="padding:16px 20px;">
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+        <div style="font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
+        ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
       </div>
       ${section('선정 이유', d.선정이유)}
       ${twoCol('기존 활동 연결', d.기존활동연결, '진로 관련성', d.진로관련성)}
       ${section('학종 평가 포인트', d.학종평가포인트)}
       ${section('실행 방법', d.실행방법)}
-      ${d.후속확장?`<div style="font-size:14px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
+      ${d.후속확장?`<div style="font-size:12px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:8px 12px;margin-bottom:10px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
       ${qBlock}
     </div>
   </div>`;
@@ -5246,79 +5108,6 @@ function idxSwitchRecTab(key){
   // 현재 탭 콘텐츠 다시 렌더링
   const el = document.getElementById('tabContent');
   if(el) renderTab();
-}
-
-// ===== 종합역량평가 인쇄 =====
-function printCompEval() {
-  const card = document.querySelector('#main .card');
-  if(!card){ alert('인쇄할 내용이 없습니다.'); return; }
-
-  // ── STEP 1: 아코디언 패널 임시로 모두 열기 ──────────
-  // 닫혀있는 eval 아코디언 패널들 (display:none → '') 임시 오픈
-  const hiddenPanels = [];
-  card.querySelectorAll('[id^="evalGrpAcc_"]').forEach(el => {
-    if(el.style.display === 'none'){
-      el.style.display = '';
-      hiddenPanels.push(el);
-    }
-  });
-
-  // ── STEP 2: canvas → img 변환 (레이더 차트 등) ──────
-  // canvas는 innerHTML 복사 시 그림이 사라짐 → dataURL img로 교체
-  const canvasSwaps = [];
-  card.querySelectorAll('canvas').forEach(canvas => {
-    try {
-      const img = document.createElement('img');
-      img.src = canvas.toDataURL('image/png');
-      // 원본 크기 맞추기
-      const cs = window.getComputedStyle(canvas);
-      img.style.width  = (canvas.offsetWidth  || parseInt(cs.width))  + 'px';
-      img.style.height = (canvas.offsetHeight || parseInt(cs.height)) + 'px';
-      img.style.display = 'block';
-      canvas.parentNode.insertBefore(img, canvas);
-      canvas.style.display = 'none';
-      canvasSwaps.push({ img, canvas });
-    } catch(e){ console.warn('canvas 변환 실패:', e); }
-  });
-
-  // ── STEP 3: printArea 생성 및 innerHTML 복사 ────────
-  const prev = document.getElementById('printArea');
-  if(prev) prev.remove();
-
-  const stuName = (currentStu && currentStu.name) ? currentStu.name : '';
-  const stuHak  = (currentStu && currentStu.hak)  ? String(currentStu.hak) : '';
-  const today   = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'});
-
-  const printArea = document.createElement('div');
-  printArea.id = 'printArea';
-  printArea.innerHTML = `
-    <div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;font-family:sans-serif;">
-      <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:4px;">오상고등학교 학생 상담카드</div>
-      <div style="font-size:22px;font-weight:900;color:#1e293b;">${escapeHtml(stuHak)} ${escapeHtml(stuName)} &nbsp; 종합역량평가</div>
-      <div style="font-size:12px;color:#94a3b8;margin-top:6px;">${today} 출력</div>
-    </div>
-    ${card.innerHTML}
-  `;
-  // printArea 안의 .print-no 요소 숨기기 (버튼 등)
-  printArea.querySelectorAll('.print-no').forEach(el => el.style.display = 'none');
-  document.body.appendChild(printArea);
-
-  // ── STEP 4: 인쇄 ────────────────────────────────────
-  window.print();
-
-  // ── STEP 5: afterprint 시 원상복구 ──────────────────
-  const cleanup = () => {
-    printArea.remove();
-    // canvas 복원
-    canvasSwaps.forEach(({ img, canvas }) => {
-      img.remove();
-      canvas.style.display = '';
-    });
-    // 아코디언 다시 닫기
-    hiddenPanels.forEach(el => { el.style.display = 'none'; });
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
 }
 
 function escapeHtml(s){
@@ -6602,88 +6391,204 @@ function matchSuccessCases() {
 }
 
 // 합격의 요인 패턴 분석 (여러 사례에서 공통 키워드 추출)
+// 합격의 요인 패턴 분석 (AI 키워드 우선 + 원문 빈도 fallback)
 function analyzeSuccessFactors(cases) {
-  if(!cases || !cases.length) return { keywords: [], summary: '' };
+  if (!cases || !cases.length) return { keywords: [], aiKeywords: [], capabilityMap: {}, avgGrade: null, minGrade: null, maxGrade: null, totalCount: 0 };
 
-  // 특이사항 텍스트 합치기
-  const allText = cases.map(c => c['특이사항'] || '').join(' ');
+  // ── ① AI 추출 핵심키워드 집계 (새 컬럼) ──
+  const aiKwCount = {};
+  const aiCapMap  = { 학업역량: [], 진로역량: [], 공동체역량: [] };
+  let aiAnalyzedCount = 0;
 
-  // 자주 등장하는 의미있는 명사 추출 (3글자 이상 한글)
-  const wordCount = {};
-  const stopwords = new Set(['있는', '있음', '하는', '하지', '이러한', '있어', '학생', '활동', '진행', '대한', '관련', '통해', '있다', '없다', '많이', '많음', '진로', '대학', '학과', '관심', '있을', '되어', '있는데', '대해', '많이', '활동을', '있고', '에서', '으로']);
-
-  const words = allText.match(/[가-힣]{3,}/g) || [];
-  words.forEach(w => {
-    if(stopwords.has(w)) return;
-    wordCount[w] = (wordCount[w] || 0) + 1;
+  cases.forEach(c => {
+    const kwRaw = String(c['핵심키워드'] || '').trim();
+    if (kwRaw) {
+      aiAnalyzedCount++;
+      kwRaw.split(/[,，、]/).map(s => s.trim()).filter(Boolean).forEach(kw => {
+        aiKwCount[kw] = (aiKwCount[kw] || 0) + 1;
+      });
+    }
+    const catRaw = String(c['역량분류'] || '').trim();
+    if (catRaw) {
+      try {
+        const obj = JSON.parse(catRaw);
+        ['학업역량', '진로역량', '공동체역량'].forEach(k => {
+          if (Array.isArray(obj[k])) {
+            obj[k].forEach(tag => { if (!aiCapMap[k].includes(tag)) aiCapMap[k].push(tag); });
+          }
+        });
+      } catch(e) {}
+    }
   });
 
-  // 상위 키워드 (2회 이상 등장)
-  const topKeywords = Object.entries(wordCount)
+  const aiKeywords = Object.entries(aiKwCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([word, count]) => ({ word, count, source: 'ai' }));
+
+  // ── ② 원문 빈도 fallback (AI 분석 안 된 사례) ──
+  const rawCases = cases.filter(c => !String(c['핵심키워드'] || '').trim());
+  const wordCount = {};
+  const stopwords = new Set(['있는','있음','하는','하지','이러한','있어','학생','활동','진행','대한','관련','통해','있다','없다','많이','많음','진로','대학','학과','관심','있을','되어','있는데','대해','활동을','있고','에서','으로','하고','하며','보임','위한','가장','통한','이를','다양']);
+  rawCases.forEach(c => {
+    const txt = (c['특이사항'] || '') + ' ' + (c['교과세특'] || '');
+    (txt.match(/[가-힣]{3,}/g) || []).forEach(w => {
+      if (!stopwords.has(w)) wordCount[w] = (wordCount[w] || 0) + 1;
+    });
+  });
+  const rawKeywords = Object.entries(wordCount)
     .filter(([_, n]) => n >= 2)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([w, n]) => ({ word: w, count: n }));
+    .slice(0, 8)
+    .map(([word, count]) => ({ word, count, source: 'raw' }));
 
-  // 내신 통계
-  const grades = cases.map(c => parseFloat(c['내신_전과목'])).filter(v => !isNaN(v));
-  const avgGrade = grades.length ? (grades.reduce((a,b)=>a+b,0) / grades.length).toFixed(2) : null;
-  const minGrade = grades.length ? Math.min(...grades).toFixed(2) : null;
-  const maxGrade = grades.length ? Math.max(...grades).toFixed(2) : null;
+  const keywords = aiKeywords.length >= 3 ? aiKeywords : rawKeywords;
 
-  // 대학 분포
+  const topPoints = cases
+    .filter(c => String(c['합격포인트'] || '').trim())
+    .slice(0, 5)
+    .map(c => String(c['합격포인트']).trim());
+
+  const gvals = cases.map(c => parseFloat(c['내신_전과목'])).filter(v => !isNaN(v));
+  const avgGrade = gvals.length ? (gvals.reduce((a,b) => a+b, 0) / gvals.length).toFixed(2) : null;
+  const minGrade = gvals.length ? Math.min(...gvals).toFixed(2) : null;
+  const maxGrade = gvals.length ? Math.max(...gvals).toFixed(2) : null;
   const uniqUnivs = [...new Set(cases.map(c => c['지원대학']).filter(Boolean))];
 
   return {
-    keywords: topKeywords,
+    keywords, aiKeywords, rawKeywords, aiAnalyzedCount,
+    capabilityMap: aiCapMap, topPoints,
     avgGrade, minGrade, maxGrade,
-    totalCount: cases.length,
-    univCount: uniqUnivs.length,
-    topUnivs: uniqUnivs.slice(0, 5)
+    totalCount: cases.length, univCount: uniqUnivs.length, topUnivs: uniqUnivs.slice(0, 5)
   };
 }
 
-// 합격사례 섹션 렌더링 (종합역량평가 탭용)
+// 역량등급 → 점수 변환 (갭 분석용)
+function gradeToScore(g) {
+  const map = {'A+':98,'A0':91,'A-':84,'B+':78,'B0':72,'B-':66,'C+':60,'C0':54,'C-':48,'D':42};
+  return map[g] || null;
+}
+
+// 역량 갭 분석 블록 렌더링
+function buildCapabilityGapBlock(analysis, eval_) {
+  if (!eval_) return '';
+  const capMap = analysis.capabilityMap;
+  if (!Object.values(capMap).some(arr => arr.length > 0)) return '';
+
+  const CAP_META = {
+    학업역량:  { icon:'📚', color:'#4f46e5', bg:'#eef2ff', border:'#c7d2fe' },
+    진로역량:  { icon:'🎯', color:'#d97706', bg:'#fffbeb', border:'#fde68a' },
+    공동체역량: { icon:'🤝', color:'#059669', bg:'#f0fdf4', border:'#bbf7d0' }
+  };
+  const GRADE_COLOR = {
+    'A+':'#4f46e5','A0':'#10b981','A-':'#06b6d4',
+    'B+':'#2563eb','B0':'#0891b2','B-':'#0e7490',
+    'C+':'#f59e0b','C0':'#d97706','C-':'#b45309','D':'#ef4444'
+  };
+
+  const rows = ['학업역량','진로역량','공동체역량'].map(grp => {
+    const meta = CAP_META[grp];
+    const stuGrade = eval_[grp]?.grade || null;
+    const stuScore = gradeToScore(stuGrade);
+    const tags = capMap[grp] || [];
+    const tagBlock = tags.length
+      ? tags.slice(0,6).map(t =>
+          `<span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600;">${escapeHtml(t)}</span>`
+        ).join('')
+      : '<span style="color:#94a3b8;font-size:11px;">데이터 수집 중</span>';
+    const gradeBadge = stuGrade
+      ? `<span style="background:${GRADE_COLOR[stuGrade]||'#94a3b8'}22;color:${GRADE_COLOR[stuGrade]||'#94a3b8'};border:1px solid ${GRADE_COLOR[stuGrade]||'#94a3b8'}55;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;">${stuGrade}</span>`
+      : '<span style="color:#94a3b8;font-size:11px;">평가 없음</span>';
+    let gapMsg = '';
+    if (stuScore !== null) {
+      if (stuScore >= 91)      gapMsg = '<span style="color:#10b981;font-size:10px;font-weight:700;">✅ 합격권 수준</span>';
+      else if (stuScore >= 78) gapMsg = '<span style="color:#f59e0b;font-size:10px;font-weight:700;">⚠️ 보완 권장</span>';
+      else                     gapMsg = '<span style="color:#ef4444;font-size:10px;font-weight:700;">🔴 집중 보완 필요</span>';
+    }
+    return `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div style="min-width:100px;flex-shrink:0;">
+        <div style="font-size:12px;font-weight:800;color:${meta.color};margin-bottom:4px;">${meta.icon} ${grp}</div>
+        <div style="display:flex;align-items:center;gap:5px;">${gradeBadge}${gapMsg ? '<span style="margin-left:4px;">'+gapMsg+'</span>' : ''}</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:5px;">합격사례 핵심 역량 패턴</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${tagBlock}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-bottom:14px;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;">
+    <div style="padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">
+      🔍 역량 갭 분석
+      <span style="font-size:10px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">합격사례 역량 패턴 vs 이 학생 평가</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// 합격사례 섹션 렌더링 (종합역량평가 탭용) — AI 분석 반영 버전
 function renderSuccessCasesSection() {
   const major  = currentStu?.전공 || currentStu?.major || '';
   const career = currentStu?.진로 || currentStu?.career || '';
-
-  if(!successCases || !successCases.length) return '';
-  if(!major && !career) return '';
+  if (!successCases || !successCases.length) return '';
+  if (!major && !career) return '';
 
   const matched = matchSuccessCases();
-  if(!matched.length) {
+  if (!matched.length) {
     return '<div style="margin:16px 0;padding:16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;font-size:13px;color:#854d0e;">'
       + '<b>📚 합격사례 매칭 없음</b>: 희망전공 "' + escapeHtml(major || career) + '" 관련 학종 합격 사례를 찾지 못했습니다. (전체 ' + successCases.length + '건 검색)'
       + '</div>';
   }
 
-  // 내신 비슷한 범위로 1차 필터 (±1.5등급)
   const stuAvg = calcStudentAvg9(currentStu);
   let filtered = matched;
-  if(stuAvg != null) {
+  if (stuAvg != null) {
     filtered = matched.filter(c => {
       const v = parseFloat(c['내신_전과목']);
-      if(isNaN(v)) return true;
+      if (isNaN(v)) return true;
       return Math.abs(v - stuAvg) <= 1.5;
     });
-    if(filtered.length < 3) filtered = matched.slice(0, 15); // 너무 적으면 전체에서 가까운 15개
+    if (filtered.length < 3) filtered = matched.slice(0, 15);
   }
   filtered = filtered.slice(0, 15);
 
-  // 합격 요인 분석
   const analysis = analyzeSuccessFactors(filtered);
 
-  // 키워드 태그
-  const kwTags = analysis.keywords.slice(0, 8).map(k =>
-    '<span style="display:inline-block;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:700;padding:4px 10px;border-radius:14px;margin:2px;">'
-    + escapeHtml(k.word) + ' <span style="opacity:.6;font-weight:500;">×' + k.count + '</span></span>'
-  ).join('');
+  // 학생 종합역량평가 데이터
+  const hak = String(currentStu.hak);
+  const g2hak = currentStu.g2_hak ? String(currentStu.g2_hak) : null;
+  const eval_ = evalData[hak]?.종합역량평가
+    || (g2hak ? evalData[g2hak]?.종합역량평가 : null)
+    || null;
 
-  // 학생 내신 표시
   const stuAvgText = stuAvg != null ? stuAvg.toFixed(2) + '등급' : '미확인';
 
-  // 사례 카드 (아코디언)
+  // AI 키워드 태그
+  const kwTags = analysis.keywords.slice(0, 10).map(k => {
+    const isAi = k.source === 'ai';
+    return '<span style="display:inline-block;background:' + (isAi?'#ede9fe':'#f1f5f9') + ';color:' + (isAi?'#6d28d9':'#475569') + ';font-size:12px;font-weight:700;padding:4px 10px;border-radius:14px;margin:2px;border:1px solid ' + (isAi?'#ddd6fe':'#e2e8f0') + ';">'
+      + (isAi ? '🤖 ' : '') + escapeHtml(k.word) + ' <span style="opacity:.6;font-weight:500;">×' + k.count + '</span></span>';
+  }).join('');
+
+  const aiRatio = analysis.aiAnalyzedCount > 0
+    ? '<span style="font-size:10px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
+    : '<span style="font-size:10px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
+
+  // 합격포인트 요약
+  const pointsBlock = analysis.topPoints.length
+    ? '<div style="margin-top:10px;padding:10px 12px;background:#fff;border-radius:8px;border-left:3px solid #7c3aed;">'
+      + '<div style="font-size:11px;font-weight:800;color:#5b21b6;margin-bottom:6px;">💡 합격 핵심 포인트 (AI 요약)</div>'
+      + analysis.topPoints.map(p =>
+          '<div style="font-size:12px;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:5px;">'
+          + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;">▸</span>' + escapeHtml(p) + '</div>'
+        ).join('')
+      + '</div>'
+    : '';
+
+  // 역량 갭 분석
+  const gapBlock = eval_ ? buildCapabilityGapBlock(analysis, eval_) : '';
+
+  // 사례 카드
   const caseCards = filtered.map((c, idx) => {
     const uid = 'sc_' + idx;
     const innerAvg = c['내신_전과목'] || '-';
@@ -6697,8 +6602,25 @@ function renderSuccessCasesSection() {
           : '<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;">동일</span>')
       : '';
 
+    const caseKw = String(c['핵심키워드'] || '').trim();
+    const casePoint = String(c['합격포인트'] || '').trim();
+    const aiChip = caseKw
+      ? '<span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:1px 7px;border-radius:6px;font-weight:600;">🤖 AI분석</span>'
+      : '';
+
+    const aiInlineBlock = (caseKw || casePoint)
+      ? '<div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;margin-bottom:12px;">'
+        + '<div style="font-size:11px;font-weight:800;color:#5b21b6;margin-bottom:7px;">🤖 AI 분석 결과</div>'
+        + (casePoint ? '<div style="font-size:12px;color:#4c1d95;font-weight:600;margin-bottom:7px;padding:6px 10px;background:#fff;border-radius:6px;border-left:3px solid #7c3aed;">💡 ' + escapeHtml(casePoint) + '</div>' : '')
+        + (caseKw ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">'
+            + caseKw.split(/[,，、]/).map(k=>k.trim()).filter(Boolean).map(k =>
+                '<span style="background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600;">' + escapeHtml(k) + '</span>'
+              ).join('')
+            + '</div>' : '')
+        + '</div>'
+      : '';
+
     return '<div style="border:1px solid #e5e7eb;border-radius:10px;background:#fff;overflow:hidden;">'
-      // 헤더 (항상 표시)
       + '<div onclick="toggleSuccessCase(\'' + uid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:#fff;transition:background .15s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'
       + '<div style="display:flex;flex-direction:column;align-items:center;background:#f5f3ff;padding:6px 10px;border-radius:8px;min-width:55px;">'
       + '<span style="font-size:18px;font-weight:900;color:#6d28d9;line-height:1;">' + innerAvg + '</span>'
@@ -6709,21 +6631,18 @@ function renderSuccessCasesSection() {
       + ' <span style="font-size:12px;font-weight:500;color:#475569;">' + escapeHtml(c['지원학과']||'') + '</span></div>'
       + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">'
       + '<span style="font-size:11px;color:#94a3b8;">' + escapeHtml(c['전형명']||'') + '</span>'
-      + diffBadge
+      + diffBadge + aiChip
+      + '</div></div>'
+      + '<span id="' + uid + '_arr" style="color:#94a3b8;font-size:12px;flex-shrink:0;transition:transform .2s;">▼</span>'
       + '</div>'
-      + '</div>'
-      + '<span id="' + uid + '_arr" style="color:#94a3b8;font-size:12px;flex-shrink:0;">▼</span>'
-      + '</div>'
-      // 펼침 내용 (아코디언)
       + '<div id="' + uid + '" style="display:none;padding:14px 16px;background:#fafbff;border-top:1px solid #f1f5f9;">'
-      // 합격의 요인 (강조!)
+      + aiInlineBlock
       + (c['특이사항']
         ? '<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #d97706;border-radius:8px;padding:11px 14px;margin-bottom:12px;">'
           + '<div style="font-size:11px;font-weight:800;color:#92400e;margin-bottom:6px;">⭐ 합격의 요인</div>'
           + '<div style="font-size:13px;color:#1e293b;line-height:1.7;white-space:pre-line;">' + escapeHtml(c['특이사항']) + '</div>'
           + '</div>'
         : '')
-      // 내신 + 수능
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
       + '<div style="background:#fff;border:1px solid #e8edf5;border-radius:8px;padding:8px 10px;">'
       + '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📚 내신</div>'
@@ -6734,19 +6653,15 @@ function renderSuccessCasesSection() {
       + '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📝 수능</div>'
       + '<div style="font-size:12px;color:#334155;">국' + (c['수능_국어']||'-') + ' 수' + (c['수능_수학']||'-') + ' 영' + (c['수능_영어']||'-') + ' 탐' + (c['수능_탐구1']||'-') + '/' + (c['수능_탐구2']||'-') + ' 한' + (c['수능_한국사']||'-') + '</div>'
       + (c['수능_선택과목'] ? '<div style="font-size:10px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
-      + '</div>'
-      + '</div>'
-      // 세특·동아리·자율
+      + '</div></div>'
       + (c['교과세특'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['교과세특']) + '</div></div>' : '')
       + (c['동아리'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['동아리']) + '</div></div>' : '')
       + (c['자율봉사진로'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['자율봉사진로']) + '</div></div>' : '')
       + (c['독서'] ? '<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:12px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['독서']) + '</div></div>' : '')
-      + '</div>'
-      + '</div>';
+      + '</div></div>';
   }).join('');
 
   return '<div style="margin:18px 0;background:linear-gradient(135deg,#faf5ff 0%,#f5f3ff 100%);border:1.5px solid #c4b5fd;border-radius:14px;overflow:hidden;">'
-    // 상단 헤더
     + '<div style="padding:16px 18px 12px;border-bottom:1px solid #ddd6fe;">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
     + '<div>'
@@ -6756,27 +6671,19 @@ function renderSuccessCasesSection() {
     + '<div style="text-align:right;">'
     + '<div style="font-size:11px;color:#94a3b8;">매칭된 사례</div>'
     + '<div style="font-size:20px;font-weight:900;color:#7c3aed;">' + filtered.length + '<span style="font-size:11px;font-weight:500;color:#94a3b8;"> / 전체 ' + matched.length + '건</span></div>'
-    + '</div>'
-    + '</div>'
-    + '</div>'
-    // 합격 요인 분석 (강조)
+    + '</div></div></div>'
     + '<div style="padding:14px 18px;background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border-bottom:1px solid #ddd6fe;">'
-    + '<div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">'
-    + '⭐ 합격의 핵심 키워드 분석'
-    + '<span style="font-size:10px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">' + filtered.length + '건 사례 분석</span>'
-    + '</div>'
-    + '<div style="margin-bottom:8px;">' + (kwTags || '<span style="color:#94a3b8;font-size:12px;">키워드 분석 데이터 부족</span>') + '</div>'
+    + '<div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">⭐ 합격의 핵심 키워드 분석 ' + aiRatio + '</div>'
+    + '<div style="margin-bottom:8px;">' + (kwTags || '<span style="color:#94a3b8;font-size:12px;">키워드 분석 데이터 수집 중 (AI 분석 진행 중)</span>') + '</div>'
     + (analysis.avgGrade ? '<div style="font-size:11px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
+    + pointsBlock
     + '</div>'
-    // 사례 리스트
-    + '<div style="padding:14px;display:flex;flex-direction:column;gap:8px;">'
-    + caseCards
-    + '</div>'
-    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:10px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 사례 클릭하면 펼쳐집니다</div>'
+    + (gapBlock ? '<div style="padding:14px 18px;border-bottom:1px solid #ddd6fe;">' + gapBlock + '</div>' : '')
+    + '<div style="padding:14px;display:flex;flex-direction:column;gap:8px;">' + caseCards + '</div>'
+    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:10px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
     + '</div>';
 }
 
-// 사례 아코디언 토글
 function toggleSuccessCase(uid) {
   const body = document.getElementById(uid);
   const arr = document.getElementById(uid + '_arr');
