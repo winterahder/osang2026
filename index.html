@@ -5248,77 +5248,57 @@ function idxSwitchRecTab(key){
   if(el) renderTab();
 }
 
-// ===== 종합역량평가 인쇄 =====
+// ===== 종합역량평가 인쇄 (새 창 방식) =====
 function printCompEval() {
   const card = document.querySelector('#main .card');
   if(!card){ alert('인쇄할 내용이 없습니다.'); return; }
 
-  // ── STEP 1: 아코디언 패널 임시로 모두 열기 ──────────
-  // 닫혀있는 eval 아코디언 패널들 (display:none → '') 임시 오픈
   const hiddenPanels = [];
   card.querySelectorAll('[id^="evalGrpAcc_"]').forEach(el => {
-    if(el.style.display === 'none'){
-      el.style.display = '';
-      hiddenPanels.push(el);
-    }
+    if(el.style.display === 'none'){ el.style.display = ''; hiddenPanels.push(el); }
   });
 
-  // ── STEP 2: canvas → img 변환 (레이더 차트 등) ──────
-  // canvas는 innerHTML 복사 시 그림이 사라짐 → dataURL img로 교체
   const canvasSwaps = [];
   card.querySelectorAll('canvas').forEach(canvas => {
     try {
       const img = document.createElement('img');
       img.src = canvas.toDataURL('image/png');
-      // 원본 크기 맞추기
-      const cs = window.getComputedStyle(canvas);
-      img.style.width  = (canvas.offsetWidth  || parseInt(cs.width))  + 'px';
-      img.style.height = (canvas.offsetHeight || parseInt(cs.height)) + 'px';
-      img.style.display = 'block';
+      img.style.cssText = `width:${canvas.offsetWidth}px;height:${canvas.offsetHeight}px;display:block;`;
       canvas.parentNode.insertBefore(img, canvas);
       canvas.style.display = 'none';
       canvasSwaps.push({ img, canvas });
-    } catch(e){ console.warn('canvas 변환 실패:', e); }
+    } catch(e){}
   });
 
-  // ── STEP 3: printArea 생성 및 innerHTML 복사 ────────
-  const prev = document.getElementById('printArea');
-  if(prev) prev.remove();
-
+  const inlineCSS = Array.from(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
   const stuName = (currentStu && currentStu.name) ? currentStu.name : '';
   const stuHak  = (currentStu && currentStu.hak)  ? String(currentStu.hak) : '';
-  const today   = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'});
+  const today   = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
 
-  const printArea = document.createElement('div');
-  printArea.id = 'printArea';
-  printArea.innerHTML = `
-    <div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;font-family:sans-serif;">
-      <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:4px;">오상고등학교 학생 상담카드</div>
-      <div style="font-size:22px;font-weight:900;color:#1e293b;">${escapeHtml(stuHak)} ${escapeHtml(stuName)} &nbsp; 종합역량평가</div>
-      <div style="font-size:12px;color:#94a3b8;margin-top:6px;">${today} 출력</div>
-    </div>
-    ${card.innerHTML}
-  `;
-  // printArea 안의 .print-no 요소 숨기기 (버튼 등)
-  printArea.querySelectorAll('.print-no').forEach(el => el.style.display = 'none');
-  document.body.appendChild(printArea);
+  const pw = window.open('', '_blank');
+  if(!pw){ alert('팝업이 차단됐습니다.\n브라우저 주소창 오른쪽의 팝업 차단 해제 후 다시 시도해주세요.'); return; }
 
-  // ── STEP 4: 인쇄 ────────────────────────────────────
-  window.print();
+  pw.document.write(`<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8">
+<title>${escapeHtml(stuHak)} ${escapeHtml(stuName)} 종합역량평가</title>
+<style>${inlineCSS}
+body{margin:20px;background:#fff;}
+.print-no{display:none!important;}
+</style></head><body>
+<div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;font-family:sans-serif;">
+  <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">오상고등학교 학생 상담카드</div>
+  <div style="font-size:22px;font-weight:900;color:#1e293b;">${escapeHtml(stuHak)} ${escapeHtml(stuName)}&nbsp;&nbsp;종합역량평가</div>
+  <div style="font-size:12px;color:#94a3b8;margin-top:6px;">${today} 출력</div>
+</div>
+${card.innerHTML}
+<script>window.onload=function(){setTimeout(function(){window.print();},300);};window.onafterprint=function(){window.close();};<\/script>
+</body></html>`);
+  pw.document.close();
 
-  // ── STEP 5: afterprint 시 원상복구 ──────────────────
-  const cleanup = () => {
-    printArea.remove();
-    // canvas 복원
-    canvasSwaps.forEach(({ img, canvas }) => {
-      img.remove();
-      canvas.style.display = '';
-    });
-    // 아코디언 다시 닫기
-    hiddenPanels.forEach(el => { el.style.display = 'none'; });
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
+  setTimeout(() => {
+    canvasSwaps.forEach(({img,canvas})=>{ img.remove(); canvas.style.display=''; });
+    hiddenPanels.forEach(el=>{ el.style.display='none'; });
+  }, 3000);
 }
 
 function escapeHtml(s){
