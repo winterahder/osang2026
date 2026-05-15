@@ -409,6 +409,7 @@
       </div>
     </div>
     <button class="btn-ref-open" onclick="openRefModal()">📚 참고자료 관리 <span id="refCountBadge" style="background:#06b6d4;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;display:none;"></span></button>
+    <button class="btn-ref-open" onclick="openSuccessAnalyzeModal()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);margin-left:8px;">🏆 합격사례 분석 <span id="successCountBadge" style="background:#fde68a;color:#854d0e;border-radius:10px;padding:1px 7px;font-size:10px;display:none;font-weight:700;"></span></button>
     <div id="headerStatus">로딩 전</div>
   </div>
 </header>
@@ -518,6 +519,80 @@
       <!-- 저장된 자료 목록 -->
       <div class="ref-section-label">📋 등록된 참고자료 <span id="refListCount" style="color:var(--accent2);"></span></div>
       <div id="refList"><div class="ref-list-empty">등록된 자료가 없습니다</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 합격사례 일괄 분석 모달 ===== -->
+<div id="successAnalyzeModal" class="ref-modal-overlay" style="display:none;" onclick="if(event.target===this) closeSuccessAnalyzeModal()">
+  <div class="ref-modal-content" style="max-width:720px;">
+    <div class="ref-modal-header">
+      <div class="ref-modal-title">🏆 학종 합격사례 AI 일괄 분석</div>
+      <button class="ref-modal-close" onclick="closeSuccessAnalyzeModal()">✕</button>
+    </div>
+    <div class="ref-modal-body" style="padding:20px;">
+      <div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #c4b5fd;border-radius:12px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:14px;color:#5b21b6;line-height:1.7;">
+          <b>📌 작업 안내</b><br>
+          • success_cases 시트의 441건 합격사례를 AI로 분석합니다<br>
+          • 각 사례에서 <b>핵심키워드, 역량분류, 합격포인트</b>를 추출합니다<br>
+          • 한 번에 한 건씩 처리되며, <b>각 건마다 즉시 시트에 저장</b>됩니다<br>
+          • 중간에 멈춰도 <b>이미 분석된 건은 다시 안 하고</b> 이어서 진행됩니다<br>
+          • 예상 시간: 약 15~25분 (441건 기준)<br>
+          • 예상 비용: $2~3 (Claude Sonnet 기준)
+        </div>
+      </div>
+
+      <!-- 상태 표시 -->
+      <div id="saStatusBox" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-weight:700;color:#1e293b;">📊 진행 상황</div>
+          <button onclick="refreshSuccessStatus()" style="font-size:11px;padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;">🔄 새로고침</button>
+        </div>
+        <div id="saStatusContent" style="font-size:13px;color:#64748b;">상태 확인 중...</div>
+        <div id="saProgressBar" style="margin-top:10px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+          <div id="saProgressFill" style="height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);width:0%;transition:width .3s;"></div>
+        </div>
+      </div>
+
+      <!-- 옵션 설정 -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="font-weight:700;color:#1e293b;margin-bottom:10px;font-size:13px;">⚙️ 옵션</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569;margin-bottom:6px;">
+          <input type="checkbox" id="saSkipExisting" checked>
+          이미 분석된 사례는 건너뛰기 (재시작 안전)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569;">
+          처리 간격:
+          <select id="saDelay" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;">
+            <option value="500">0.5초 (빠름)</option>
+            <option value="1000" selected>1초 (권장)</option>
+            <option value="2000">2초 (안전)</option>
+          </select>
+          <span style="color:#94a3b8;font-size:11px;">Rate Limit 방지용</span>
+        </label>
+      </div>
+
+      <!-- 실시간 로그 -->
+      <div id="saLogBox" style="background:#0f172a;color:#e2e8f0;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;height:200px;overflow-y:auto;margin-bottom:14px;display:none;">
+        <div id="saLog"></div>
+      </div>
+
+      <!-- 통계 -->
+      <div id="saStats" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#854d0e;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+          <div><b id="saStatsTotal">0</b><br><span style="font-size:11px;">처리</span></div>
+          <div style="color:#16a34a;"><b id="saStatsSuccess">0</b><br><span style="font-size:11px;">성공</span></div>
+          <div style="color:#dc2626;"><b id="saStatsFail">0</b><br><span style="font-size:11px;">실패</span></div>
+          <div style="color:#7c3aed;"><b id="saStatsTokens">0</b><br><span style="font-size:11px;">토큰</span></div>
+        </div>
+      </div>
+
+      <!-- 버튼 -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="saBtnStop" onclick="stopSuccessAnalysis()" style="display:none;padding:10px 20px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">⏸ 일시정지</button>
+        <button id="saBtnStart" onclick="startSuccessAnalysis()" style="padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:800;font-size:14px;">▶ 분석 시작</button>
+      </div>
     </div>
   </div>
 </div>
@@ -716,6 +791,7 @@ async function loadData(){
     const providerBadge=`<span class="api-badge">${info.name}</span>`;
     document.getElementById('headerStatus').innerHTML=`${students.length}명 로드됨 ${providerBadge}`;
     try{ const refs=await apiGet({action:'getReferences',password:currentPw}); referencesList=refs||[]; updateRefBadge(); }catch(e){}
+    try{ refreshSuccessStatus(); }catch(e){} // 합격사례 분석 상태 배지
   }catch(e){
     document.getElementById('lockError').textContent=e.message||'데이터 로드 실패';
     document.getElementById('googleLoginBtn').disabled=false;
@@ -2588,23 +2664,8 @@ A+(95~100) A0(88~94) A-(82~87) B+(76~81) B0(70~75) B-(64~69) C+(58~63) C0(52~57)
   },
   "종합점수": 82,
   "종합등급": "A-",
-  "종합의견": "음슴체 6~8문장 — 진로방향연계강점포함",
-  "우수문장": [
-    {"역량":"학업역량", "구분":"탐구활동", "학년":2, "출처":"세특_과학", "문장":"실제 세특 원문에서 좋은 평가를 받을 만한 문장 그대로 인용 (50~200자)"},
-    {"역량":"학업역량", "구분":"학업태도", "학년":1, "출처":"세특_수학", "문장":"..."},
-    {"역량":"진로역량", "구분":"진로탐색활동", "학년":3, "출처":"세특_물리", "문장":"..."},
-    {"역량":"진로역량", "구분":"탐구활동", "학년":2, "출처":"창체_동아리", "문장":"..."},
-    {"역량":"공동체역량", "구분":"리더십활동", "학년":2, "출처":"행발", "문장":"..."},
-    {"역량":"공동체역량", "구분":"협업소통과 나눔배려", "학년":1, "출처":"세특_체육", "문장":"..."}
-  ]
+  "종합의견": "음슴체 6~8문장 — 진로방향연계강점포함"
 }
-
-【우수문장 규칙】
-- 학생 실제 기록에서 문장을 그대로 발췌 (요약·변형 금지)
-- 역량별 2~3개씩, 총 6~10개 선별
-- 학업역량(탐구활동/학업태도/학업능력), 진로역량(탐구활동/진로탐색활동), 공동체역량(리더십활동/협업소통과 나눔배려/성실성과 규칙준수) 구분
-- 가장 구체적이고 차별화된 문장 우선 선정
-- 길이가 너무 짧은 단순 참여 기록은 제외
 
 【종합의견 규칙】
 - 음슴체("~함","~됨","~보임","~드러남") 사용, "~다","~습니다" 절대금지
@@ -2975,6 +3036,284 @@ async function exportAllJSON(){
   addMsg('assistant',`✅ 저장 완료! 성공 ${ok}명${fail?` / 실패 ${fail}명`:''}`,
     [{label:'새로고침',action:'location.reload()'}]
   );
+}
+
+/* ========== 합격사례 AI 일괄 분석 ========== */
+let saIsRunning = false;
+let saStopRequested = false;
+let saStats = { total: 0, success: 0, fail: 0, tokens: 0 };
+
+function openSuccessAnalyzeModal() {
+  document.getElementById('successAnalyzeModal').style.display = 'flex';
+  refreshSuccessStatus();
+}
+function closeSuccessAnalyzeModal() {
+  if(saIsRunning) {
+    if(!confirm('분석이 진행 중입니다. 일시정지하고 닫으시겠어요?')) return;
+    saStopRequested = true;
+  }
+  document.getElementById('successAnalyzeModal').style.display = 'none';
+}
+
+function saLog(msg, type='info') {
+  const logBox = document.getElementById('saLogBox');
+  const log = document.getElementById('saLog');
+  logBox.style.display = 'block';
+  const colors = { info:'#94a3b8', ok:'#10b981', warn:'#fbbf24', err:'#f87171' };
+  const time = new Date().toLocaleTimeString('ko-KR', {hour12:false});
+  log.innerHTML += `<div style="color:${colors[type]||colors.info};">[${time}] ${msg}</div>`;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+async function refreshSuccessStatus() {
+  const box = document.getElementById('saStatusContent');
+  const fill = document.getElementById('saProgressFill');
+  box.textContent = '상태 확인 중...';
+  try {
+    const res = await apiGet({action:'getSuccessCasesAnalysisStatus', password:currentPw});
+    const total = res.total || 0;
+    const done = res.done || 0;
+    const pending = res.pending || 0;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    box.innerHTML = `<b>전체:</b> ${total}건 · <b style="color:#16a34a;">완료:</b> ${done}건 (${pct}%) · <b style="color:#dc2626;">미완료:</b> ${pending}건`;
+    fill.style.width = pct + '%';
+
+    // 버튼 배지
+    const badge = document.getElementById('successCountBadge');
+    if(pending > 0) {
+      badge.textContent = pending + ' 대기';
+      badge.style.display = 'inline-block';
+    } else if(total > 0) {
+      badge.textContent = '완료';
+      badge.style.display = 'inline-block';
+      badge.style.background = '#86efac';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {
+    box.innerHTML = `<span style="color:#ef4444;">상태 확인 실패: ${e.message}</span>`;
+  }
+}
+
+async function startSuccessAnalysis() {
+  if(saIsRunning) return;
+  if(!apiKey) {
+    alert('API 키가 설정되지 않았습니다');
+    return;
+  }
+  if(apiProvider !== 'anthropic') {
+    if(!confirm('현재 ' + apiProvider + ' 모델로 설정되어 있습니다. 그대로 진행할까요? (Anthropic 권장)')) return;
+  }
+
+  saIsRunning = true;
+  saStopRequested = false;
+  saStats = { total: 0, success: 0, fail: 0, tokens: 0 };
+  document.getElementById('saBtnStart').style.display = 'none';
+  document.getElementById('saBtnStop').style.display = 'inline-block';
+  document.getElementById('saStats').style.display = 'block';
+  document.getElementById('saLogBox').style.display = 'block';
+
+  saLog('🚀 분석 시작', 'ok');
+
+  try {
+    // 1) 전체 합격사례 로드
+    saLog('📦 success_cases 데이터 로드 중...', 'info');
+    const allCases = await apiGet({action:'getSuccessCases', password:currentPw});
+    if(!allCases || !allCases.length) {
+      saLog('❌ 합격사례 데이터가 없습니다', 'err');
+      finishSuccessAnalysis();
+      return;
+    }
+    saLog(`✅ ${allCases.length}건 로드 완료`, 'ok');
+
+    // 2) 분석 대상 필터링
+    const skipExisting = document.getElementById('saSkipExisting').checked;
+    let targets = allCases;
+    if(skipExisting) {
+      targets = allCases.filter(c => !c['핵심키워드'] || String(c['핵심키워드']).trim() === '');
+      saLog(`⏭️ 이미 분석된 ${allCases.length - targets.length}건은 건너뜀`, 'info');
+    }
+    saLog(`🎯 분석 대상: ${targets.length}건`, 'ok');
+
+    if(targets.length === 0) {
+      saLog('✨ 모든 사례가 이미 분석되어 있습니다!', 'ok');
+      finishSuccessAnalysis();
+      return;
+    }
+
+    // 3) 순차 처리
+    const delay = parseInt(document.getElementById('saDelay').value) || 1000;
+    for(let i = 0; i < targets.length; i++) {
+      if(saStopRequested) {
+        saLog('⏸ 사용자 요청으로 일시정지', 'warn');
+        break;
+      }
+
+      const c = targets[i];
+      saStats.total++;
+      saLog(`[${i+1}/${targets.length}] ${c['지원대학']} ${c['지원학과']} 분석 중...`, 'info');
+
+      const result = await analyzeSingleCase(c);
+
+      if(result.ok) {
+        // 즉시 시트에 저장 (한 건씩 안전하게)
+        try {
+          await apiPost({
+            action: 'updateSuccessCaseAnalysis',
+            password: currentPw,
+            updates: [{
+              번호: c['번호'],
+              핵심키워드: result.data.핵심키워드.join(', '),
+              역량분류: JSON.stringify(result.data.역량분류),
+              합격포인트: result.data.합격포인트
+            }]
+          }, 15000);
+          saStats.success++;
+          saStats.tokens += result.tokens || 0;
+          saLog(`  ✅ 저장: ${result.data.핵심키워드.slice(0,3).join(', ')}...`, 'ok');
+        } catch(e) {
+          saStats.fail++;
+          saLog(`  ⚠️ 분석은 됐는데 저장 실패: ${e.message}`, 'warn');
+        }
+      } else {
+        saStats.fail++;
+        saLog(`  ❌ 실패: ${result.error}`, 'err');
+
+        // Rate limit이면 대기 후 재시도 안 하고 다음 진행 (이미 retry 내장)
+        if(result.error && result.error.includes('429')) {
+          saLog('  ⏳ Rate limit. 30초 대기...', 'warn');
+          await sleep(30000);
+        }
+      }
+
+      updateSaStats();
+
+      // 다음 건 처리 전 딜레이
+      if(i < targets.length - 1 && !saStopRequested) {
+        await sleep(delay);
+      }
+    }
+
+    saLog(`🎉 완료! 성공 ${saStats.success}건 / 실패 ${saStats.fail}건`, 'ok');
+    await refreshSuccessStatus();
+  } catch(e) {
+    saLog(`❌ 치명적 오류: ${e.message}`, 'err');
+  } finally {
+    finishSuccessAnalysis();
+  }
+}
+
+function stopSuccessAnalysis() {
+  saStopRequested = true;
+  saLog('⏸ 일시정지 요청. 현재 건 마치면 멈춥니다...', 'warn');
+}
+
+function finishSuccessAnalysis() {
+  saIsRunning = false;
+  saStopRequested = false;
+  document.getElementById('saBtnStart').style.display = 'inline-block';
+  document.getElementById('saBtnStart').textContent = saStats.total > 0 ? '▶ 이어서 계속하기' : '▶ 분석 시작';
+  document.getElementById('saBtnStop').style.display = 'none';
+}
+
+function updateSaStats() {
+  document.getElementById('saStatsTotal').textContent = saStats.total;
+  document.getElementById('saStatsSuccess').textContent = saStats.success;
+  document.getElementById('saStatsFail').textContent = saStats.fail;
+  document.getElementById('saStatsTokens').textContent = saStats.tokens.toLocaleString();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// 한 사례 분석 (재시도 로직 포함)
+async function analyzeSingleCase(c, retryCount=0) {
+  const MAX_RETRY = 2;
+
+  // 텍스트 다듬기
+  const trim = (t, n=500) => {
+    if(!t) return '';
+    t = String(t);
+    return t.length > n ? t.slice(0, n) + '...' : t;
+  };
+
+  const prompt = `다음은 학생부종합전형 합격 사례입니다. 합격자의 '합격의 요인'과 활동 내용을 분석해서 JSON 형식으로 답변해주세요.
+
+[지원: ${c['지원대학']||''} ${c['지원학과']||''} / ${c['전형명']||''}]
+[내신: 전과목 ${c['내신_전과목']||'-'} / 국영수사 ${c['내신_국영수사']||'-'} / 국영수과 ${c['내신_국영수과']||'-'}]
+[특이점: ${c['내신_특이점']||'-'}]
+
+== 합격의 요인 ==
+${trim(c['특이사항'])}
+
+== 교과 세특 (요약) ==
+${trim(c['교과세특'], 600)}
+
+== 동아리 ==
+${trim(c['동아리'], 400)}
+
+== 자율·봉사·진로 ==
+${trim(c['자율봉사진로'], 400)}
+
+다음 JSON 형식으로만 답변하세요. 마크다운 코드블럭 없이 순수 JSON만:
+
+{
+  "핵심키워드": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"],
+  "역량분류": {
+    "학업역량": ["관련 활동 키워드 2-3개"],
+    "진로역량": ["관련 활동 키워드 2-3개"],
+    "공동체역량": ["관련 활동 키워드 2-3개"]
+  },
+  "합격포인트": "한 문장 요약 (50자 이내)"
+}
+
+키워드 작성 규칙:
+- 명사형 단어/구로 작성 (예: "사회참여", "비판적사고", "융합탐구", "리더십")
+- 조사나 어미 제외 ("관심을" → "관심")
+- 학종 평가에서 의미있는 키워드만`;
+
+  try {
+    const text = await callAPI('', [{role:'user', content: prompt}], 800);
+
+    // JSON 파싱 (마크다운 백틱 제거)
+    let cleaned = text.trim();
+    if(cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    }
+    // 첫 { 부터 마지막 } 까지만 추출
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if(firstBrace >= 0 && lastBrace > firstBrace) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(cleaned);
+
+    // 형식 검증
+    if(!parsed.핵심키워드 || !Array.isArray(parsed.핵심키워드)) {
+      throw new Error('핵심키워드 배열 형식 오류');
+    }
+
+    return {
+      ok: true,
+      data: parsed,
+      tokens: Math.ceil((prompt.length + text.length) / 4) // 대략 추정
+    };
+  } catch(e) {
+    const errMsg = e.message || String(e);
+
+    // 재시도 가능한 에러
+    const isRetryable = errMsg.includes('429') || errMsg.includes('500') || errMsg.includes('502')
+                     || errMsg.includes('503') || errMsg.includes('timeout') || errMsg.includes('network');
+
+    if(isRetryable && retryCount < MAX_RETRY) {
+      const waitMs = (retryCount + 1) * 5000;
+      saLog(`  🔄 재시도 ${retryCount + 1}/${MAX_RETRY} (${waitMs/1000}초 대기)...`, 'warn');
+      await sleep(waitMs);
+      return analyzeSingleCase(c, retryCount + 1);
+    }
+
+    return { ok: false, error: errMsg };
+  }
 }
 
 /* ========== 참고자료 관리 ========== */
