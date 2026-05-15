@@ -532,7 +532,7 @@
       <div class="ref-box-title">🏆 학종 합격사례 AI 일괄 분석 <span style="font-size:11px;font-weight:400;color:var(--muted);">— 한 번만 실행하면 끝</span></div>
       <button class="ref-close-btn" onclick="closeSuccessAnalyzeModal()">✕</button>
     </div>
-    <div class="ref-box-body" style="padding:20px;">
+    <div class="ref-box-body" style="padding:20px;overflow-y:auto;flex:1;min-height:0;">
       <div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #c4b5fd;border-radius:12px;padding:16px;margin-bottom:16px;color:#5b21b6;">
         <div style="font-size:13px;line-height:1.7;">
           <b style="font-size:14px;">📌 작업 안내</b><br>
@@ -574,8 +574,8 @@
         </label>
       </div>
 
-      <!-- 통계 -->
-      <div id="saStats" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:14px;">
+      <!-- 통계 — sticky로 스크롤해도 항상 위에 보임 -->
+      <div id="saStats" style="display:none;position:sticky;top:-12px;z-index:10;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 4px 12px rgba(0,0,0,.08);">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;color:#854d0e;font-size:13px;">
           <div><b id="saStatsTotal" style="font-size:18px;">0</b><br><span style="font-size:11px;">처리</span></div>
           <div style="color:#16a34a;"><b id="saStatsSuccess" style="font-size:18px;">0</b><br><span style="font-size:11px;">성공</span></div>
@@ -3390,26 +3390,52 @@ ${trim(c['자율봉사진로'], 400)}
 - 조사나 어미 제외 ("관심을" → "관심")
 - 학종 평가에서 의미있는 키워드만`;
 
+  let rawResponseText = ''; // 진단용 (catch에서 사용)
+
   try {
-    const text = await callAPI('', [{role:'user', content: prompt}], 800);
+    // ★ Opus는 출력이 더 길 수 있어서 max_tokens 1200으로 증가
+    const maxTokens = currentAnthropicModel.includes('opus') ? 1200 : 800;
+    const text = await callAPI('', [{role:'user', content: prompt}], maxTokens);
+    rawResponseText = text;
+
+    // ★ 빈 응답 체크
+    if(!text || !text.trim()) {
+      throw new Error('API 응답이 비어있음');
+    }
 
     // JSON 파싱 (마크다운 백틱 제거)
     let cleaned = text.trim();
     if(cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
     }
-    // 첫 { 부터 마지막 } 까지만 추출
+    // 첫 { 부터 마지막 } 까지만 추출 (모델이 앞뒤로 설명을 붙여도 처리)
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     if(firstBrace >= 0 && lastBrace > firstBrace) {
       cleaned = cleaned.slice(firstBrace, lastBrace + 1);
     }
 
-    const parsed = JSON.parse(cleaned);
+    // ★ JSON 자체에 문제가 있는 경우 진단을 위해 별도 try
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch(parseErr) {
+      // 응답 앞 200자를 로그에 출력해서 무엇이 왔는지 보이게
+      saLog(`  📋 응답 샘플: ${text.substring(0, 200).replace(/\n/g, ' ')}...`, 'warn');
+      throw new Error(`JSON 파싱 실패: ${parseErr.message}`);
+    }
 
-    // 형식 검증
-    if(!parsed.핵심키워드 || !Array.isArray(parsed.핵심키워드)) {
-      throw new Error('핵심키워드 배열 형식 오류');
+    // ★ 형식 검증 — Opus가 다른 키 이름을 쓸 수도 있음
+    if(!parsed.핵심키워드) {
+      throw new Error('"핵심키워드" 필드 없음. 응답 키: ' + Object.keys(parsed).join(', '));
+    }
+    if(!Array.isArray(parsed.핵심키워드)) {
+      // Opus가 문자열로 줬으면 배열로 변환 시도
+      if(typeof parsed.핵심키워드 === 'string') {
+        parsed.핵심키워드 = parsed.핵심키워드.split(/[,，、]/).map(s=>s.trim()).filter(Boolean);
+      } else {
+        throw new Error('핵심키워드가 배열이 아님: ' + typeof parsed.핵심키워드);
+      }
     }
 
     return {
@@ -3425,7 +3451,10 @@ ${trim(c['자율봉사진로'], 400)}
     const isRateLimit = errMsg.includes('429');
     const isServerError = errMsg.includes('500') || errMsg.includes('502') || errMsg.includes('503');
     const isNetworkError = errMsg.includes('timeout') || errMsg.includes('network') || errMsg.includes('Failed to fetch');
-    const isRetryable = isOverloaded || isRateLimit || isServerError || isNetworkError;
+    // ★ JSON 파싱 실패는 모델 응답 형식 문제 — 재시도해도 같은 결과 가능성 높음
+    //    하지만 1번은 재시도 (응답이 잘렸을 가능성)
+    const isParseError = errMsg.includes('JSON 파싱 실패') || errMsg.includes('비어있음') || errMsg.includes('필드 없음') || errMsg.includes('배열이 아님');
+    const isRetryable = isOverloaded || isRateLimit || isServerError || isNetworkError || (isParseError && retryCount < 1);
 
     if(isRetryable && retryCount < MAX_RETRY) {
       // 529 (Overloaded)는 더 오래 기다림 (지수 backoff)
@@ -3439,6 +3468,10 @@ ${trim(c['자율봉사진로'], 400)}
         waitMs = (retryCount + 1) * 30000;  // 30s, 60s, 90s
         waitLabel = `⏳ Rate Limit — 재시도 ${retryCount + 1}/${MAX_RETRY}`;
         saLog(`  🔄 Rate Limit. ${waitMs/1000}초 대기 후 재시도 (${retryCount + 1}/${MAX_RETRY})...`, 'warn');
+      } else if(isParseError) {
+        waitMs = 2000;
+        waitLabel = `🔄 응답 형식 문제 — 재시도`;
+        saLog(`  🔄 응답 형식 문제로 재시도 (응답이 잘렸을 수 있음)...`, 'warn');
       } else {
         waitMs = (retryCount + 1) * 5000;
         waitLabel = `⏳ 일시 오류 — 재시도 ${retryCount + 1}/${MAX_RETRY}`;
