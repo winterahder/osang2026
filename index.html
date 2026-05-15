@@ -5150,11 +5150,11 @@ function renderIndexDecompSection(data){
     const tags = data[c.key] || [];
     if(!tags.length) return '';
     const pills = tags.map(t =>
-      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:3px 11px;font-size:12px;font-weight:600;">${escapeHtml(t)}</span>`
+      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:4px 13px;font-size:14px;font-weight:600;">${escapeHtml(t)}</span>`
     ).join('');
-    return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
-      <span style="font-size:12px;color:#94a3b8;font-weight:700;min-width:58px;padding-top:3px;">${c.icon} ${c.key}</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">${pills}</div>
+    return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <span style="font-size:14px;color:#94a3b8;font-weight:700;min-width:64px;padding-top:4px;">${c.icon} ${c.key}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${pills}</div>
     </div>`;
   }).filter(Boolean).join('');
 
@@ -5162,15 +5162,15 @@ function renderIndexDecompSection(data){
   const 사회적맥락 = data.사회적맥락 || '';
   if(!tagRows && !사고흐름 && !사회적맥락) return '';
 
-  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-top:14px;">
-    <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 22px;margin-top:14px;">
+    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
       🔍 <span>활동 분해</span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${(사고흐름||사회적맥락)?'14px':'0'};">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:${(사고흐름||사회적맥락)?'16px':'0'};">
       ${tagRows}
     </div>
-    ${사고흐름 ? `<div style="font-size:13px;color:#334155;line-height:1.8;padding:12px 14px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
-    ${사회적맥락 ? `<div style="font-size:12px;color:#64748b;line-height:1.8;padding:10px 14px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:11px;font-weight:700;color:#d97706;display:block;margin-bottom:4px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
+    ${사고흐름 ? `<div style="font-size:15px;color:#334155;line-height:1.85;padding:14px 16px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
+    ${사회적맥락 ? `<div style="font-size:14px;color:#64748b;line-height:1.85;padding:14px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:13px;font-weight:700;color:#d97706;display:block;margin-bottom:6px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
   </div>`;
 }
 
@@ -5190,43 +5190,43 @@ function renderIndexRecSection(data){
 
   const tabBtns = IDX_REC_TYPES.map(t => {
     const isActive = t.key === idxCurrentRecTab;
-    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:10px 16px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:13px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
+    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:11px 18px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:14px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
   }).join('');
 
   const section = (label, text) => text
-    ? `<div style="margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${label}</div>
-        <div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(text)}</div>
+    ? `<div style="margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${label}</div>
+        <div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(text)}</div>
       </div>` : '';
 
   const twoCol = (l1,t1,l2,t2) => (t1||t2) ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      ${t1?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t1)}</div></div>`:''}
-      ${t2?`<div><div style="font-size:12px;font-weight:700;color:${active.color};margin-bottom:5px;padding-left:10px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:13px;color:#334155;line-height:1.8;">${escapeHtml(t2)}</div></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      ${t1?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t1)}</div></div>`:''}
+      ${t2?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t2)}</div></div>`:''}
     </div>` : '';
 
   const qBlock = Array.isArray(d.탐구질문) && d.탐구질문.length
-    ? `<div style="margin-top:6px;padding:12px 14px;background:#f8fafc;border-radius:10px;">
-        <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:8px;">❓ 탐구 질문</div>
-        ${d.탐구질문.map((q,i)=>`<div style="font-size:13px;color:#334155;margin-bottom:6px;"><b style="color:${active.color};margin-right:6px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
+    ? `<div style="margin-top:8px;padding:14px 16px;background:#f8fafc;border-radius:10px;">
+        <div style="font-size:14px;font-weight:700;color:#94a3b8;margin-bottom:10px;">❓ 탐구 질문</div>
+        ${d.탐구질문.map((q,i)=>`<div style="font-size:15px;color:#334155;margin-bottom:8px;line-height:1.7;"><b style="color:${active.color};margin-right:8px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
       </div>` : '';
 
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;overflow:hidden;">
-    <div style="padding:16px 20px 12px;border-bottom:1px solid #f1f5f9;">
-      <div style="font-size:14px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
+    <div style="padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:16px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
     </div>
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
-    <div style="padding:16px 20px;">
-      <div style="margin-bottom:14px;">
-        <div style="font-size:11px;color:${active.color};font-weight:600;margin-bottom:4px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
-        <div style="font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
-        ${d.태그?`<span style="display:inline-block;margin-top:5px;font-size:11px;background:${active.bg};color:${active.color};border-radius:10px;padding:2px 10px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
+    <div style="padding:18px 22px;">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;color:${active.color};font-weight:600;margin-bottom:5px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+        <div style="font-size:18px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
+        ${d.태그?`<span style="display:inline-block;margin-top:6px;font-size:12.5px;background:${active.bg};color:${active.color};border-radius:10px;padding:3px 12px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
       </div>
       ${section('선정 이유', d.선정이유)}
       ${twoCol('기존 활동 연결', d.기존활동연결, '진로 관련성', d.진로관련성)}
       ${section('학종 평가 포인트', d.학종평가포인트)}
       ${section('실행 방법', d.실행방법)}
-      ${d.후속확장?`<div style="font-size:12px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:8px 12px;margin-bottom:10px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
+      ${d.후속확장?`<div style="font-size:14px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
       ${qBlock}
     </div>
   </div>`;
@@ -5237,6 +5237,39 @@ function idxSwitchRecTab(key){
   // 현재 탭 콘텐츠 다시 렌더링
   const el = document.getElementById('tabContent');
   if(el) renderTab();
+}
+
+// ===== 종합역량평가 인쇄 =====
+function printCompEval() {
+  // 인쇄 대상: main 안의 종합역량평가 카드 전체
+  const card = document.querySelector('#main .card');
+  if(!card){ alert('인쇄할 내용이 없습니다.'); return; }
+
+  // 이전 printArea 정리
+  const prev = document.getElementById('printArea');
+  if(prev) prev.remove();
+
+  const stuName = (currentStu && currentStu.name) ? currentStu.name : '';
+  const stuHak  = (currentStu && currentStu.hak)  ? String(currentStu.hak) : '';
+  const today   = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'});
+
+  const printArea = document.createElement('div');
+  printArea.id = 'printArea';
+  printArea.innerHTML = `
+    <div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;">
+      <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:4px;">오상고등학교 학생 상담카드</div>
+      <div style="font-size:22px;font-weight:900;color:#1e293b;">${escapeHtml(stuHak)} ${escapeHtml(stuName)} &nbsp; 종합역량평가</div>
+      <div style="font-size:12px;color:#94a3b8;margin-top:6px;">${today} 출력</div>
+    </div>
+    ${card.innerHTML}
+  `;
+  document.body.appendChild(printArea);
+
+  window.print();
+
+  // 인쇄 다이얼로그 닫힌 후 제거
+  const cleanup = () => { printArea.remove(); window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
 }
 
 function escapeHtml(s){
