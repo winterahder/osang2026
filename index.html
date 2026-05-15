@@ -2968,7 +2968,7 @@ function renderMockApplyTab(el){
     <div class="apply-panel">
       <div class="apply-panel-title">
         <div class="apply-panel-title-left">
-          <span>📂</span><span>모의지원 이력 (${hist.length}건)</span>
+          <span>📂</span><span>빠른 진단 이력 (${hist.length}건)</span>
         </div>
         <span style="font-size:11px;color:#94a3b8;">클릭하면 결과 재표시</span>
       </div>
@@ -3007,29 +3007,65 @@ function renderMockApplyTab(el){
     </div>` : '';
 
   el.innerHTML = `
+    <!-- 🆕 두 가지 분석 방식 안내 (상단) -->
+    <div style="background:linear-gradient(135deg,#f0f9ff,#fef3c7);border:1.5px solid #e0e7ff;border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:260px;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fffbeb;border-radius:10px;border:1px solid #fcd34d;">
+        <div style="font-size:24px;flex-shrink:0;">⚡</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px;">빠른 진단 <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;margin-left:4px;">무료 · 즉시</span></div>
+          <div style="font-size:11px;color:#78350f;line-height:1.5;">내신·컷오프 기반 단순 비교로 상/중/하 판정</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:260px;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ede9fe;border-radius:10px;border:1px solid #c4b5fd;">
+        <div style="font-size:24px;flex-shrink:0;">🤖</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:2px;">AI 정밀 분석 <span style="font-size:10px;background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:8px;margin-left:4px;">30~60초 · AI</span></div>
+          <div style="font-size:11px;color:#5b21b6;line-height:1.5;">종합역량평가 + 합격사례 + 컷오프 통합 분석</div>
+        </div>
+      </div>
+    </div>
+
     <div class="apply-layout">
-      <!-- 왼쪽: 비교과 분석 + 이력 -->
+      <!-- 왼쪽: AI 정밀 분석 결과 + 빠른 진단 이력 -->
       <div class="apply-left">
-        <div class="apply-panel">
+        <!-- 🤖 AI 정밀 분석 -->
+        <div class="apply-panel" style="border:2px solid #c4b5fd;background:linear-gradient(135deg,#fff,#faf5ff);">
           <div class="apply-panel-title">
             <div class="apply-panel-title-left">
-              <span>🧬</span><span>비교과 종합 분석</span>
-              <span style="font-size:11px;color:#94a3b8;font-weight:500;">세특·창체·행발 기반</span>
+              <span style="font-size:18px;">🤖</span>
+              <span>AI 정밀 분석</span>
+              <span style="font-size:10px;background:#ede9fe;color:#5b21b6;padding:2px 7px;border-radius:8px;font-weight:700;">학과별 맞춤</span>
             </div>
             <button onclick="showMajorAnalysisModal()"
-              style="padding:5px 12px;background:#ede9fe;border:none;border-radius:7px;font-size:12px;font-weight:700;color:#6d28d9;cursor:pointer;white-space:nowrap;">+ 학과 추가</button>
+              style="padding:6px 14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:8px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(99,102,241,0.3);">
+              + 학과 정밀분석
+            </button>
+          </div>
+          <div style="font-size:11px;color:#7c3aed;background:#faf5ff;padding:8px 12px;border-radius:8px;margin-bottom:12px;line-height:1.6;">
+            💡 종합역량평가를 기반으로 학과별 합격가능성·우선순위 활동 3가지·유사 선배 합격사례를 AI가 분석합니다.
           </div>
           ${majorCardsHtml}
         </div>
+        
+        <!-- 결과 표시 영역 (빠른 진단 결과가 여기 표시됨) -->
         <div id="applyResult"></div>
+        
+        <!-- 📂 빠른 진단 이력 -->
         ${histHtml}
       </div>
 
-      <!-- 오른쪽: 모의지원 폼 -->
+      <!-- 오른쪽: 빠른 진단 -->
       <div class="apply-right">
-        <div class="apply-panel">
+        <div class="apply-panel" style="border:2px solid #fcd34d;background:linear-gradient(135deg,#fff,#fffbeb);">
           <div class="apply-panel-title">
-            <div class="apply-panel-title-left"><span>🎯</span><span>모의지원 분석</span></div>
+            <div class="apply-panel-title-left">
+              <span style="font-size:18px;">⚡</span>
+              <span>빠른 진단</span>
+              <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:8px;font-weight:700;">무료 · 즉시</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#92400e;background:#fffbeb;padding:8px 12px;border-radius:8px;margin-bottom:12px;line-height:1.6;">
+            💡 내신·컷오프 데이터로 즉시 상/중/하 판정. 가볍게 여러 학과를 둘러볼 때 사용하세요.
           </div>
           ${limitBannerHtml}
           <div class="apply-input-row">
@@ -3069,10 +3105,15 @@ function renderMockApplyTab(el){
             <input id="applyNote" placeholder="예: 의예과 관심, 복수지원 비교" />
           </div>
           ${majorList.length ? `
-            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#15803d;">
-              ✅ 비교과 분석 <b>${majorList.length}개 학과</b> 결과가 모의지원에 자동 반영됩니다
-            </div>` : ''}
-          <button class="apply-btn" id="applyBtn" onclick="runApplyAnalysis()">🔍 학과 적합성 분석하기</button>
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#15803d;line-height:1.6;">
+              ✅ AI 정밀 분석 <b>${majorList.length}개 학과</b> 결과가 빠른 진단에도 자동 반영됩니다
+            </div>` : `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11.5px;color:#64748b;line-height:1.6;">
+              💡 <b>팁:</b> AI 정밀 분석을 먼저 하면, 빠른 진단 결과도 더 정확해져요.
+            </div>`}
+          <button class="apply-btn" id="applyBtn" onclick="runApplyAnalysis()" style="background:linear-gradient(135deg,#f59e0b,#fb923c);">
+            ⚡ 빠른 진단 실행
+          </button>
         </div>
       </div>
     </div>`;
