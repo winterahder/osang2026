@@ -260,6 +260,7 @@
   .model-pill.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(99,102,241,.4);}
   .model-pill:not(.active):hover{color:var(--text);}
   .model-pill.haiku-active{background:#06b6d4;color:#fff;box-shadow:0 1px 4px rgba(6,182,212,.4);}
+  .model-pill.opus-active{background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;box-shadow:0 1px 4px rgba(168,85,247,.4);}
 
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -404,8 +405,9 @@
     <div id="modelSelectorWrap" style="display:none;align-items:center;gap:7px;">
       <span style="font-size:11px;color:var(--muted);font-weight:600;">모델</span>
       <div class="model-selector" id="modelSelector">
-        <div class="model-pill active" id="mpSonnet" onclick="selectModel('sonnet')" title="claude-sonnet-4-6 — 복잡한 분석·요약">🧠 Sonnet 4.6</div>
-        <div class="model-pill" id="mpHaiku" onclick="selectModel('haiku')" title="claude-haiku-4-5 — 빠른 단순 작업">⚡ Haiku 4.5</div>
+        <div class="model-pill active" id="mpSonnet" onclick="selectModel('sonnet')" title="claude-sonnet-4-6 — 복잡한 분석·요약 ($3/$15 per MTok)">🧠 Sonnet 4.6</div>
+        <div class="model-pill" id="mpHaiku" onclick="selectModel('haiku')" title="claude-haiku-4-5 — 빠른 단순 작업 ($1/$5 per MTok)">⚡ Haiku 4.5</div>
+        <div class="model-pill" id="mpOpus" onclick="selectModel('opus')" title="claude-opus-4-7 — 최고 품질, 비용↑ ($5/$25 per MTok). 다른 모델 과부하 시 우회 경로로도 활용 가능">👑 Opus 4.7</div>
       </div>
     </div>
     <button class="btn-ref-open" onclick="openRefModal()">📚 참고자료 관리 <span id="refCountBadge" style="background:#06b6d4;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;display:none;"></span></button>
@@ -650,19 +652,50 @@ let refSelectedFile=null;
 let currentAnthropicModel='claude-sonnet-4-6'; // 기본값 Sonnet
 
 /* ========== 모델 선택 ========== */
+// 모델 메타데이터 (한 곳에서 관리)
+const MODEL_META = {
+  sonnet: {
+    id: 'claude-sonnet-4-6',
+    label: 'Sonnet 4.6',
+    color: 'var(--accent)',
+    pillId: 'mpSonnet',
+    activeClass: 'active'
+  },
+  haiku: {
+    id: 'claude-haiku-4-5-20251001',
+    label: 'Haiku 4.5',
+    color: '#06b6d4',
+    pillId: 'mpHaiku',
+    activeClass: 'haiku-active'
+  },
+  opus: {
+    id: 'claude-opus-4-7',
+    label: 'Opus 4.7',
+    color: '#a855f7',
+    pillId: 'mpOpus',
+    activeClass: 'opus-active'
+  }
+};
+
 function selectModel(type){
-  const isSonnet = type==='sonnet';
-  currentAnthropicModel = isSonnet ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
-  document.getElementById('mpSonnet').className='model-pill'+(isSonnet?' active':'');
-  document.getElementById('mpHaiku').className='model-pill'+(isSonnet?'':' haiku-active');
+  const meta = MODEL_META[type];
+  if(!meta) return;
+  currentAnthropicModel = meta.id;
+
+  // 모든 pill에서 active/haiku-active/opus-active 제거 후 선택한 것만 적용
+  Object.values(MODEL_META).forEach(m => {
+    const el = document.getElementById(m.pillId);
+    if(el) el.className = 'model-pill';
+  });
+  const selectedEl = document.getElementById(meta.pillId);
+  if(selectedEl) selectedEl.className = 'model-pill ' + meta.activeClass;
+
   // 헤더 상태 업데이트
-  const statusEl=document.getElementById('headerStatus');
+  const statusEl = document.getElementById('headerStatus');
   if(statusEl && students.length){
-    const info=PROVIDERS[apiProvider];
-    const modelLabel=isSonnet?'Sonnet 4.6':'Haiku 4.5';
-    const modelColor=isSonnet?'var(--accent)':'#06b6d4';
-    const providerBadge=`<span class="api-badge">${info.name}</span>`;
-    statusEl.innerHTML=`${students.length}명 로드됨 ${providerBadge} <span style="background:${modelColor};color:#fff;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;">${modelLabel}</span>`;
+    const info = PROVIDERS[apiProvider];
+    const providerBadge = `<span class="api-badge">${info.name}</span>`;
+    statusEl.innerHTML = `${students.length}명 로드됨 ${providerBadge} <span style="background:${meta.color};color:#fff;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;">${meta.label}</span>`;
   }
 }
 
