@@ -567,14 +567,23 @@
     body * { visibility: hidden; }
     #printArea, #printArea * { visibility: visible; }
     #printArea {
-      position: fixed; inset: 0;
-      padding: 16px 20px;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      padding: 12px 20px;
       background: #fff;
       font-family: 'Pretendard', -apple-system, sans-serif;
-      font-size: 12px;
+      font-size: 13px;
       color: #1e293b;
+      box-sizing: border-box;
     }
+    /* 인쇄 시 페이지 중간 강제 잘림 방지 */
+    #printArea .eval-grp-acc,
+    #printArea .eval-swot-card,
+    #printArea .eval-swot-section { page-break-inside: avoid; }
     .print-no { display: none !important; }
+    /* 레이더 카드 버튼 행 숨김 */
+    .eval-radar-card-header { flex-wrap: nowrap; }
   }
   .apply-history-item:hover { background: #f1f5f9; color: #6366f1; }
   .sub-meta { font-size: 12px; color: #94a3b8; margin-left: 2px; }
@@ -5241,11 +5250,38 @@ function idxSwitchRecTab(key){
 
 // ===== 종합역량평가 인쇄 =====
 function printCompEval() {
-  // 인쇄 대상: main 안의 종합역량평가 카드 전체
   const card = document.querySelector('#main .card');
   if(!card){ alert('인쇄할 내용이 없습니다.'); return; }
 
-  // 이전 printArea 정리
+  // ── STEP 1: 아코디언 패널 임시로 모두 열기 ──────────
+  // 닫혀있는 eval 아코디언 패널들 (display:none → '') 임시 오픈
+  const hiddenPanels = [];
+  card.querySelectorAll('[id^="evalGrpAcc_"]').forEach(el => {
+    if(el.style.display === 'none'){
+      el.style.display = '';
+      hiddenPanels.push(el);
+    }
+  });
+
+  // ── STEP 2: canvas → img 변환 (레이더 차트 등) ──────
+  // canvas는 innerHTML 복사 시 그림이 사라짐 → dataURL img로 교체
+  const canvasSwaps = [];
+  card.querySelectorAll('canvas').forEach(canvas => {
+    try {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      // 원본 크기 맞추기
+      const cs = window.getComputedStyle(canvas);
+      img.style.width  = (canvas.offsetWidth  || parseInt(cs.width))  + 'px';
+      img.style.height = (canvas.offsetHeight || parseInt(cs.height)) + 'px';
+      img.style.display = 'block';
+      canvas.parentNode.insertBefore(img, canvas);
+      canvas.style.display = 'none';
+      canvasSwaps.push({ img, canvas });
+    } catch(e){ console.warn('canvas 변환 실패:', e); }
+  });
+
+  // ── STEP 3: printArea 생성 및 innerHTML 복사 ────────
   const prev = document.getElementById('printArea');
   if(prev) prev.remove();
 
@@ -5256,19 +5292,32 @@ function printCompEval() {
   const printArea = document.createElement('div');
   printArea.id = 'printArea';
   printArea.innerHTML = `
-    <div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;">
+    <div style="text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #6366f1;font-family:sans-serif;">
       <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:4px;">오상고등학교 학생 상담카드</div>
       <div style="font-size:22px;font-weight:900;color:#1e293b;">${escapeHtml(stuHak)} ${escapeHtml(stuName)} &nbsp; 종합역량평가</div>
       <div style="font-size:12px;color:#94a3b8;margin-top:6px;">${today} 출력</div>
     </div>
     ${card.innerHTML}
   `;
+  // printArea 안의 .print-no 요소 숨기기 (버튼 등)
+  printArea.querySelectorAll('.print-no').forEach(el => el.style.display = 'none');
   document.body.appendChild(printArea);
 
+  // ── STEP 4: 인쇄 ────────────────────────────────────
   window.print();
 
-  // 인쇄 다이얼로그 닫힌 후 제거
-  const cleanup = () => { printArea.remove(); window.removeEventListener('afterprint', cleanup); };
+  // ── STEP 5: afterprint 시 원상복구 ──────────────────
+  const cleanup = () => {
+    printArea.remove();
+    // canvas 복원
+    canvasSwaps.forEach(({ img, canvas }) => {
+      img.remove();
+      canvas.style.display = '';
+    });
+    // 아코디언 다시 닫기
+    hiddenPanels.forEach(el => { el.style.display = 'none'; });
+    window.removeEventListener('afterprint', cleanup);
+  };
   window.addEventListener('afterprint', cleanup);
 }
 
