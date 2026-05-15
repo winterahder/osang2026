@@ -450,20 +450,20 @@
   .eval-grade-trend-no-data { color: #cbd5e1; font-size: 13px; text-align: center; padding: 20px; }
   /* ② 강점/보완점 */
   .eval-swot-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .eval-swot-card { border-radius: 14px; padding: 18px 20px; border: 1.5px solid; position: relative; overflow: hidden; }
+  .eval-swot-card { border-radius: 14px; padding: 20px 22px; border: 1.5px solid; position: relative; overflow: hidden; }
   .eval-swot-card::before { content: ''; position: absolute; top: -24px; right: -24px; width: 90px; height: 90px; border-radius: 50%; opacity: .08; }
   .eval-swot-card.strength { background: #f0fdf4; border-color: #86efac; }
   .eval-swot-card.strength::before { background: #16a34a; }
   .eval-swot-card.weakness { background: #fff7ed; border-color: #fdba74; }
   .eval-swot-card.weakness::before { background: #ea580c; }
-  .eval-swot-title { font-size: 13px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-  .eval-swot-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #1e293b; line-height: 1.65; margin-bottom: 8px; }
+  .eval-swot-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .eval-swot-item { display: flex; align-items: flex-start; gap: 9px; font-size: 15px; color: #1e293b; line-height: 1.75; margin-bottom: 10px; }
   .eval-swot-item:last-child { margin-bottom: 0; }
-  .eval-swot-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
+  .eval-swot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 9px; }
   .eval-swot-gen-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 10px; border: 1.5px dashed #cbd5e1; background: #f8fafc; color: #64748b; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; grid-column: 1 / -1; }
   .eval-swot-gen-btn:hover { border-color: #6366f1; color: #6366f1; background: #ede9fe; }
-  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 13px 18px; font-size: 14px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 10px; }
-  .eval-swot-summary-icon { font-size: 18px; flex-shrink: 0; }
+  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 12px; line-height: 1.6; }
+  .eval-swot-summary-icon { font-size: 22px; flex-shrink: 0; }
 
   /* ③ 내신 연동 배지 */
   .grade-link-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
@@ -4194,14 +4194,15 @@ function renderCompEvalTab(el){
   const recData = evalData[hak]?.맞춤활동추천
     || (g2hak ? evalData[g2hak]?.맞춤활동추천 : null) || null;
 
+  // [순서] A안: 결론 먼저 → 액션 → 보조 데이터 → 참고 자료(맨 아래)
   el.innerHTML = `<div class="card" style="padding:16px;">
     <div id="evalRadarArea"></div>
-    <div id="evalGradeTrendArea"></div>
     <div id="evalSwotArea"></div>
-    <div id="evalSuccessCasesArea"></div>
-    <div id="evalAdmissionsArea"></div>
     ${decompData ? renderIndexDecompSection(decompData) : ''}
     ${recData ? renderIndexRecSection(recData) : ''}
+    <div id="evalGradeTrendArea"></div>
+    <div id="evalSuccessCasesArea"></div>
+    <div id="evalAdmissionsArea"></div>
   </div>`;
 
   requestAnimationFrame(() => {
@@ -4633,10 +4634,10 @@ function renderCompEvalPanel(eval_){
       const sg    = (typeof sd === 'string') ? sd : (sd.grade || '-');
       const sColor = GC[sg] || '#94a3b8';
       const comment = (typeof sd === 'object' && sd.comment) ? sd.comment : '';
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <span style="font-size:12px;font-weight:600;color:#64748b;min-width:64px;flex-shrink:0;">${lbl}</span>
-        <span style="font-size:13px;font-weight:800;color:${sColor};min-width:28px;flex-shrink:0;">${dispGrade(sg)}</span>
-        ${comment ? `<span style="font-size:11.5px;color:#94a3b8;line-height:1.55;flex:1;">${escapeHtml(comment)}</span>` : ''}
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04);">
+        <span style="font-size:14px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
+        <span style="font-size:15px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
+        ${comment ? `<span style="font-size:14px;color:#475569;line-height:1.7;flex:1;">${escapeHtml(comment)}</span>` : ''}
       </div>`;
     }).join('');
 
@@ -4644,29 +4645,29 @@ function renderCompEvalPanel(eval_){
     const subSummary = g.subs.map(([lbl, subKey]) => {
       const sd = d[subKey]; if(!sd) return '';
       const sg = (typeof sd === 'string') ? sd : (sd.grade || '-');
-      return `<span style="font-size:10px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
+      return `<span style="font-size:12px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
     }).filter(Boolean).join('<span style="color:#e2e8f0;margin:0 3px;">·</span>');
 
     return `<div class="eval-grp-acc" style="border:1.5px solid #e8edf5;border-top:3px solid ${gColor};border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04);">
       <!-- 헤더 (항상 보임) -->
       <div onclick="toggleEvalGrp('${accId}')"
-        style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:17px;line-height:1;">${g.icon}</span>
+        style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;line-height:1;">${g.icon}</span>
           <div>
-            <div style="font-size:13px;font-weight:800;color:#1e293b;">${g.label}</div>
-            <div class="eval-grp-sub-summary" style="margin-top:2px;display:flex;flex-wrap:wrap;gap:4px;">${subSummary}</div>
+            <div style="font-size:16px;font-weight:800;color:#1e293b;">${g.label}</div>
+            <div class="eval-grp-sub-summary" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;">${subSummary}</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
           <div style="text-align:right;">
-            <span style="font-size:26px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
+            <span style="font-size:30px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
           </div>
-          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:11px;color:#94a3b8;transition:transform .2s;">▼</span>
+          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:13px;color:#94a3b8;transition:transform .2s;">▼</span>
         </div>
       </div>
       <!-- 펼쳐지는 내용 -->
-      <div id="${accId}" style="display:none;padding:0 16px 12px;border-top:1px solid #f1f5f9;">
+      <div id="${accId}" style="display:none;padding:0 18px 14px;border-top:1px solid #f1f5f9;">
         ${subRows}
       </div>
     </div>`;
@@ -4677,21 +4678,21 @@ function renderCompEvalPanel(eval_){
 
   return `<div style="background:#fff;border:2px solid #ede9fe;border-radius:16px;padding:0;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,102,241,.08);">
     <!-- 헤더 -->
-    <div style="padding:14px 20px 0;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:15px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
-      <span style="font-size:11px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 9px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
+    <div style="padding:16px 22px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:17px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
+      <span style="font-size:12px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:3px 10px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
     </div>
 
     <!-- 종합 점수 배너 -->
     ${(totalGrade || totalScore != null) ? `
-    <div style="margin:12px 20px 0;padding:12px 18px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:12px;">
-      <span class="eval-total-score-big" style="font-size:36px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
-      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:24px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
-      <span style="font-size:11px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
+    <div style="margin:14px 22px 0;padding:14px 20px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <span class="eval-total-score-big" style="font-size:42px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
+      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:28px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
+      <span style="font-size:12px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
     </div>` : ''}
 
     <!-- 3열 그룹 카드 -->
-    <div id="evalGrpGrid" style="display:flex;flex-direction:column;gap:10px;padding:14px 20px;">
+    <div id="evalGrpGrid" style="display:flex;flex-direction:column;gap:10px;padding:16px 22px;">
       ${grpCards}
     </div>
 
@@ -4699,9 +4700,9 @@ function renderCompEvalPanel(eval_){
 
     <!-- 종합 의견 -->
     ${eval_.종합의견 ? `
-    <div style="margin:0 20px 14px;padding:14px 16px;background:#f5f3ff;border-radius:10px;border-left:3px solid #8b5cf6;">
-      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:6px;">💬 종합 의견</div>
-      <div class="eval-opinion-text" style="font-size:13px;color:#334155;line-height:1.75;">${escapeHtml(eval_.종합의견)}</div>
+    <div style="margin:0 22px 16px;padding:16px 18px;background:#f5f3ff;border-radius:10px;border-left:4px solid #8b5cf6;">
+      <div style="font-size:15px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
+      <div class="eval-opinion-text" style="font-size:15px;color:#334155;line-height:1.8;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
 
     <!-- 우수 문장 발췌 -->
@@ -4725,19 +4726,19 @@ function renderBestSentences(sentences) {
   const groupHtml = Object.entries(groups).map(([역량, items]) => {
     const color = GC2[역량] || '#64748b';
     const rows = items.map(item => `
-      <div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:4px;">
+      <div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:5px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:10px;font-weight:700;background:${color}18;color:${color};padding:2px 7px;border-radius:10px;">${escapeHtml(item.구분||'')}</span>
-          <span style="font-size:10px;color:#94a3b8;">${item.학년 ? item.학년+'학년' : ''} ${escapeHtml(item.출처||'')}</span>
+          <span style="font-size:12px;font-weight:700;background:${color}18;color:${color};padding:3px 9px;border-radius:10px;">${escapeHtml(item.구분||'')}</span>
+          <span style="font-size:11.5px;color:#94a3b8;">${item.학년 ? item.학년+'학년' : ''} ${escapeHtml(item.출처||'')}</span>
         </div>
-        <div style="font-size:12.5px;color:#334155;line-height:1.7;">
-          <span style="color:${color};font-size:14px;font-weight:900;margin-right:4px;">"</span>${escapeHtml(item.문장||'')}
+        <div style="font-size:14.5px;color:#334155;line-height:1.75;">
+          <span style="color:${color};font-size:18px;font-weight:900;margin-right:4px;">"</span>${escapeHtml(item.문장||'')}
         </div>
       </div>`).join('');
 
     return `
-      <div style="margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:6px;padding:8px 12px 4px;font-size:13px;font-weight:800;color:${color};">
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:6px;padding:10px 14px 6px;font-size:15px;font-weight:800;color:${color};">
           ${역량==='학업역량'?'📚':역량==='진로역량'?'🎯':'🤝'} ${역량}에서 좋은 평가를 받은 기록
         </div>
         <div style="border:1px solid ${color}22;border-radius:10px;overflow:hidden;">${rows}</div>
@@ -4745,12 +4746,12 @@ function renderBestSentences(sentences) {
   }).join('');
 
   return `
-    <div style="margin:0 20px 18px;">
+    <div style="margin:0 22px 20px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:14px;font-weight:800;color:#1e293b;">⭐ 좋은 평가를 받은 기록</span>
-        <span style="font-size:11px;background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:8px;font-weight:600;">AI 자동 발췌</span>
+        <span style="font-size:16px;font-weight:800;color:#1e293b;">⭐ 좋은 평가를 받은 기록</span>
+        <span style="font-size:12px;background:#fef9c3;color:#92400e;padding:3px 9px;border-radius:8px;font-weight:600;">AI 자동 발췌</span>
       </div>
-      <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;">
+      <div style="font-size:13px;color:#94a3b8;margin-bottom:12px;padding:9px 12px;background:#f8fafc;border-radius:8px;">
         📌 아래 기록들은 학생부종합전형에서 긍정적인 평가를 받을 수 있는 문장입니다. 더 발전시켜 나가세요.
       </div>
       ${groupHtml}
