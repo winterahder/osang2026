@@ -422,7 +422,7 @@
     box-shadow: 0 2px 10px rgba(15,23,42,.05);
   }
   .eval-grade-trend-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .eval-grade-trend-title  { font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px; }
+  .eval-grade-trend-title  { font-size: 20px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px; }
   .eval-grade-trend-body   { display: flex; align-items: flex-end; gap: 0; overflow-x: auto; }
   .eval-grade-trend-col    { flex: 1; min-width: 60px; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
   .eval-grade-trend-col + .eval-grade-trend-col::before {
@@ -437,11 +437,11 @@
     min-height: 4px;
   }
   .eval-grade-trend-val {
-    font-size: 11px; font-weight: 800; text-align: center;
+    font-size: 18px; font-weight: 800; text-align: center;
     margin-bottom: 2px;
   }
-  .eval-grade-trend-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-align: center; white-space: nowrap; }
-  .eval-grade-trend-change { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 20px; }
+  .eval-grade-trend-label { font-size: 15px; color: #94a3b8; font-weight: 600; text-align: center; white-space: nowrap; }
+  .eval-grade-trend-change { font-size: 14px; font-weight: 800; padding: 2px 7px; border-radius: 20px; }
   .eval-grade-trend-change.up   { background: #dcfce7; color: #16a34a; }
   .eval-grade-trend-change.down { background: #fee2e2; color: #dc2626; }
   .eval-grade-trend-change.same { background: #f1f5f9; color: #94a3b8; }
@@ -456,14 +456,14 @@
   .eval-swot-card.strength::before { background: #16a34a; }
   .eval-swot-card.weakness { background: #fff7ed; border-color: #fdba74; }
   .eval-swot-card.weakness::before { background: #ea580c; }
-  .eval-swot-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
-  .eval-swot-item { display: flex; align-items: flex-start; gap: 9px; font-size: 15px; color: #1e293b; line-height: 1.75; margin-bottom: 10px; }
+  .eval-swot-title { font-size: 22px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .eval-swot-item { display: flex; align-items: flex-start; gap: 9px; font-size: 20px; color: #1e293b; line-height: 1.8; margin-bottom: 10px; }
   .eval-swot-item:last-child { margin-bottom: 0; }
-  .eval-swot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 9px; }
+  .eval-swot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 12px; }
   .eval-swot-gen-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 10px; border: 1.5px dashed #cbd5e1; background: #f8fafc; color: #64748b; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; grid-column: 1 / -1; }
   .eval-swot-gen-btn:hover { border-color: #6366f1; color: #6366f1; background: #ede9fe; }
-  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 12px; line-height: 1.6; }
-  .eval-swot-summary-icon { font-size: 22px; flex-shrink: 0; }
+  .eval-swot-summary { grid-column: 1 / -1; background: linear-gradient(135deg,#fefce8,#fef9c3); border: 1.5px solid #fde68a; border-radius: 12px; padding: 16px 22px; font-size: 20px; font-weight: 600; color: #92400e; display: flex; align-items: center; gap: 12px; line-height: 1.7; }
+  .eval-swot-summary-icon { font-size: 24px; flex-shrink: 0; }
 
   /* ③ 내신 연동 배지 */
   .grade-link-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
@@ -4809,19 +4809,19 @@ function drawGradeTrend(container){
     const [yr,st]=sem.split('-');
     const prev=i>0?semMap[sems[i-1]].avg:null;
     const chg=prev!=null?changeTag(prev,avg):'';
-    const scaleTag=`<span style="font-size:9px;color:#9333ea;font-weight:700;">[${is9?9:5}]</span>`;
+    const scaleTag=`<span style="font-size:13px;color:#9333ea;font-weight:700;">[${is9?9:5}]</span>`;
     return `<div class="eval-grade-trend-col">
-      <div class="eval-grade-trend-val" style="color:${c};font-size:13px;font-weight:900;">${avg.toFixed(2)}</div>
+      <div class="eval-grade-trend-val" style="color:${c};font-size:18px;font-weight:900;">${avg.toFixed(2)}</div>
       <div class="eval-grade-trend-bar-wrap">
         <div class="eval-grade-trend-bar" style="height:${h}px;background:linear-gradient(180deg,${c}cc,${c});width:36px;"></div>
       </div>
-      <div class="eval-grade-trend-label" style="font-size:11px;">${yr}학년<br>${st}학기${scaleTag}</div>
+      <div class="eval-grade-trend-label" style="font-size:15px;">${yr}학년<br>${st}학기${scaleTag}</div>
       <div style="margin-top:3px;min-height:16px;">${chg}</div>
     </div>`;
   }).join('');
 
   const yLabels=Array.from({length:maxG},(_,i)=>i+1)
-    .map(v=>`<div style="font-size:9px;color:#e2e8f0;font-weight:600;line-height:1;">${v}</div>`)
+    .map(v=>`<div style="font-size:13px;color:#cbd5e1;font-weight:600;line-height:1;">${v}</div>`)
     .join('');
 
   container.innerHTML=`
@@ -4830,16 +4830,16 @@ function drawGradeTrend(container){
         <div class="eval-grade-trend-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           내신 학기별 등급 변화
-          <span style="font-size:11px;color:#94a3b8;font-weight:500;">(${maxG}등급제 · 낮을수록 우수)</span>
+          <span style="font-size:14px;color:#94a3b8;font-weight:500;">(${maxG}등급제 · 낮을수록 우수)</span>
         </div>
-        <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:3px 10px;border-radius:20px;font-weight:600;">${sems.length}개 학기</span>
+        <span style="font-size:14px;color:#94a3b8;background:#f1f5f9;padding:4px 12px;border-radius:20px;font-weight:600;">${sems.length}개 학기</span>
       </div>
       ${comment ? `
-      <div style="display:flex;align-items:flex-start;gap:10px;background:${comment.color}0f;border:1.5px solid ${comment.color}30;border-radius:12px;padding:12px 16px;margin-bottom:16px;">
-        <span style="font-size:18px;flex-shrink:0;">${comment.icon}</span>
+      <div style="display:flex;align-items:flex-start;gap:10px;background:${comment.color}0f;border:1.5px solid ${comment.color}30;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
+        <span style="font-size:24px;flex-shrink:0;">${comment.icon}</span>
         <div>
-          <div style="font-size:14px;font-weight:800;color:${comment.color};margin-bottom:3px;">${comment.trend}</div>
-          <div style="font-size:12px;color:#64748b;">${comment.detail}</div>
+          <div style="font-size:20px;font-weight:800;color:${comment.color};margin-bottom:4px;">${comment.trend}</div>
+          <div style="font-size:16px;color:#64748b;">${comment.detail}</div>
         </div>
       </div>` : ''}
       <div style="display:flex;align-items:flex-end;gap:0;overflow-x:auto;">
@@ -4926,9 +4926,9 @@ function renderCompEvalPanel(eval_){
       const sColor = GC[sg] || '#94a3b8';
       const comment = (typeof sd === 'object' && sd.comment) ? sd.comment : '';
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <span style="font-size:24px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
-        <span style="font-size:20px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
-        ${comment ? `<span style="font-size:24px;color:#475569;line-height:1.7;flex:1;">${escapeHtml(comment)}</span>` : ''}
+        <span style="font-size:17px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
+        <span style="font-size:18px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
+        ${comment ? `<span style="font-size:20px;color:#475569;line-height:1.8;flex:1;">${escapeHtml(comment)}</span>` : ''}
       </div>`;
     }).join('');
 
@@ -4936,7 +4936,7 @@ function renderCompEvalPanel(eval_){
     const subSummary = g.subs.map(([lbl, subKey]) => {
       const sd = d[subKey]; if(!sd) return '';
       const sg = (typeof sd === 'string') ? sd : (sd.grade || '-');
-      return `<span style="font-size:20px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
+      return `<span style="font-size:14px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
     }).filter(Boolean).join('<span style="color:#e2e8f0;margin:0 3px;">·</span>');
 
     return `<div class="eval-grp-acc" style="border:1.5px solid #e8edf5;border-top:3px solid ${gColor};border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04);">
@@ -4970,7 +4970,7 @@ function renderCompEvalPanel(eval_){
   return `<div style="background:#fff;border:2px solid #ede9fe;border-radius:16px;padding:0;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,102,241,.08);">
     <!-- 헤더 -->
     <div style="padding:16px 22px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span style="font-size:24px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
+      <span style="font-size:26px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
       <span style="font-size:20px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:3px 10px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
     </div>
 
@@ -4992,7 +4992,7 @@ function renderCompEvalPanel(eval_){
     <!-- 종합 의견 -->
     ${eval_.종합의견 ? `
     <div style="margin:0 22px 16px;padding:16px 18px;background:#f5f3ff;border-radius:10px;border-left:4px solid #8b5cf6;">
-      <div style="font-size:20px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
+      <div style="font-size:22px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
       <div class="eval-opinion-text" style="font-size:20px;color:#334155;line-height:1.8;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
 
@@ -5504,7 +5504,7 @@ function renderIndexRecSection(data){
 
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;overflow:hidden;">
     <div style="padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
-      <div style="font-size:21px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
+      <div style="font-size:26px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
     </div>
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
     <div style="padding:18px 22px;">
@@ -5517,7 +5517,7 @@ function renderIndexRecSection(data){
       ${twoCol('기존 활동 연결', d.기존활동연결, '진로 관련성', d.진로관련성)}
       ${section('학종 평가 포인트', d.학종평가포인트)}
       ${section('실행 방법', d.실행방법)}
-      ${d.후속확장?`<div style="font-size:24px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
+      ${d.후속확장?`<div style="font-size:20px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
       ${qBlock}
     </div>
   </div>`;
