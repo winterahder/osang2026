@@ -562,6 +562,9 @@
 
   @media(max-width:900px){ .apply-layout { grid-template-columns: 1fr; } .apply-right { position: static; } .major-card-grid { grid-template-columns: 1fr; } }
 
+  .no-print { }
+  @media print { .no-print { display: none !important; } }
+
   /* ===== 인쇄 스타일 ===== */
   @media print {
     body * { visibility: hidden; }
@@ -3491,7 +3494,60 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
 }
 
 function renderApplyResultHTML(obj, resultEl){
-  resultEl.innerHTML = buildApplyCardHTML(obj, null, true);
+  resultEl.innerHTML = buildResultToolbar() + '<div id="applyCardInner">' + buildApplyCardHTML(obj, null, true) + '</div>';
+}
+
+// 결과 카드 상단 툴바 (인쇄 / PDF 저장)
+function buildResultToolbar(){
+  return `<div class="no-print" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+    <button onclick="printApplyResult()" style="display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cbd5e1;color:#475569;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#f1f5f9';this.style.borderColor='#94a3b8';" onmouseout="this.style.background='#fff';this.style.borderColor='#cbd5e1';">
+      🖨️ 인쇄
+    </button>
+    <button onclick="printApplyResult()" style="display:flex;align-items:center;gap:6px;background:#4f46e5;border:1.5px solid #4f46e5;color:#fff;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#4338ca';" onmouseout="this.style.background='#4f46e5';">
+      📄 PDF 저장
+    </button>
+  </div>`;
+}
+
+// 인쇄 / PDF 저장 (브라우저 인쇄 대화상자 → PDF로 저장 선택 가능)
+function printApplyResult(){
+  const card = document.getElementById('applyCardInner');
+  if(!card){ window.print(); return; }
+  
+  const stu = currentStu ? `${currentStu.name||currentStu.이름||''} (${currentStu.hak||''})` : '';
+  const today = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+  
+  const win = window.open('', '_blank', 'width=900,height=1000');
+  win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+    <title>모의지원 분석 결과 — ${stu}</title>
+    <style>
+      * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      body { font-family:'Pretendard',-apple-system,'Noto Sans KR',sans-serif; margin:0; padding:24px; background:#fff; }
+      .print-header { text-align:center; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid #e2e8f0; }
+      .print-header h1 { font-size:20px; color:#0f172a; margin:0 0 6px; }
+      .print-header .sub { font-size:13px; color:#64748b; }
+      @media print {
+        body { padding:0; }
+        @page { margin:1.2cm; }
+      }
+      details { open:true; }
+      details > div { display:block !important; }
+    </style></head><body>
+    <div class="print-header">
+      <h1>🎯 모의지원 분석 결과</h1>
+      <div class="sub">${stu ? stu + ' · ' : ''}${today} · 오상고등학교 진학상담</div>
+    </div>
+    ${card.innerHTML}
+    </body></html>`);
+  win.document.close();
+  
+  // 펼침 카드(맞춤활동추천 토글) 모두 펼친 상태로
+  win.onload = function(){
+    try {
+      win.document.querySelectorAll('[id^="act_"]').forEach(el=>{ el.style.display='block'; });
+    } catch(e){}
+    setTimeout(()=>{ win.focus(); win.print(); }, 400);
+  };
 }
 
 function buildApplyCardHTML(obj, dateStr, isNew){
@@ -3761,35 +3817,39 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           ${dateStr?`<span style="color:#94a3b8;font-size:11px;margin-left:2px;">${dateStr}</span>`:''}
         </div>
       </div>
-      ${meta.stuAvg!=null ? `<div style="text-align:center;background:#fff;border:1.5px solid ${t.border};border-radius:12px;padding:8px 14px;flex-shrink:0;">
-        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">학생 평균등급</div>
-        <div style="font-size:22px;font-weight:900;color:${t.c};line-height:1;">${meta.stuAvg.toFixed(2)}</div>
-      </div>` : ''}
     </div>
     ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
   </div>
 
   <!-- ② 점수 히어로 -->
   <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:14px 18px;">
-    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+    <!-- 상단 라인: 게이지 + 등급/한줄평 + 학생등급 -->
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:${metricItems.length?'12px':'0'};">
       ${gauge}
-      <div style="flex:1;min-width:160px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+      <div style="flex:1;min-width:150px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
           <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${dispGrade(grade)} 등급</span>
           <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
         </div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:12px;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
-        ${metricItems.length ? `
-        <div style="display:grid;grid-template-columns:repeat(${metricItems.length},1fr);gap:7px;">
-          ${metricItems.map(m=>`
-          <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 8px;text-align:center;">
-            <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:2px;">${m.icon} ${m.label}</div>
-            <div style="font-size:16px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
-            <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${m.sub}</div>
-          </div>`).join('')}
-        </div>` : ''}
+        <div style="font-size:13px;color:#64748b;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
       </div>
+      ${meta.stuAvg!=null ? `<div style="display:flex;gap:8px;flex-shrink:0;">
+        <div style="background:#fff;border:1.5px solid ${t.border};border-radius:12px;padding:8px 16px;text-align:center;min-width:80px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">내 평균등급</div>
+          <div style="font-size:20px;font-weight:900;color:${t.c};line-height:1;">${meta.stuAvg.toFixed(2)}</div>
+        </div>
+      </div>` : ''}
     </div>
+    <!-- 하단: 핵심 지표 카드 (전국 합격자 등) -->
+    ${metricItems.length ? `
+    <div style="display:grid;grid-template-columns:repeat(${metricItems.length},1fr);gap:7px;">
+      ${metricItems.map(m=>`
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 10px;text-align:center;">
+        <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:2px;">${m.icon} ${m.label}</div>
+        <div style="font-size:16px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${m.sub}</div>
+      </div>`).join('')}
+    </div>` : ''}
   </div>
 
   <!-- 본문 섹션들 -->
@@ -4105,7 +4165,7 @@ async function showApplyResult(h){
   
   const resultEl = document.getElementById('applyResult');
   // 먼저 1차 렌더 (선배 사례 없는 상태로라도 빠르게 표시)
-  resultEl.innerHTML = buildApplyCardHTML(result, h.date, false);
+  resultEl.innerHTML = buildResultToolbar() + '<div id="applyCardInner">' + buildApplyCardHTML(result, h.date, false) + '</div>';
   
   // 🆕 우리 학교 선배 사례(admCases)가 없으면 비동기로 가져와서 다시 렌더
   if(!result._meta.admCases || !result._meta.admCases.school){
@@ -4134,7 +4194,7 @@ async function showApplyResult(h){
           }
         }
         // 다시 렌더 (선배 사례 포함)
-        resultEl.innerHTML = buildApplyCardHTML(result, h.date, false);
+        resultEl.innerHTML = buildResultToolbar() + '<div id="applyCardInner">' + buildApplyCardHTML(result, h.date, false) + '</div>';
       } catch(e){
         console.warn('[showApplyResult] 선배 사례 보충 실패:', e.message||e);
       }
