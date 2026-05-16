@@ -3498,17 +3498,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const meta = obj._meta || {};
   const score = obj.적합도점수 || 0;
   const grade = obj.적합도;
-  
-  // 🔍 진단 로그 (한 번에 모든 데이터 흐름 확인)
-  console.log('━━━━━━━ buildApplyCardHTML 진단 ━━━━━━━');
-  console.log('[A] obj 키:', Object.keys(obj));
-  console.log('[B] meta 키:', Object.keys(meta));
-  console.log('[C] meta.evalRich:', meta.evalRich);
-  console.log('[D] meta.evalRich?.강점보완점:', meta.evalRich?.강점보완점);
-  console.log('[E] meta.evalRich?.맞춤활동추천:', meta.evalRich?.맞춤활동추천);
-  console.log('[F] meta.compEval:', meta.compEval);
-  console.log('[G] meta.admCases?.school?.length:', meta.admCases?.school?.length);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   
 
 
@@ -3804,21 +3794,21 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   <div style="padding:14px 16px 6px;">
 
     ${ozenLine ? `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-      <div style="font-size:10px;color:#92400e;font-weight:800;margin-bottom:4px;letter-spacing:.5px;">💬 담임 한줄 요약</div>
+      <div style="font-size:10px;color:#92400e;font-weight:800;margin-bottom:4px;letter-spacing:.5px;">💬 한줄 요약</div>
       <div style="font-size:13px;color:#78350f;font-weight:600;line-height:1.6;">${escapeHtml(ozenLine)}</div>
     </div>` : ''}
 
-    ${SEC(usingTeacherEval?'✅':'✅', usingTeacherEval?'강점 (담임 평가)':'강점','#065f46','#f0fdf4','#bbf7d0',
+    ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
       strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
     )}
 
-    ${SEC('⚠️', usingTeacherEval?'보완점 (담임 평가)':'보완점','#92400e','#fffbeb','#fcd34d',
+    ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
       weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
     )}
     
-    ${actTypes.length ? SEC('🎯','맞춤 활동 추천 (담임 평가)','#7c2d12','#fff7ed','#fed7aa', `
+    ${actTypes.length ? SEC('🎯','맞춤 활동 추천','#7c2d12','#fff7ed','#fed7aa', `
       <div style="font-size:11px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
-        담임 선생님이 학생 특성에 맞춰 추천하는 ${actTypes.length}가지 방향. 각 카드를 클릭하면 상세 내용이 펼쳐집니다.
+        학생 특성에 맞춘 ${actTypes.length}가지 방향. 각 카드를 클릭하면 상세 내용이 펼쳐집니다.
       </div>
       ${actTypes.map((t,idx)=>{
         const act = richActs[t.key];
@@ -3858,7 +3848,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       }).join('')}
     `) : ''}
 
-    ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가 (담임 평가)','#6d28d9','#faf5ff','#ddd6fe',`
+    ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가','#6d28d9','#faf5ff','#ddd6fe',`
       ${(ceScore!=null || ceTotal) ? `<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
         ${ceTotal ? `<div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;color:#64748b;font-weight:700;">종합등급</span>
@@ -4097,13 +4087,13 @@ function showApplyHistoryById(id){
   showApplyResult(h);
 }
 
-function showApplyResult(h){
+async function showApplyResult(h){
   document.getElementById('applyUniv').value = h.univ || h.result?.univ || '';
   document.getElementById('applyDept').value = h.dept || h.result?.dept || '';
   document.getElementById('applyType').value = h.type || h.result?.type || '종합';
   
-  // 🆕 이력에서 클릭한 옛 분석은 _meta에 evalRich/compEval이 없음
-  // 지금 현재 학생의 데이터로 즉석 보충해줌
+  // 🆕 이력에서 클릭한 옛 분석은 _meta에 evalRich/compEval/admCases가 없음
+  // 지금 현재 학생/대학·학과 데이터로 즉석 보충해줌
   const result = h.result || {};
   if(!result._meta) result._meta = {};
   const hak = String(currentStu?.hak || '');
@@ -4118,7 +4108,43 @@ function showApplyResult(h){
     result._meta.compEval = ev?.종합역량평가 || null;
   }
   
-  document.getElementById('applyResult').innerHTML = buildApplyCardHTML(result, h.date, false);
+  const resultEl = document.getElementById('applyResult');
+  // 먼저 1차 렌더 (선배 사례 없는 상태로라도 빠르게 표시)
+  resultEl.innerHTML = buildApplyCardHTML(result, h.date, false);
+  
+  // 🆕 우리 학교 선배 사례(admCases)가 없으면 비동기로 가져와서 다시 렌더
+  if(!result._meta.admCases || !result._meta.admCases.school){
+    const univ = h.univ || result.univ || '';
+    const dept = h.dept || result.dept || '';
+    if(univ && dept){
+      try {
+        const admCases = await fetchAdmissionCases(univ, dept);
+        result._meta.admCases = admCases;
+        // stuAvg가 없으면 보충 (전국 사례 정렬에 필요)
+        if(result._meta.stuAvg == null){
+          const gradesData = getStudentGrades(currentStu);
+          if(gradesData?.grades){
+            let tc=0, tw=0;
+            Object.entries(gradesData.grades).forEach(([sem,sd])=>{
+              const semIs9 = isSem9Grade(currentStu, sd);
+              (sd.subjects||[]).forEach(s=>{
+                if(s.등급==null || !s.학점) return;
+                let g;
+                if(semIs9){ g=s.등급; }
+                else { const est=estGrade9(s); if(est) g=est.grade; }
+                if(g!=null){ tc+=s.학점; tw+=g*s.학점; }
+              });
+            });
+            if(tc>0) result._meta.stuAvg = tw/tc;
+          }
+        }
+        // 다시 렌더 (선배 사례 포함)
+        resultEl.innerHTML = buildApplyCardHTML(result, h.date, false);
+      } catch(e){
+        console.warn('[showApplyResult] 선배 사례 보충 실패:', e.message||e);
+      }
+    }
+  }
 }
 
 async function deleteApplyHistory(id){
