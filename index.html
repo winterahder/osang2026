@@ -3581,9 +3581,23 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       ${lines.map(l=>`<div style="font-size:13px;color:${lineColor};line-height:1.85;padding:1px 0;">${escapeHtml(l)}</div>`).join('')}
     </div>`;
 
-  // 🆕 우리 학교 선배 합격 사례 데이터
-  const alumniPass = (meta.alumniResult?.pass||[]).slice(0,6);
-  const alumniFail = (meta.alumniResult?.fail||[]).slice(0,3);
+  // 🆕 우리 학교 학생들의 합불 자료 (admissions 시트 우선, alumni 시트 fallback)
+  // admCases.school: 우리 학교 합불 자료 (admissions 시트 - 사용자가 알려준 것)
+  // alumniResult: 선배 관련 별도 데이터 (alumni 시트 - fallback)
+  const schoolCases = meta.admCases?.school || [];
+  const schoolPass = schoolCases.filter(r=>{
+    const v = String(r['최종결과']||r['결과']||'');
+    return v.includes('합격') && !v.includes('불');
+  });
+  const schoolFail = schoolCases.filter(r=>{
+    const v = String(r['최종결과']||r['결과']||'');
+    return v.includes('불합격');
+  });
+  // schoolCases 우선 사용, 없으면 alumniResult fallback
+  const useSchool = schoolPass.length || schoolFail.length;
+  const alumniPass = useSchool ? schoolPass.slice(0,8) : (meta.alumniResult?.pass||[]).slice(0,6);
+  const alumniFail = useSchool ? schoolFail.slice(0,4) : (meta.alumniResult?.fail||[]).slice(0,3);
+  const alumniSource = useSchool ? 'admissions' : 'alumni';
   
   // 🆕 대구·경북 + 전국 유사 사례 (gb 합격자 중 내신 가까운 순)
   const gbCases = (meta.admCases?.gb||[])
@@ -3727,24 +3741,47 @@ function buildApplyCardHTML(obj, dateStr, isNew){
 
     ${SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd', (alumniPass.length || alumniFail.length) ? `
       <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
-        ${meta.alumniResult?.passAvg ? `<b>합격자 평균</b> ${meta.alumniResult.passAvg.toFixed(2)}등급 · ${alumniPass.length}건` : '합격 사례 없음'}
-        ${meta.alumniResult?.failAvg ? ` · <b style="color:#dc2626;">불합격 평균</b> ${meta.alumniResult.failAvg.toFixed(2)}등급` : ''}
+        ${(()=>{
+          // 합격 평균 계산 (admissions 시트는 환산등급, alumni 시트는 내신평균)
+          const passGrades = alumniPass.map(r=>parseFloat(r['환산등급']||r['내신평균']||r['내신']||0)).filter(v=>v>0);
+          const failGrades = alumniFail.map(r=>parseFloat(r['환산등급']||r['내신평균']||r['내신']||0)).filter(v=>v>0);
+          const passAvg = passGrades.length ? (passGrades.reduce((a,b)=>a+b,0)/passGrades.length) : null;
+          const failAvg = failGrades.length ? (failGrades.reduce((a,b)=>a+b,0)/failGrades.length) : null;
+          return `${passAvg ? `<b>합격자 평균</b> ${passAvg.toFixed(2)}등급 · ${alumniPass.length}건` : '합격 사례 없음'}
+            ${failAvg ? ` · <b style="color:#dc2626;">불합격 평균</b> ${failAvg.toFixed(2)}등급` : ''}
+            <span style="color:#94a3b8;font-size:10px;margin-left:4px;">(${alumniSource==='admissions'?'학교 합불자료':'선배자료'})</span>`;
+        })()}
       </div>
       ${alumniPass.length ? `<div style="margin-bottom:${alumniFail.length?'8px':'0'};">
-        ${alumniPass.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:rgba(255,255,255,.85);border-radius:7px;margin-bottom:4px;border-left:3px solid #10b981;">
-          <span style="font-size:11px;font-weight:700;color:#0c4a6e;background:#dbeafe;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${parseFloat(r['내신평균']||r['내신']||0).toFixed(2)}</span>
-          <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(r['지원대학']||'')} ${escapeHtml(r['지원학과']||'')}</span>
-          <span style="font-size:10px;color:#059669;font-weight:700;background:#d1fae5;padding:2px 7px;border-radius:5px;flex-shrink:0;">${escapeHtml(r['결과']||'합격')}</span>
-          ${r['전형']?`<span style="font-size:10px;color:#64748b;flex-shrink:0;">${escapeHtml(String(r['전형']).substring(0,12))}</span>`:''}
-        </div>`).join('')}
+        ${alumniPass.map(r=>{
+          const stuG = parseFloat(r['환산등급']||r['내신평균']||r['내신']||0);
+          const univ_name = r['대학명']||r['지원대학']||'';
+          const dept_name = r['모집단위']||r['지원학과']||'';
+          const result = r['최종결과']||r['결과']||'합격';
+          const type = r['전형유형']||r['전형']||'';
+          const rsltColor = String(result).includes('충원') ? '#f59e0b' : '#10b981';
+          const rsltBg = String(result).includes('충원') ? '#fef3c7' : '#d1fae5';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:rgba(255,255,255,.85);border-radius:7px;margin-bottom:4px;border-left:3px solid #10b981;">
+            <span style="font-size:11px;font-weight:700;color:#0c4a6e;background:#dbeafe;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${stuG.toFixed(2)}</span>
+            <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
+            <span style="font-size:10px;color:${rsltColor};font-weight:700;background:${rsltBg};padding:2px 7px;border-radius:5px;flex-shrink:0;">${escapeHtml(result)}</span>
+          </div>`;
+        }).join('')}
       </div>` : ''}
       ${alumniFail.length ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;">
         <div style="font-size:10px;color:#94a3b8;margin-bottom:4px;">⚠️ 불합격 사례 (참고용)</div>
-        ${alumniFail.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(254,242,242,.6);border-radius:7px;margin-bottom:3px;border-left:3px solid #fca5a5;">
-          <span style="font-size:11px;font-weight:700;color:#7f1d1d;background:#fee2e2;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${parseFloat(r['내신평균']||r['내신']||0).toFixed(2)}</span>
-          <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(r['지원대학']||'')} ${escapeHtml(r['지원학과']||'')}</span>
-          <span style="font-size:10px;color:#dc2626;font-weight:700;flex-shrink:0;">${escapeHtml(r['결과']||'불합격')}</span>
-        </div>`).join('')}
+        ${alumniFail.map(r=>{
+          const stuG = parseFloat(r['환산등급']||r['내신평균']||r['내신']||0);
+          const univ_name = r['대학명']||r['지원대학']||'';
+          const dept_name = r['모집단위']||r['지원학과']||'';
+          const result = r['최종결과']||r['결과']||'불합격';
+          const type = r['전형유형']||r['전형']||'';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(254,242,242,.6);border-radius:7px;margin-bottom:3px;border-left:3px solid #fca5a5;">
+            <span style="font-size:11px;font-weight:700;color:#7f1d1d;background:#fee2e2;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${stuG.toFixed(2)}</span>
+            <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
+            <span style="font-size:10px;color:#dc2626;font-weight:700;flex-shrink:0;">${escapeHtml(result)}</span>
+          </div>`;
+        }).join('')}
       </div>` : ''}
     ` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 우리 학교(오상고) 선배 중 이 대학·학과에 지원한 이력이 <b>없습니다</b>.<br>
