@@ -7149,7 +7149,7 @@ function renderSuccessCasesSection() {
       + (c['수능_선택과목'] ? '<div style="font-size:20px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
       + '</div></div>'
       + (c['교과세특'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['교과세특'])) + '</div></div>' : '')
-      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['동아리'])) + '</div></div>' : '')
+      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['동아리'], 'table')) + '</div></div>' : '')
       + (c['자율봉사진로'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['자율봉사진로'])) + '</div></div>' : '')
       + (c['독서'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['독서'])) + '</div></div>' : '')
       + '</div></div>';
@@ -7181,23 +7181,46 @@ function renderSuccessCasesSection() {
 }
 
 
-// 합격사례 텍스트 정제 (잘린 줄바꿈 이어붙이기)
-function cleanCaseText(text) {
+// 합격사례 텍스트 정제 (구글시트 자동 줄바꿈 복원)
+// 원본 데이터가 약 70자마다 기계적으로 줄바꿈됨 → 진짜 항목 구분만 남기고 재조립
+function cleanCaseText(text, mode) {
   if(!text) return '';
-  // 줄 단위로 분리
   const lines = text.split('\n');
-  const result = [];
-  for(let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if(!line) { result.push(''); continue; }
-    // 이전 줄이 있고, 현재 줄이 짧으며(20자 미만), '.' 또는 '-' 로 시작 안 하면 이어붙임
-    if(result.length > 0 && line.length < 25 && !line.startsWith('-') && !line.match(/^\d/) && !line.startsWith('(')) {
-      result[result.length-1] = result[result.length-1] + line;
+
+  // mode='table' (동아리): 표 형식이라 줄바꿈 유지하되 잘린 조각만 이어붙임
+  if(mode === 'table'){
+    const out = [];
+    for(let i=0;i<lines.length;i++){
+      const ln = lines[i].replace(/\s+$/,'');
+      if(!ln.trim()){ continue; }
+      // 새 행 시작: '학년'으로 시작하는 헤더, 숫자(학년)로 시작, '-'로 시작
+      const isNewRow = /^\s*(학년|\d|-)/.test(ln);
+      if(out.length>0 && !isNewRow){
+        out[out.length-1] = out[out.length-1] + ' ' + ln.trim();
+      } else {
+        out.push(ln);
+      }
+    }
+    return out.join('\n');
+  }
+
+  // 기본 (교과세특/자율봉사진로/독서): '- ' 로 시작하는 줄만 새 항목
+  const out = [];
+  for(let i=0;i<lines.length;i++){
+    const ln = lines[i].trim();
+    if(!ln){ continue; }
+    // 새 항목 시작 기호: '- (xxx)' 또는 '- ' 또는 '['
+    const isNewItem = /^[-\u2022]\s/.test(ln) || /^\[/.test(ln) || /^\(/.test(ln);
+    if(out.length>0 && !isNewItem){
+      // 앞 줄에 이어붙임 (잘린 문장 복원). 한글 사이엔 공백 없이, 그 외엔 공백
+      const prev = out[out.length-1];
+      const needSpace = /[a-zA-Z0-9.,)]$/.test(prev) || /^[a-zA-Z0-9(]/.test(ln);
+      out[out.length-1] = prev + (needSpace ? ' ' : '') + ln;
     } else {
-      result.push(line);
+      out.push(ln);
     }
   }
-  return result.join('\n');
+  return out.join('\n');
 }
 
 function toggleSuccessCase(uid) {
