@@ -251,8 +251,8 @@
   /* 왼쪽: 요약 영역 */
   .acc-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-right: 12px; }
   .acc-top-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
-  .accordion-title .sub-cat { padding: 3px 9px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 14px; font-weight: 700; flex-shrink: 0; }
-  .accordion-title .sub-name { font-weight: 700; color: #1e293b; font-size: 14px; flex-shrink: 0; }
+  .accordion-title .sub-cat { padding: 3px 9px; background: #e0f2fe; color: #0369a1; border-radius: 12px; font-size: 22px; font-weight: 700; flex-shrink: 0; }
+  .accordion-title .sub-name { font-weight: 700; color: #1e293b; font-size: 22px; flex-shrink: 0; }
 
   /* 필터 — 세로 단독 배치 */
   .sewtuk-top-wrap { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
@@ -261,8 +261,8 @@
   /* 종합 평가 패널 */
   .overall-eval-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
   .overall-eval-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .overall-eval-header-title { font-size: 18px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px; }
-  .overall-eval-scope { font-size: 14px; color: #94a3b8; font-weight: 500; background: #f1f5f9; padding: 3px 10px; border-radius: 20px; }
+  .overall-eval-header-title { font-size: 24px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+  .overall-eval-scope { font-size: 22px; color: #94a3b8; font-weight: 500; background: #f1f5f9; padding: 3px 10px; border-radius: 20px; }
   .overall-eval-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: stretch; }
   @media(max-width: 860px){ .overall-eval-grid { grid-template-columns: 1fr; } }
   @media(max-width: 860px){ .eval-radar-grid { grid-template-columns: 1fr !important; } .eval-gauge-col,.eval-radar-canvas-box { width:100% !important; height:auto !important; } }
@@ -4926,9 +4926,9 @@ function renderCompEvalPanel(eval_){
       const sColor = GC[sg] || '#94a3b8';
       const comment = (typeof sd === 'object' && sd.comment) ? sd.comment : '';
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <span style="font-size:14px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
-        <span style="font-size:15px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
-        ${comment ? `<span style="font-size:14px;color:#475569;line-height:1.7;flex:1;">${escapeHtml(comment)}</span>` : ''}
+        <span style="font-size:24px;font-weight:600;color:#64748b;min-width:74px;flex-shrink:0;">${lbl}</span>
+        <span style="font-size:20px;font-weight:800;color:${sColor};min-width:32px;flex-shrink:0;">${dispGrade(sg)}</span>
+        ${comment ? `<span style="font-size:24px;color:#475569;line-height:1.7;flex:1;">${escapeHtml(comment)}</span>` : ''}
       </div>`;
     }).join('');
 
@@ -4936,7 +4936,7 @@ function renderCompEvalPanel(eval_){
     const subSummary = g.subs.map(([lbl, subKey]) => {
       const sd = d[subKey]; if(!sd) return '';
       const sg = (typeof sd === 'string') ? sd : (sd.grade || '-');
-      return `<span style="font-size:15px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
+      return `<span style="font-size:20px;color:#64748b;">${lbl} <b style="color:${GC[sg]||'#94a3b8'}">${dispGrade(sg)}</b></span>`;
     }).filter(Boolean).join('<span style="color:#e2e8f0;margin:0 3px;">·</span>');
 
     return `<div class="eval-grp-acc" style="border:1.5px solid #e8edf5;border-top:3px solid ${gColor};border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04);">
@@ -4944,17 +4944,17 @@ function renderCompEvalPanel(eval_){
       <div onclick="toggleEvalGrp('${accId}')"
         style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:15px;line-height:1;">${g.icon}</span>
+          <span style="font-size:20px;line-height:1;">${g.icon}</span>
           <div>
-            <div style="font-size:16px;font-weight:800;color:#1e293b;">${g.label}</div>
+            <div style="font-size:21px;font-weight:800;color:#1e293b;">${g.label}</div>
             <div class="eval-grp-sub-summary" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;">${subSummary}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="text-align:right;">
-            <span style="font-size:22px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
+            <span style="font-size:24px;font-weight:900;color:${gColor};line-height:1;letter-spacing:-1px;">${dispGrade(grd)}</span>
           </div>
-          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:16px;color:#94a3b8;transition:transform .2s;">▼</span>
+          <span class="eval-grp-arr" id="${accId}_arr" style="font-size:21px;color:#94a3b8;transition:transform .2s;">▼</span>
         </div>
       </div>
       <!-- 펼쳐지는 내용 -->
@@ -4970,16 +4970,16 @@ function renderCompEvalPanel(eval_){
   return `<div style="background:#fff;border:2px solid #ede9fe;border-radius:16px;padding:0;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,102,241,.08);">
     <!-- 헤더 -->
     <div style="padding:16px 22px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span style="font-size:14px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
-      <span style="font-size:15px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:3px 10px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
+      <span style="font-size:24px;font-weight:800;color:#1e293b;">🏆 종합 역량 평가</span>
+      <span style="font-size:20px;font-weight:500;background:#ede9fe;color:#6d28d9;padding:3px 10px;border-radius:10px;">내신 + 세특 + 창체 + 행발</span>
     </div>
 
     <!-- 종합 점수 배너 -->
     ${(totalGrade || totalScore != null) ? `
     <div style="margin:14px 22px 0;padding:14px 20px;background:${bannerBg};border-radius:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-      <span class="eval-total-score-big" style="font-size:26px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
-      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:15px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
-      <span style="font-size:15px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
+      <span class="eval-total-score-big" style="font-size:28px;font-weight:900;color:${bannerColor};line-height:1;letter-spacing:-2px;">${dispGrade(totalGrade)||'?'}</span>
+      ${totalScore != null ? `<span class="eval-total-score-num" style="font-size:20px;font-weight:800;color:${bannerColor};">${totalScore}점</span>` : ''}
+      <span style="font-size:20px;color:#94a3b8;margin-left:auto;">100점 만점 기준</span>
     </div>` : ''}
 
     <!-- 3열 그룹 카드 -->
@@ -4992,8 +4992,8 @@ function renderCompEvalPanel(eval_){
     <!-- 종합 의견 -->
     ${eval_.종합의견 ? `
     <div style="margin:0 22px 16px;padding:16px 18px;background:#f5f3ff;border-radius:10px;border-left:4px solid #8b5cf6;">
-      <div style="font-size:15px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
-      <div class="eval-opinion-text" style="font-size:15px;color:#334155;line-height:1.8;">${escapeHtml(eval_.종합의견)}</div>
+      <div style="font-size:20px;font-weight:700;color:#6d28d9;margin-bottom:8px;">💬 종합 의견</div>
+      <div class="eval-opinion-text" style="font-size:20px;color:#334155;line-height:1.8;">${escapeHtml(eval_.종합의견)}</div>
     </div>` : ''}
 
     <!-- 우수 문장 발췌 -->
@@ -5148,7 +5148,7 @@ function renderOverallEvalPanel(subjects, title, subjOverall){
     ${has근거?`<div class="overall-reason-toggle-row" id="${pid}-btn" onclick="toggleAllReason('${pid}')">
       <span id="${pid}-arr">▶</span><span id="${pid}-lbl">근거 보기</span>
     </div>`:''}
-    ${의견?`<div style="margin-top:10px;font-size:16px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #06b6d4;"><span style="font-size:15px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 ${escapeHtml(title)} 종합 의견</span>${escapeHtml(의견)}</div>`:''}
+    ${의견?`<div style="margin-top:10px;font-size:21px;color:#475569;line-height:1.7;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #06b6d4;"><span style="font-size:20px;font-weight:700;color:#94a3b8;display:block;margin-bottom:5px;">💬 ${escapeHtml(title)} 종합 의견</span>${escapeHtml(의견)}</div>`:''}
   </div>`;
 }
 
@@ -5441,10 +5441,10 @@ function renderIndexDecompSection(data){
     const tags = data[c.key] || [];
     if(!tags.length) return '';
     const pills = tags.map(t =>
-      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:4px 13px;font-size:14px;font-weight:600;">${escapeHtml(t)}</span>`
+      `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:14px;padding:4px 13px;font-size:24px;font-weight:600;">${escapeHtml(t)}</span>`
     ).join('');
     return `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
-      <span style="font-size:14px;color:#94a3b8;font-weight:700;min-width:64px;padding-top:4px;">${c.icon} ${c.key}</span>
+      <span style="font-size:24px;color:#94a3b8;font-weight:700;min-width:64px;padding-top:4px;">${c.icon} ${c.key}</span>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">${pills}</div>
     </div>`;
   }).filter(Boolean).join('');
@@ -5454,14 +5454,14 @@ function renderIndexDecompSection(data){
   if(!tagRows && !사고흐름 && !사회적맥락) return '';
 
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 22px;margin-top:14px;">
-    <div style="font-size:16px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+    <div style="font-size:21px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
       🔍 <span>활동 분해</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:${(사고흐름||사회적맥락)?'16px':'0'};">
       ${tagRows}
     </div>
-    ${사고흐름 ? `<div style="font-size:15px;color:#334155;line-height:1.85;padding:14px 16px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
-    ${사회적맥락 ? `<div style="font-size:14px;color:#64748b;line-height:1.85;padding:14px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:16px;font-weight:700;color:#d97706;display:block;margin-bottom:6px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
+    ${사고흐름 ? `<div style="font-size:20px;color:#334155;line-height:1.85;padding:14px 16px;background:#f8fafc;border-radius:10px;border-left:3px solid #4f46e5;margin-top:8px;">${escapeHtml(사고흐름)}</div>` : ''}
+    ${사회적맥락 ? `<div style="font-size:24px;color:#64748b;line-height:1.85;padding:14px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #d97706;margin-top:8px;"><span style="font-size:21px;font-weight:700;color:#d97706;display:block;margin-bottom:6px;">🌐 사회적 맥락</span>${escapeHtml(사회적맥락)}</div>` : ''}
   </div>`;
 }
 
@@ -5481,43 +5481,43 @@ function renderIndexRecSection(data){
 
   const tabBtns = IDX_REC_TYPES.map(t => {
     const isActive = t.key === idxCurrentRecTab;
-    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:11px 18px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:14px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
+    return `<button onclick="idxSwitchRecTab('${t.key}')" style="padding:11px 18px;border:none;background:${isActive?t.bg:'transparent'};color:${isActive?t.color:'#94a3b8'};font-weight:${isActive?700:500};font-size:24px;cursor:pointer;border-bottom:2px solid ${isActive?t.color:'transparent'};white-space:nowrap;">${t.icon} ${t.key}</button>`;
   }).join('');
 
   const section = (label, text) => text
     ? `<div style="margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${label}</div>
-        <div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(text)}</div>
+        <div style="font-size:24px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${label}</div>
+        <div style="font-size:20px;color:#334155;line-height:1.85;">${escapeHtml(text)}</div>
       </div>` : '';
 
   const twoCol = (l1,t1,l2,t2) => (t1||t2) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
-      ${t1?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t1)}</div></div>`:''}
-      ${t2?`<div><div style="font-size:14px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:15px;color:#334155;line-height:1.85;">${escapeHtml(t2)}</div></div>`:''}
+      ${t1?`<div><div style="font-size:24px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l1}</div><div style="font-size:20px;color:#334155;line-height:1.85;">${escapeHtml(t1)}</div></div>`:''}
+      ${t2?`<div><div style="font-size:24px;font-weight:700;color:${active.color};margin-bottom:7px;padding-left:11px;border-left:3px solid ${active.color};">${l2}</div><div style="font-size:20px;color:#334155;line-height:1.85;">${escapeHtml(t2)}</div></div>`:''}
     </div>` : '';
 
   const qBlock = Array.isArray(d.탐구질문) && d.탐구질문.length
     ? `<div style="margin-top:8px;padding:14px 16px;background:#f8fafc;border-radius:10px;">
-        <div style="font-size:14px;font-weight:700;color:#94a3b8;margin-bottom:10px;">❓ 탐구 질문</div>
-        ${d.탐구질문.map((q,i)=>`<div style="font-size:15px;color:#334155;margin-bottom:8px;line-height:1.7;"><b style="color:${active.color};margin-right:8px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
+        <div style="font-size:24px;font-weight:700;color:#94a3b8;margin-bottom:10px;">❓ 탐구 질문</div>
+        ${d.탐구질문.map((q,i)=>`<div style="font-size:20px;color:#334155;margin-bottom:8px;line-height:1.7;"><b style="color:${active.color};margin-right:8px;">Q${i+1}</b>${escapeHtml(q)}</div>`).join('')}
       </div>` : '';
 
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;overflow:hidden;">
     <div style="padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
-      <div style="font-size:16px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
+      <div style="font-size:21px;font-weight:800;color:#1e293b;">🎯 맞춤형 활동 추천</div>
     </div>
     <div style="display:flex;border-bottom:1px solid #f1f5f9;overflow-x:auto;">${tabBtns}</div>
     <div style="padding:18px 22px;">
       <div style="margin-bottom:16px;">
-        <div style="font-size:16px;color:${active.color};font-weight:600;margin-bottom:5px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
-        <div style="font-size:15px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
-        ${d.태그?`<span style="display:inline-block;margin-top:6px;font-size:15px;background:${active.bg};color:${active.color};border-radius:10px;padding:3px 12px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
+        <div style="font-size:21px;color:${active.color};font-weight:600;margin-bottom:5px;">${active.icon} ${active.key} — 기존 활동과 자연스럽게 연결</div>
+        <div style="font-size:20px;font-weight:800;color:#0f172a;">${escapeHtml(d.제목||'')}</div>
+        ${d.태그?`<span style="display:inline-block;margin-top:6px;font-size:20px;background:${active.bg};color:${active.color};border-radius:10px;padding:3px 12px;font-weight:600;">${escapeHtml(d.태그)}</span>`:''}
       </div>
       ${section('선정 이유', d.선정이유)}
       ${twoCol('기존 활동 연결', d.기존활동연결, '진로 관련성', d.진로관련성)}
       ${section('학종 평가 포인트', d.학종평가포인트)}
       ${section('실행 방법', d.실행방법)}
-      ${d.후속확장?`<div style="font-size:14px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
+      ${d.후속확장?`<div style="font-size:24px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:12px;">🔄 <b>후속 확장:</b> ${escapeHtml(d.후속확장)}</div>`:''}
       ${qBlock}
     </div>
   </div>`;
@@ -6987,34 +6987,34 @@ function buildCapabilityGapBlock(analysis, eval_) {
     const tags = capMap[grp] || [];
     const tagBlock = tags.length
       ? tags.slice(0,6).map(t =>
-          `<span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:12px;padding:2px 9px;font-size:16px;font-weight:600;">${escapeHtml(t)}</span>`
+          `<span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:12px;padding:2px 9px;font-size:21px;font-weight:600;">${escapeHtml(t)}</span>`
         ).join('')
-      : '<span style="color:#94a3b8;font-size:16px;">데이터 수집 중</span>';
+      : '<span style="color:#94a3b8;font-size:21px;">데이터 수집 중</span>';
     const gradeBadge = stuGrade
-      ? `<span style="background:${GRADE_COLOR[stuGrade]||'#94a3b8'}22;color:${GRADE_COLOR[stuGrade]||'#94a3b8'};border:1px solid ${GRADE_COLOR[stuGrade]||'#94a3b8'}55;border-radius:8px;padding:2px 8px;font-size:16px;font-weight:800;">${stuGrade}</span>`
-      : '<span style="color:#94a3b8;font-size:16px;">평가 없음</span>';
+      ? `<span style="background:${GRADE_COLOR[stuGrade]||'#94a3b8'}22;color:${GRADE_COLOR[stuGrade]||'#94a3b8'};border:1px solid ${GRADE_COLOR[stuGrade]||'#94a3b8'}55;border-radius:8px;padding:2px 8px;font-size:21px;font-weight:800;">${stuGrade}</span>`
+      : '<span style="color:#94a3b8;font-size:21px;">평가 없음</span>';
     let gapMsg = '';
     if (stuScore !== null) {
-      if (stuScore >= 91)      gapMsg = '<span style="color:#10b981;font-size:15px;font-weight:700;">✅ 합격권 수준</span>';
-      else if (stuScore >= 78) gapMsg = '<span style="color:#f59e0b;font-size:15px;font-weight:700;">⚠️ 보완 권장</span>';
-      else                     gapMsg = '<span style="color:#ef4444;font-size:15px;font-weight:700;">🔴 집중 보완 필요</span>';
+      if (stuScore >= 91)      gapMsg = '<span style="color:#10b981;font-size:20px;font-weight:700;">✅ 합격권 수준</span>';
+      else if (stuScore >= 78) gapMsg = '<span style="color:#f59e0b;font-size:20px;font-weight:700;">⚠️ 보완 권장</span>';
+      else                     gapMsg = '<span style="color:#ef4444;font-size:20px;font-weight:700;">🔴 집중 보완 필요</span>';
     }
     return `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div style="min-width:100px;flex-shrink:0;">
-        <div style="font-size:15px;font-weight:800;color:${meta.color};margin-bottom:4px;">${meta.icon} ${grp}</div>
+        <div style="font-size:20px;font-weight:800;color:${meta.color};margin-bottom:4px;">${meta.icon} ${grp}</div>
         <div style="display:flex;align-items:center;gap:5px;">${gradeBadge}${gapMsg ? '<span style="margin-left:4px;">'+gapMsg+'</span>' : ''}</div>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:15px;color:#94a3b8;font-weight:600;margin-bottom:5px;">합격사례 핵심 역량 패턴</div>
+        <div style="font-size:20px;color:#94a3b8;font-weight:600;margin-bottom:5px;">합격사례 핵심 역량 패턴</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">${tagBlock}</div>
       </div>
     </div>`;
   }).join('');
 
   return `<div style="margin-bottom:14px;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;">
-    <div style="padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0;font-size:16px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">
+    <div style="padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0;font-size:21px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">
       🔍 역량 갭 분석
-      <span style="font-size:15px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">합격사례 역량 패턴 vs 이 학생 평가</span>
+      <span style="font-size:20px;font-weight:500;color:#94a3b8;background:#fff;padding:2px 7px;border-radius:6px;">합격사례 역량 패턴 vs 이 학생 평가</span>
     </div>
     ${rows}
   </div>`;
@@ -7029,7 +7029,7 @@ function renderSuccessCasesSection() {
 
   const matched = matchSuccessCases();
   if (!matched.length) {
-    return '<div style="margin:16px 0;padding:16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;font-size:16px;color:#854d0e;">'
+    return '<div style="margin:16px 0;padding:16px;background:#fef9c3;border:1px solid #fde68a;border-radius:12px;font-size:21px;color:#854d0e;">'
       + '<b>📚 합격사례 매칭 없음</b>: 희망전공 "' + escapeHtml(major || career) + '" 관련 학종 합격 사례를 찾지 못했습니다. (전체 ' + successCases.length + '건 검색)'
       + '</div>';
   }
@@ -7060,21 +7060,21 @@ function renderSuccessCasesSection() {
   // AI 키워드 태그
   const kwTags = analysis.keywords.slice(0, 10).map(k => {
     const isAi = k.source === 'ai';
-    return '<span style="display:inline-block;background:' + (isAi?'#ede9fe':'#f1f5f9') + ';color:' + (isAi?'#6d28d9':'#475569') + ';font-size:15px;font-weight:700;padding:4px 10px;border-radius:14px;margin:2px;border:1px solid ' + (isAi?'#ddd6fe':'#e2e8f0') + ';">'
+    return '<span style="display:inline-block;background:' + (isAi?'#ede9fe':'#f1f5f9') + ';color:' + (isAi?'#6d28d9':'#475569') + ';font-size:20px;font-weight:700;padding:4px 10px;border-radius:14px;margin:2px;border:1px solid ' + (isAi?'#ddd6fe':'#e2e8f0') + ';">'
       + (isAi ? '🤖 ' : '') + escapeHtml(k.word) + ' <span style="opacity:.6;font-weight:500;">×' + k.count + '</span></span>';
   }).join('');
 
   const aiRatio = analysis.aiAnalyzedCount > 0
-    ? '<span style="font-size:15px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
-    : '<span style="font-size:15px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
+    ? '<span style="font-size:20px;background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-weight:700;">🤖 AI분석 ' + analysis.aiAnalyzedCount + '/' + filtered.length + '건 반영</span>'
+    : '<span style="font-size:20px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:2px 8px;">원문 빈도 분석</span>';
 
   // 합격포인트 요약 (맞춤형 활동 추천과 동일한 글자 크기로)
   const pointsBlock = analysis.topPoints.length
     ? '<div style="margin-top:12px;padding:14px 16px;background:#fff;border-radius:10px;border-left:3px solid #7c3aed;">'
-      + '<div style="font-size:14px;font-weight:800;color:#5b21b6;margin-bottom:10px;">💡 합격 핵심 포인트 (AI 요약)</div>'
+      + '<div style="font-size:24px;font-weight:800;color:#5b21b6;margin-bottom:10px;">💡 합격 핵심 포인트 (AI 요약)</div>'
       + analysis.topPoints.map(p =>
-          '<div style="font-size:15px;color:#334155;line-height:1.85;margin-bottom:8px;display:flex;align-items:flex-start;gap:7px;">'
-          + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;font-size:16px;">▸</span><span>' + escapeHtml(p) + '</span></div>'
+          '<div style="font-size:20px;color:#334155;line-height:1.85;margin-bottom:8px;display:flex;align-items:flex-start;gap:7px;">'
+          + '<span style="color:#7c3aed;font-weight:700;flex-shrink:0;font-size:21px;">▸</span><span>' + escapeHtml(p) + '</span></div>'
         ).join('')
       + '</div>'
     : '';
@@ -7090,25 +7090,25 @@ function renderSuccessCasesSection() {
       ? (parseFloat(innerAvg) - stuAvg).toFixed(2) : null;
     const diffBadge = diff != null
       ? (parseFloat(diff) > 0
-          ? '<span style="background:#fee2e2;color:#dc2626;font-size:15px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 +' + diff + '</span>'
+          ? '<span style="background:#fee2e2;color:#dc2626;font-size:20px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 +' + diff + '</span>'
           : parseFloat(diff) < 0
-          ? '<span style="background:#dcfce7;color:#16a34a;font-size:15px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 ' + diff + '</span>'
-          : '<span style="background:#dbeafe;color:#1d4ed8;font-size:15px;padding:1px 6px;border-radius:6px;font-weight:700;">동일</span>')
+          ? '<span style="background:#dcfce7;color:#16a34a;font-size:20px;padding:1px 6px;border-radius:6px;font-weight:700;">내 내신 ' + diff + '</span>'
+          : '<span style="background:#dbeafe;color:#1d4ed8;font-size:20px;padding:1px 6px;border-radius:6px;font-weight:700;">동일</span>')
       : '';
 
     const caseKw = String(c['핵심키워드'] || '').trim();
     const casePoint = String(c['합격포인트'] || '').trim();
     const aiChip = caseKw
-      ? '<span style="background:#ede9fe;color:#6d28d9;font-size:15px;padding:1px 7px;border-radius:6px;font-weight:600;">🤖 AI분석</span>'
+      ? '<span style="background:#ede9fe;color:#6d28d9;font-size:20px;padding:1px 7px;border-radius:6px;font-weight:600;">🤖 AI분석</span>'
       : '';
 
     const aiInlineBlock = (caseKw || casePoint)
       ? '<div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;margin-bottom:12px;">'
-        + '<div style="font-size:16px;font-weight:800;color:#5b21b6;margin-bottom:7px;">🤖 AI 분석 결과</div>'
-        + (casePoint ? '<div style="font-size:15px;color:#4c1d95;font-weight:600;margin-bottom:7px;padding:6px 10px;background:#fff;border-radius:6px;border-left:3px solid #7c3aed;">💡 ' + escapeHtml(casePoint) + '</div>' : '')
+        + '<div style="font-size:21px;font-weight:800;color:#5b21b6;margin-bottom:7px;">🤖 AI 분석 결과</div>'
+        + (casePoint ? '<div style="font-size:20px;color:#4c1d95;font-weight:600;margin-bottom:7px;padding:6px 10px;background:#fff;border-radius:6px;border-left:3px solid #7c3aed;">💡 ' + escapeHtml(casePoint) + '</div>' : '')
         + (caseKw ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">'
             + caseKw.split(/[,，、]/).map(k=>k.trim()).filter(Boolean).map(k =>
-                '<span style="background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:12px;padding:2px 9px;font-size:16px;font-weight:600;">' + escapeHtml(k) + '</span>'
+                '<span style="background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:12px;padding:2px 9px;font-size:21px;font-weight:600;">' + escapeHtml(k) + '</span>'
               ).join('')
             + '</div>' : '')
         + '</div>'
@@ -7117,41 +7117,41 @@ function renderSuccessCasesSection() {
     return '<div style="border:1px solid #e5e7eb;border-radius:10px;background:#fff;width:100%;box-sizing:border-box;">'
       + '<div onclick="toggleSuccessCase(\'' + uid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:#fff;transition:background .15s;width:100%;box-sizing:border-box;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'
       + '<div style="display:flex;flex-direction:column;align-items:center;background:#f5f3ff;padding:6px 10px;border-radius:8px;min-width:55px;">'
-      + '<span style="font-size:15px;font-weight:900;color:#6d28d9;line-height:1;">' + innerAvg + '</span>'
-      + '<span style="font-size:16px;color:#94a3b8;font-weight:600;margin-top:2px;">내신</span>'
+      + '<span style="font-size:20px;font-weight:900;color:#6d28d9;line-height:1;">' + innerAvg + '</span>'
+      + '<span style="font-size:21px;color:#94a3b8;font-weight:600;margin-top:2px;">내신</span>'
       + '</div>'
       + '<div style="flex:1;min-width:0;">'
-      + '<div style="font-size:14px;font-weight:800;color:#0f172a;">' + escapeHtml(c['지원대학']||'-')
-      + ' <span style="font-size:15px;font-weight:500;color:#475569;">' + escapeHtml(c['지원학과']||'') + '</span></div>'
+      + '<div style="font-size:24px;font-weight:800;color:#0f172a;">' + escapeHtml(c['지원대학']||'-')
+      + ' <span style="font-size:20px;font-weight:500;color:#475569;">' + escapeHtml(c['지원학과']||'') + '</span></div>'
       + '<div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">'
-      + '<span style="font-size:16px;color:#94a3b8;">' + escapeHtml(c['전형명']||'') + '</span>'
+      + '<span style="font-size:21px;color:#94a3b8;">' + escapeHtml(c['전형명']||'') + '</span>'
       + diffBadge + aiChip
       + '</div></div>'
-      + '<span id="' + uid + '_arr" style="color:#94a3b8;font-size:15px;flex-shrink:0;transition:transform .2s;">▼</span>'
+      + '<span id="' + uid + '_arr" style="color:#94a3b8;font-size:20px;flex-shrink:0;transition:transform .2s;">▼</span>'
       + '</div>'
       + '<div id="' + uid + '" style="display:none;padding:14px 16px;background:#fafbff;border-top:1px solid #f1f5f9;width:100%;box-sizing:border-box;">'
       + aiInlineBlock
       + (c['특이사항']
         ? '<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #d97706;border-radius:8px;padding:11px 14px;margin-bottom:12px;">'
-          + '<div style="font-size:16px;font-weight:800;color:#92400e;margin-bottom:6px;">⭐ 합격의 요인</div>'
-          + '<div style="font-size:16px;color:#1e293b;line-height:1.7;white-space:pre-line;">' + escapeHtml(c['특이사항']) + '</div>'
+          + '<div style="font-size:21px;font-weight:800;color:#92400e;margin-bottom:6px;">⭐ 합격의 요인</div>'
+          + '<div style="font-size:21px;color:#1e293b;line-height:1.7;white-space:pre-line;">' + escapeHtml(c['특이사항']) + '</div>'
           + '</div>'
         : '')
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
       + '<div style="background:#fff;border:1px solid #e8edf5;border-radius:8px;padding:8px 10px;">'
-      + '<div style="font-size:15px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📚 내신</div>'
-      + '<div style="font-size:15px;color:#334155;">전과목 <b>' + (c['내신_전과목']||'-') + '</b> · 국영수사 ' + (c['내신_국영수사']||'-') + ' · 국영수과 ' + (c['내신_국영수과']||'-') + '</div>'
-      + (c['내신_특이점'] ? '<div style="font-size:16px;color:#64748b;margin-top:2px;">' + escapeHtml(c['내신_특이점']) + '</div>' : '')
+      + '<div style="font-size:20px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📚 내신</div>'
+      + '<div style="font-size:20px;color:#334155;">전과목 <b>' + (c['내신_전과목']||'-') + '</b> · 국영수사 ' + (c['내신_국영수사']||'-') + ' · 국영수과 ' + (c['내신_국영수과']||'-') + '</div>'
+      + (c['내신_특이점'] ? '<div style="font-size:21px;color:#64748b;margin-top:2px;">' + escapeHtml(c['내신_특이점']) + '</div>' : '')
       + '</div>'
       + '<div style="background:#fff;border:1px solid #e8edf5;border-radius:8px;padding:8px 10px;">'
-      + '<div style="font-size:15px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📝 수능</div>'
-      + '<div style="font-size:15px;color:#334155;">국' + (c['수능_국어']||'-') + ' 수' + (c['수능_수학']||'-') + ' 영' + (c['수능_영어']||'-') + ' 탐' + (c['수능_탐구1']||'-') + '/' + (c['수능_탐구2']||'-') + ' 한' + (c['수능_한국사']||'-') + '</div>'
-      + (c['수능_선택과목'] ? '<div style="font-size:15px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
+      + '<div style="font-size:20px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📝 수능</div>'
+      + '<div style="font-size:20px;color:#334155;">국' + (c['수능_국어']||'-') + ' 수' + (c['수능_수학']||'-') + ' 영' + (c['수능_영어']||'-') + ' 탐' + (c['수능_탐구1']||'-') + '/' + (c['수능_탐구2']||'-') + ' 한' + (c['수능_한국사']||'-') + '</div>'
+      + (c['수능_선택과목'] ? '<div style="font-size:20px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
       + '</div></div>'
-      + (c['교과세특'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:16px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:15px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['교과세특'])) + '</div></div>' : '')
-      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:16px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:15px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['동아리'])) + '</div></div>' : '')
-      + (c['자율봉사진로'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:16px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:15px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['자율봉사진로'])) + '</div></div>' : '')
-      + (c['독서'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:16px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:15px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['독서'])) + '</div></div>' : '')
+      + (c['교과세특'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['교과세특'])) + '</div></div>' : '')
+      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['동아리'])) + '</div></div>' : '')
+      + (c['자율봉사진로'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['자율봉사진로'])) + '</div></div>' : '')
+      + (c['독서'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:21px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:20px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['독서'])) + '</div></div>' : '')
       + '</div></div>';
   }).join('');
 
@@ -7159,23 +7159,23 @@ function renderSuccessCasesSection() {
     + '<div style="padding:16px 18px 12px;border-bottom:1px solid #ddd6fe;">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
     + '<div>'
-    + '<div style="font-size:16px;font-weight:900;color:#5b21b6;">🏆 학종 합격사례 벤치마크</div>'
-    + '<div style="font-size:16px;color:#7c3aed;margin-top:3px;">희망전공 <b>' + escapeHtml(major || career) + '</b> 관련 · 2025학년도 학종 합격사례 (경북진학지원센터)</div>'
+    + '<div style="font-size:21px;font-weight:900;color:#5b21b6;">🏆 학종 합격사례 벤치마크</div>'
+    + '<div style="font-size:21px;color:#7c3aed;margin-top:3px;">희망전공 <b>' + escapeHtml(major || career) + '</b> 관련 · 2025학년도 학종 합격사례 (경북진학지원센터)</div>'
     + '</div>'
     + '<div style="text-align:right;">'
-    + '<div style="font-size:16px;color:#94a3b8;">매칭된 사례</div>'
-    + '<div style="font-size:15px;font-weight:900;color:#7c3aed;">' + filtered.length + '<span style="font-size:16px;font-weight:500;color:#94a3b8;"> / 전체 ' + matched.length + '건</span></div>'
+    + '<div style="font-size:21px;color:#94a3b8;">매칭된 사례</div>'
+    + '<div style="font-size:20px;font-weight:900;color:#7c3aed;">' + filtered.length + '<span style="font-size:21px;font-weight:500;color:#94a3b8;"> / 전체 ' + matched.length + '건</span></div>'
     + '</div></div></div>'
     + '<div style="padding:14px 18px;background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border-bottom:1px solid #ddd6fe;">'
-    + '<div style="font-size:16px;font-weight:800;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">⭐ 합격의 핵심 키워드 분석 ' + aiRatio + '</div>'
-    + '<div style="margin-bottom:8px;">' + (kwTags || '<span style="color:#94a3b8;font-size:15px;">키워드 분석 데이터 수집 중 (AI 분석 진행 중)</span>') + '</div>'
-    + (analysis.avgGrade ? '<div style="font-size:16px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
+    + '<div style="font-size:21px;font-weight:800;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;">⭐ 합격의 핵심 키워드 분석 ' + aiRatio + '</div>'
+    + '<div style="margin-bottom:8px;">' + (kwTags || '<span style="color:#94a3b8;font-size:20px;">키워드 분석 데이터 수집 중 (AI 분석 진행 중)</span>') + '</div>'
+    + (analysis.avgGrade ? '<div style="font-size:21px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
     + pointsBlock
     + '</div>'
     + '<div class="sc-print-hide">'
     + (gapBlock ? '<div style="padding:14px 18px;border-bottom:1px solid #ddd6fe;">' + gapBlock + '</div>' : '')
     + '<div style="padding:14px;display:block;">' + caseCards + '</div>'
-    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:15px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
+    + '<div style="padding:8px 18px;background:#f5f3ff;font-size:20px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
     + '</div>'
     + '</div>';
 }
@@ -7205,7 +7205,13 @@ function toggleSuccessCase(uid) {
   const arr = document.getElementById(uid + '_arr');
   if(!body) return;
   const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
+  if(isOpen){
+    body.style.display = 'none';
+  } else {
+    body.style.display = 'block';
+    body.style.width = '100%';
+    body.style.boxSizing = 'border-box';
+  }
   if(arr) arr.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
