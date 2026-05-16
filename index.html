@@ -2775,6 +2775,7 @@ function renderMockApplyTab(el){
         </div>
         <span style="font-size:11px;color:#94a3b8;">클릭하면 결과 재표시</span>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px;">
       ${hist.slice().reverse().map(h=>{
         const gc = GC_HIST[h.result?.적합도]||'#94a3b8';
         const gbg = {'상':'#ecfdf5','중':'#fffbeb','하':'#fff1f2'}[h.result?.적합도]||'#f8fafc';
@@ -2782,31 +2783,32 @@ function renderMockApplyTab(el){
         const typeLabel = h.type||h.result?.type||'';
         const subTypeLabel = h.subType||h.result?.subType||'';
         return `<div class="apply-hist-item" onclick="showApplyHistoryById('${h.id}')"
-          style="border:1.5px solid ${gbc};background:${gbg};padding:10px 14px;border-radius:10px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <!-- 왼쪽: 등급 뱃지 + 대학/학과 -->
-            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-              <div style="background:${gc};color:#fff;font-size:16px;font-weight:900;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h.result?.적합도||'?'}</div>
-              <div style="min-width:0;">
-                <div style="font-size:13px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  ${h.univ||h.result?.univ||'?'} <span style="color:#64748b;font-weight:500;">${h.dept||h.result?.dept||''}</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap;">
-                  <span style="background:rgba(0,0,0,.07);color:#475569;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">${typeLabel}전형</span>
-                  ${subTypeLabel ? `<span style="background:#eff6ff;color:#2563eb;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">${subTypeLabel}</span>` : ''}
-                  <span style="font-size:11px;color:#94a3b8;">${h.result?.한줄평||''}</span>
-                </div>
-              </div>
-            </div>
-            <!-- 오른쪽: 날짜 + 삭제 -->
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:auto;padding-left:12px;">
-              <span style="font-size:10px;color:#94a3b8;white-space:nowrap;">${h.date}</span>
-              <button onclick="event.stopPropagation();deleteApplyHistory('${h.id}')"
-                 style="padding:3px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;font-weight:700;">삭제</button>
-            </div>
+          style="border:1.5px solid ${gbc};background:${gbg};padding:12px 12px 10px;border-radius:12px;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:8px;transition:transform .12s,box-shadow .12s;"
+          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,.1)';"
+          onmouseout="this.style.transform='';this.style.boxShadow='';">
+          <!-- 상단: 등급 배지 + 삭제 -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+            <div style="background:${gc};color:#fff;font-size:18px;font-weight:900;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h.result?.적합도||'?'}</div>
+            <button onclick="event.stopPropagation();deleteApplyHistory('${h.id}')"
+               style="padding:3px 8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;font-weight:700;flex-shrink:0;">삭제</button>
           </div>
+          <!-- 대학/학과 -->
+          <div>
+            <div style="font-size:14px;font-weight:800;color:#0f172a;line-height:1.35;word-break:keep-all;">${h.univ||h.result?.univ||'?'}</div>
+            <div style="font-size:12px;color:#64748b;font-weight:600;margin-top:2px;line-height:1.35;word-break:keep-all;">${h.dept||h.result?.dept||''}</div>
+          </div>
+          <!-- 전형 태그 -->
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <span style="background:rgba(0,0,0,.07);color:#475569;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;">${typeLabel}전형</span>
+            ${subTypeLabel ? `<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600;">${subTypeLabel}</span>` : ''}
+          </div>
+          <!-- 한줄평 -->
+          ${h.result?.한줄평 ? `<div style="font-size:11px;color:#64748b;line-height:1.45;border-top:1px dashed ${gbc};padding-top:7px;">${h.result.한줄평}</div>` : ''}
+          <!-- 날짜 -->
+          <div style="font-size:10px;color:#94a3b8;margin-top:auto;">${h.date}</div>
         </div>`;
       }).join('')}
+      </div>
     </div>` : '';
 
   el.innerHTML = `
@@ -3545,6 +3547,8 @@ function printApplyResult(){
         body { padding:0; }
         @page { margin:1.2cm; }
       }
+      /* 인쇄 시 학종 합격사례 벤치마크의 역량갭 분석 이하 숨김 */
+      .sc-print-hide { display:none !important; }
       details { open:true; }
       details > div { display:block !important; }
     </style></head><body>
@@ -7163,9 +7167,11 @@ function renderSuccessCasesSection() {
     + (analysis.avgGrade ? '<div style="font-size:13px;color:#854d0e;margin-top:6px;">📊 합격자 내신 평균 <b>' + analysis.avgGrade + '등급</b> (' + analysis.minGrade + '~' + analysis.maxGrade + ') · 학생 내신 <b style="color:#1e40af;">' + stuAvgText + '</b></div>' : '')
     + pointsBlock
     + '</div>'
+    + '<div class="sc-print-hide">'
     + (gapBlock ? '<div style="padding:14px 18px;border-bottom:1px solid #ddd6fe;">' + gapBlock + '</div>' : '')
     + '<div style="padding:14px;display:flex;flex-direction:column;gap:8px;">' + caseCards + '</div>'
     + '<div style="padding:8px 18px;background:#f5f3ff;font-size:12px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
+    + '</div>'
     + '</div>';
 }
 
