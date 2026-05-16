@@ -2595,7 +2595,7 @@ async function fetchAdmissionCases(univ, dept) {
   // ② Apps Script에서 우리 학교 자료 fetch
   let school = [];
   try {
-    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000));
+    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('admissions timeout 15초')), 15000));
     const data = await Promise.race([
       apiGet({ action: 'getAdmissions', password: currentPassword }),
       timeout
@@ -2633,9 +2633,14 @@ async function fetchAdmissionCases(univ, dept) {
         console.log(`[admissions] 시트 첫 5개 대학명 샘플:`, sample);
       }
     } else {
-      console.log(`[admissions] getAdmissions 응답이 배열이 아님:`, data);
+      console.warn(`⚠️ [admissions] getAdmissions 응답이 배열이 아님:`, typeof data, data);
     }
-  } catch(e) { school = []; }
+  } catch(e) {
+    console.error(`❌ [admissions] getAdmissions 실패:`, e.message || e);
+    console.warn('💡 가능한 원인: (1) Apps Script timeout (2) ERR_QUIC_PROTOCOL_ERROR (3) 권한 문제');
+    console.warn('💡 해결법: chrome://flags 에서 QUIC 비활성화 또는 페이지 새로고침');
+    school = [];
+  }
 
   return { school, gb };
 }
