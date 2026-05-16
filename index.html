@@ -3841,28 +3841,25 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
   </div>
 
-  <!-- ② 점수 히어로 -->
+  <!-- ② 점수 히어로: 게이지 + 등급/한줄평 + 핵심지표 한 라인 -->
   <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:16px 18px;">
-    <!-- 상단: 게이지 + 등급/한줄평 (가운데 정렬) -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
       ${gauge}
-      <div style="min-width:180px;max-width:380px;">
+      <div style="min-width:170px;max-width:340px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
           <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${dispGrade(grade)} 등급</span>
           <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
         </div>
         <div style="font-size:13px;color:#64748b;line-height:1.55;">${escapeHtml(obj.한줄평||'')}</div>
       </div>
-    </div>
-    <!-- 하단: 핵심 지표 가운데 정렬 (내 평균등급 + 전국 합격자) -->
-    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
-      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 20px;text-align:center;min-width:120px;">
+      <!-- 핵심 지표: 등급/한줄평 바로 옆 같은 라인 -->
+      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:9px 18px;text-align:center;min-width:110px;">
         <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📌 내 평균등급</div>
         <div style="font-size:20px;font-weight:900;color:${t.c};line-height:1.1;">${meta.stuAvg.toFixed(2)}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전과목 환산</div>
       </div>` : ''}
       ${metricItems.map(m=>`
-      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 20px;text-align:center;min-width:120px;">
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 18px;text-align:center;min-width:110px;">
         <div style="font-size:10.5px;color:#94a3b8;font-weight:600;margin-bottom:3px;">${m.icon} ${m.label}</div>
         <div style="font-size:20px;font-weight:900;color:${m.color};line-height:1.1;">${m.val}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${m.sub}</div>
