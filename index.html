@@ -2595,31 +2595,28 @@ async function fetchAdmissionCases(univ, dept) {
     }
   } catch(e) { gb = []; }
 
-  // ② Apps Script에서 우리 학교 자료 fetch
+  // ② 우리 학교 자료 — 앱 시작 시 이미 로드된 admissionsDB 재사용 (네트워크 호출 없음 → 즉시)
   let school = [];
   try {
-    const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('admissions timeout 15초')), 15000));
-    const data = await Promise.race([
-      apiGet({ action: 'getAdmissions', password: currentPassword }),
-      timeout
-    ]);
-    if (data && Array.isArray(data)) {
+    let data = admissionsDB;
+    // 혹시 아직 로드 안 됐으면 그때만 1회 fetch (fallback)
+    if (!Array.isArray(data) || data.length === 0) {
+      const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('admissions timeout')), 15000));
+      data = await Promise.race([
+        apiGet({ action: 'getAdmissions', password: currentPassword }),
+        timeout
+      ]);
+      if (Array.isArray(data)) admissionsDB = data;  // 받은 김에 캐싱
+    }
+    if (Array.isArray(data) && data.length) {
       const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
-      // 더 강력한 정규화: 대학교/대학/학교 + 괄호 안 지역명 모두 제거
-      const normUniv = s => {
-        let v = norm(s);
-        // 괄호와 그 안 내용 제거 (이미 norm에서 괄호 제거되어 있지만 안전하게)
-        v = v.replace(/대학교|대학원|대학/g, '');  // 어느 위치든 제거
-        // 끝의 지역명 패턴 제거 (서울, 부산, 인천 등 흔한 지역)
-        return v;
-      };
+      const normUniv = s => { let v = norm(s); v = v.replace(/대학교|대학원|대학/g, ''); return v; };
       const univNorm = normUniv(univ);
       const deptNorm = norm(dept);
       school = data.filter(r => {
         const u_raw = norm(r['대학명'] || '');
         const u = normUniv(r['대학명'] || '');
         const d = norm(r['모집단위'] || '');
-        // 양방향 부분 매칭 (어느 쪽이 더 짧든)
         const univMatch = univNorm.length >= 2 && (
           u.includes(univNorm) || univNorm.includes(u) || 
           u_raw.includes(univNorm) || univNorm.includes(u_raw.replace(/[가-힣]+$/, ''))
@@ -2627,11 +2624,9 @@ async function fetchAdmissionCases(univ, dept) {
         const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
         return univMatch && deptMatch;
       });
-    } else if(data !== null && data !== undefined){
-      console.warn(`[admissions] 응답이 배열이 아님:`, typeof data);
     }
   } catch(e) {
-    console.warn(`[admissions] fetch 실패 - 재시도 권장:`, e.message || e);
+    console.warn(`[admissions] 처리 실패:`, e.message || e);
     school = [];
   }
 
