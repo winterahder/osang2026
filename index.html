@@ -3585,18 +3585,18 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const alumniPass = (meta.alumniResult?.pass||[]).slice(0,6);
   const alumniFail = (meta.alumniResult?.fail||[]).slice(0,3);
   
-  // 🆕 대구·경북 + 전국 유사 사례 (gb 합격자 중 내신 ±0.3 필터)
+  // 🆕 대구·경북 + 전국 유사 사례 (gb 합격자 중 내신 가까운 순)
   const gbCases = (meta.admCases?.gb||[])
     .filter(r=>{
       const v = String(r.최종결과||'');
       return v.includes('합격') || v.includes('충원');
     })
     .map(r=>({
-      대학: r.대학||r.지원대학||obj.univ,
-      학과: r.학과||r.지원학과||obj.dept,
-      내신: parseFloat(r.환산등급||r.내신평균||0),
-      결과: r.최종결과||'합격',
-      연도: r.연도||r.지원연도||''
+      대학: r.대학명 || obj.univ,
+      학과: r.모집단위 || obj.dept,
+      전형: r.전형유형 || '',
+      내신: parseFloat(r.환산등급||0),
+      결과: r.최종결과||'합격'
     }))
     .filter(r=>r.내신>0)
     .sort((a,b)=>{
@@ -3605,7 +3605,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       const sb = meta.stuAvg ? Math.abs(b.내신-meta.stuAvg) : 0;
       return sa-sb;
     })
-    .slice(0,5);
+    .slice(0,6);
   
   // 🆕 컷오프 3개년 추이
   const cutRaw = meta.cutoff?.raw || {};
@@ -3618,14 +3618,34 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     모집: cutRaw[`모집인원_${y}`]||null,
   })).filter(d=>d.cut50||d.cut70);
   
-  // 🆕 종합역량평가 데이터
+  // 🆕 종합역량평가 데이터 (실제 키: grade, 학업성취도/학업태도/탐구력 등 서브필드)
   const ce = meta.compEval || {};
   const ceItems = [];
-  if(ce.학업역량?.등급) ceItems.push({label:'학업역량', 등급:ce.학업역량.등급, 의견:ce.학업역량.종합의견||'', color:'#0891b2', emoji:'📘'});
-  if(ce.진로역량?.등급) ceItems.push({label:'진로역량', 등급:ce.진로역량.등급, 의견:ce.진로역량.종합의견||'', color:'#7c3aed', emoji:'🎯'});
-  if(ce.공동체역량?.등급) ceItems.push({label:'공동체역량', 등급:ce.공동체역량.등급, 의견:ce.공동체역량.종합의견||'', color:'#059669', emoji:'🤝'});
-  const ceTotal = ce.종합?.등급 || ce.종합등급 || null;
-  const ceOpinion = ce.종합?.종합의견 || ce.종합의견 || '';
+  const getGrade = (obj) => obj?.grade || obj?.등급 || null;
+  if(getGrade(ce.학업역량)) ceItems.push({label:'학업역량', 등급:getGrade(ce.학업역량), color:'#0891b2', emoji:'📘'});
+  if(getGrade(ce.진로역량)) ceItems.push({label:'진로역량', 등급:getGrade(ce.진로역량), color:'#7c3aed', emoji:'🎯'});
+  if(getGrade(ce.공동체역량)) ceItems.push({label:'공동체역량', 등급:getGrade(ce.공동체역량), color:'#059669', emoji:'🤝'});
+  
+  // 종합점수는 _meta.compScore 활용 (계산된 점수)
+  const ceScore = meta.compScore || null;
+  
+  // 종합의견: 종합.종합의견 또는 종합의견, 또는 각 역량 서브의견 통합
+  let ceOpinion = ce.종합?.종합의견 || ce.종합의견 || ce.종합?.comment || '';
+  if(!ceOpinion && ceItems.length){
+    // 각 역량 첫 서브의견 모아서 요약
+    const parts = [];
+    ['학업역량','진로역량','공동체역량'].forEach(k=>{
+      const r = ce[k];
+      if(!r) return;
+      // 서브 필드 중 첫 번째 comment 추출
+      const subKeys = Object.keys(r).filter(sk=>r[sk]?.comment);
+      if(subKeys.length){
+        const firstComment = r[subKeys[0]].comment;
+        if(firstComment) parts.push(`<b>${k}</b>: ${firstComment.substring(0,80)}...`);
+      }
+    });
+    if(parts.length) ceOpinion = parts.join('<br><br>');
+  }
   
   const strengths  = (obj.강점||'').split('\n').filter(s=>s.trim());
   const weaknesses = (obj.보완점||'').split('\n').filter(s=>s.trim());
@@ -3689,9 +3709,10 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     )}
 
     ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가 (담임 평가)','#6d28d9','#faf5ff','#ddd6fe',`
-      ${ceTotal ? `<div style="background:rgba(255,255,255,.8);border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:11px;color:#64748b;font-weight:700;">종합 등급</span>
-        <span style="font-size:18px;font-weight:900;color:#6d28d9;">${escapeHtml(String(ceTotal))}</span>
+      ${ceScore!=null ? `<div style="background:rgba(255,255,255,.8);border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:11px;color:#64748b;font-weight:700;">종합 점수</span>
+        <span style="font-size:18px;font-weight:900;color:#6d28d9;">${ceScore}점</span>
+        <span style="font-size:10px;color:#94a3b8;">(가중치 ${meta.univWeights?.학업||40}·${meta.univWeights?.진로||40}·${meta.univWeights?.공동체||20})</span>
       </div>` : ''}
       ${ceItems.length ? `<div style="display:grid;grid-template-columns:repeat(${ceItems.length},1fr);gap:6px;margin-bottom:${ceOpinion?'8px':'0'};">
         ${ceItems.map(c=>`<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:8px 10px;text-align:center;">
@@ -3700,11 +3721,11 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         </div>`).join('')}
       </div>` : ''}
       ${ceOpinion ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:10px 13px;font-size:12.5px;color:#1e293b;line-height:1.7;">
-        ${escapeHtml(ceOpinion.substring(0,400))}${ceOpinion.length>400?'...':''}
+        ${ceOpinion.includes('<b>') ? ceOpinion : escapeHtml(ceOpinion.substring(0,400))+(ceOpinion.length>400?'...':'')}
       </div>` : ''}
     `) : ''}
 
-    ${alumniPass.length || alumniFail.length ? SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd',`
+    ${SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd', (alumniPass.length || alumniFail.length) ? `
       <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         ${meta.alumniResult?.passAvg ? `<b>합격자 평균</b> ${meta.alumniResult.passAvg.toFixed(2)}등급 · ${alumniPass.length}건` : '합격 사례 없음'}
         ${meta.alumniResult?.failAvg ? ` · <b style="color:#dc2626;">불합격 평균</b> ${meta.alumniResult.failAvg.toFixed(2)}등급` : ''}
@@ -3725,9 +3746,12 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           <span style="font-size:10px;color:#dc2626;font-weight:700;flex-shrink:0;">${escapeHtml(r['결과']||'불합격')}</span>
         </div>`).join('')}
       </div>` : ''}
-    `) : ''}
+    ` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
+        💡 우리 학교(오상고) 선배 중 이 대학·학과에 지원한 이력이 <b>없습니다</b>.<br>
+        <span style="font-size:11px;color:#94a3b8;">→ 같은 계열 다른 대학 또는 같은 대학 다른 학과 합격사례를 함께 검토해보세요.</span>
+      </div>`)}
 
-    ${gbCases.length ? SEC('🗺','전국 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe',`
+    ${SEC('🗺','전국 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
       <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         내 내신 ${meta.stuAvg ? meta.stuAvg.toFixed(2) : '?'}등급과 가까운 합격 사례 ${gbCases.length}건
       </div>
@@ -3735,16 +3759,20 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         const diff = meta.stuAvg ? (c.내신-meta.stuAvg) : 0;
         const diffStr = diff>0 ? `(+${diff.toFixed(2)})` : diff<0 ? `(${diff.toFixed(2)})` : '';
         const diffColor = Math.abs(diff)<0.15 ? '#059669' : Math.abs(diff)<0.3 ? '#0891b2' : '#94a3b8';
+        const rsltColor = String(c.결과||'').includes('충원') ? '#f59e0b' : '#10b981';
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:rgba(255,255,255,.85);border-radius:7px;margin-bottom:4px;border-left:3px solid ${diffColor};">
           <span style="font-size:11px;font-weight:700;color:#5b21b6;background:#ede9fe;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${c.내신.toFixed(2)}</span>
           <span style="font-size:11px;color:${diffColor};font-weight:700;flex-shrink:0;min-width:48px;">${diffStr}</span>
-          <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.대학)} ${escapeHtml(c.학과)}</span>
-          ${c.연도?`<span style="font-size:10px;color:#94a3b8;flex-shrink:0;">${escapeHtml(String(c.연도))}</span>`:''}
+          <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.학과)}${c.전형?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(c.전형)})</span>`:''}</span>
+          <span style="font-size:10px;color:${rsltColor};font-weight:700;flex-shrink:0;background:${rsltColor}20;padding:2px 6px;border-radius:4px;">${escapeHtml(c.결과)}</span>
         </div>`;
       }).join('')}
-    `) : ''}
+    ` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
+        💡 전국 합불 데이터에서 유사 사례를 찾지 못했습니다.<br>
+        <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
+      </div>`)}
 
-    ${yearData.length >= 2 ? SEC('📈','컷오프 추이','#0c4a6e','#f0f9ff','#bae6fd',`
+    ${yearData.length >= 1 ? SEC('📈','컷오프 추이','#0c4a6e','#f0f9ff','#bae6fd',`
       <table style="width:100%;border-collapse:collapse;font-size:12px;background:rgba(255,255,255,.85);border-radius:8px;overflow:hidden;">
         <thead>
           <tr style="background:#e0f2fe;">
