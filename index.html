@@ -2899,20 +2899,38 @@ async function runApplyAnalysis(){
   resultEl.innerHTML = '<div style="color:#64748b;padding:16px;text-align:center;">📡 입결·합불 데이터 조회 중...</div>';
 
   try {
-    const result = await computeApplyResult(hak, univ, dept, type, note, subType);
+    // 1단계: admissions 빼고 빠르게 계산 → 즉시 표시 (점수·강점·맞춤활동·종합역량)
+    const result = await computeApplyResult(hak, univ, dept, type, note, subType, true);
     renderApplyResultHTML(result, resultEl);
-    saveApplyHistoryItem(hak, univ, dept, type, result);
-    const el = document.getElementById('tabContent');
-    if(el) renderMockApplyTab(el);
+    btn.innerHTML = '<span class="apply-spinner"></span> 합불 사례 조회 중...';
+    
+    // 2단계: 우리학교·전국 합불 사례를 백그라운드로 가져와서 보충
+    (async ()=>{
+      try {
+        const admCases = await fetchAdmissionCases(univ, dept);
+        result._meta = result._meta || {};
+        result._meta.admCases = admCases;
+        // 보충된 데이터로 카드만 다시 그림 (점수 등은 그대로)
+        renderApplyResultHTML(result, resultEl);
+      } catch(e){
+        console.warn('[runApplyAnalysis] 합불 사례 보충 실패:', e.message||e);
+      }
+      // 이력 저장은 admCases 포함된 최종본으로
+      saveApplyHistoryItem(hak, univ, dept, type, result);
+      const el = document.getElementById('tabContent');
+      if(el) renderMockApplyTab(el);
+      btn.disabled = false;
+      btn.innerHTML = '🔍 학과 적합성 분석하기';
+    })();
   } catch(e) {
     resultEl.innerHTML = `<div style="color:#ef4444;padding:16px;">❌ 분석 오류: ${escapeHtml(e.message)}</div>`;
+    btn.disabled = false;
+    btn.innerHTML = '🔍 학과 적합성 분석하기';
   }
-  btn.disabled = false;
-  btn.innerHTML = '🔍 학과 적합성 분석하기';
 }
 
 // ── 핵심 계산 엔진 (async) ──
-async function computeApplyResult(hak, univ, dept, type, note, subType=''){
+async function computeApplyResult(hak, univ, dept, type, note, subType='', skipAdmissions=false){
   const grade = parseInt(currentStu.grade) || parseInt(hak[0]);
   const studentIs9 = isStudent9Grade(currentStu);
 
@@ -2939,9 +2957,11 @@ async function computeApplyResult(hak, univ, dept, type, note, subType=''){
   try { cutoffRows = await fetchCutoffData(univ, dept, subType); } catch(e){}
   const cutoff = parseCutoff(cutoffRows, type);
 
-  // ③ 합불 이력 — 전국(admissions_all.json) + 우리학교(alumniKb)
+  // ③ 합불 이력 — 전국 + 우리학교 (skipAdmissions=true면 건너뛰고 나중에 보충)
   let admCases = { school:[], gb:[] };
-  try { admCases = await fetchAdmissionCases(univ, dept); } catch(e){}
+  if(!skipAdmissions){
+    try { admCases = await fetchAdmissionCases(univ, dept); } catch(e){}
+  }
   const alumniResult = getAlumniResult(univ, dept, stuAvg); // 우리학교 선배(alumniKb)
 
   // ③b 전국 합불 JSON에서 pseudo-cutoff 계산 (cutoff DB 없을 때 보조)
@@ -3005,7 +3025,7 @@ async function computeApplyResult(hak, univ, dept, type, note, subType=''){
     추천전략: comments.strategy,
     주의사항: comments.caution,
     _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore, univWeights, compEval, hak, type, subType, compScore,
-      // 🆕 담임 평가의 풍부한 데이터
+      admPending: skipAdmissions,
       evalRich: {
         강점보완점: evalData[hak]?.강점보완점 || null,
         맞춤활동추천: evalData[hak]?.맞춤활동추천 || null,
@@ -3823,8 +3843,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
 
   <!-- ② 점수 히어로 -->
   <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:14px 18px;">
-    <!-- 상단 라인: 게이지 + 등급/한줄평 + 학생등급 -->
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:${metricItems.length?'12px':'0'};">
+    <!-- 상단 라인: 게이지 + 등급/한줄평 -->
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
       ${gauge}
       <div style="flex:1;min-width:150px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
@@ -3833,23 +3853,21 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         </div>
         <div style="font-size:13px;color:#64748b;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
       </div>
-      ${meta.stuAvg!=null ? `<div style="display:flex;gap:8px;flex-shrink:0;">
-        <div style="background:#fff;border:1.5px solid ${t.border};border-radius:12px;padding:8px 16px;text-align:center;min-width:80px;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">내 평균등급</div>
-          <div style="font-size:20px;font-weight:900;color:${t.c};line-height:1;">${meta.stuAvg.toFixed(2)}</div>
-        </div>
-      </div>` : ''}
     </div>
-    <!-- 하단: 핵심 지표 카드 (전국 합격자 등) -->
-    ${metricItems.length ? `
-    <div style="display:grid;grid-template-columns:repeat(${metricItems.length},1fr);gap:7px;">
+    <!-- 하단: 핵심 지표 한 줄 가운데 정렬 (내 평균등급 + 전국 합격자 + 기타) -->
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:9px 16px;text-align:center;min-width:90px;flex:1;max-width:160px;">
+        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">📌 내 평균등급</div>
+        <div style="font-size:18px;font-weight:900;color:${t.c};line-height:1.2;">${meta.stuAvg.toFixed(2)}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">전과목 환산</div>
+      </div>` : ''}
       ${metricItems.map(m=>`
-      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 10px;text-align:center;">
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 16px;text-align:center;min-width:90px;flex:1;max-width:160px;">
         <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:2px;">${m.icon} ${m.label}</div>
-        <div style="font-size:16px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
+        <div style="font-size:18px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${m.sub}</div>
       </div>`).join('')}
-    </div>` : ''}
+    </div>
   </div>
 
   <!-- 본문 섹션들 -->
@@ -4027,10 +4045,12 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           </div>`;
         }).join('')}
       </div>` : ''}
-    ` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
+    ` : (meta.admPending ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:14px;font-size:12px;color:#64748b;line-height:1.6;text-align:center;">
+        <span class="apply-spinner" style="vertical-align:middle;"></span> 우리 학교 합불 자료를 조회하고 있습니다...
+      </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 우리 학교(오상고) 선배 중 이 대학·학과에 지원한 이력이 <b>없습니다</b>.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 같은 계열 다른 대학 또는 같은 대학 다른 학과 합격사례를 함께 검토해보세요.</span>
-      </div>`)}
+      </div>`))}
 
     ${SEC('🗺','전국 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
       <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
@@ -4048,10 +4068,12 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           <span style="font-size:10px;color:${rsltColor};font-weight:700;flex-shrink:0;background:${rsltColor}20;padding:2px 6px;border-radius:4px;">${escapeHtml(c.결과)}</span>
         </div>`;
       }).join('')}
-    ` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
+    ` : (meta.admPending ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:14px;font-size:12px;color:#64748b;line-height:1.6;text-align:center;">
+        <span class="apply-spinner" style="vertical-align:middle;"></span> 전국 합불 데이터를 조회하고 있습니다...
+      </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 전국 합불 데이터에서 유사 사례를 찾지 못했습니다.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
-      </div>`)}
+      </div>`))}
 
     ${yearData.length >= 1 ? SEC('📈','컷오프 추이','#0c4a6e','#f0f9ff','#bae6fd',`
       <table style="width:100%;border-collapse:collapse;font-size:12px;background:rgba(255,255,255,.85);border-radius:8px;overflow:hidden;">
