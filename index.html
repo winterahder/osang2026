@@ -2602,16 +2602,38 @@ async function fetchAdmissionCases(univ, dept) {
     ]);
     if (data && Array.isArray(data)) {
       const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
-      const univNorm = norm(univ);
+      // 더 강력한 정규화: 대학교/대학/학교 + 괄호 안 지역명 모두 제거
+      const normUniv = s => {
+        let v = norm(s);
+        // 괄호와 그 안 내용 제거 (이미 norm에서 괄호 제거되어 있지만 안전하게)
+        v = v.replace(/대학교|대학원|대학/g, '');  // 어느 위치든 제거
+        // 끝의 지역명 패턴 제거 (서울, 부산, 인천 등 흔한 지역)
+        return v;
+      };
+      const univNorm = normUniv(univ);
       const deptNorm = norm(dept);
       school = data.filter(r => {
-        const u = norm(r['대학명'] || '');
-        const uBase = u.replace(/학교$|대학교$|대학$/, '');
+        const u_raw = norm(r['대학명'] || '');
+        const u = normUniv(r['대학명'] || '');
         const d = norm(r['모집단위'] || '');
-        const univMatch = u.includes(univNorm) || univNorm.includes(uBase) || uBase.includes(univNorm);
+        // 양방향 부분 매칭 (어느 쪽이 더 짧든)
+        const univMatch = univNorm.length >= 2 && (
+          u.includes(univNorm) || univNorm.includes(u) || 
+          u_raw.includes(univNorm) || univNorm.includes(u_raw.replace(/[가-힣]+$/, ''))
+        );
         const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
         return univMatch && deptMatch;
       });
+      // 디버깅 정보 콘솔 출력
+      console.log(`[admissions] 매칭 시도: univ="${univ}" (정규화:"${univNorm}"), dept="${dept}" (정규화:"${deptNorm}")`);
+      console.log(`[admissions] 데이터 ${data.length}건 중 ${school.length}건 매칭됨`);
+      if(school.length === 0 && data.length > 0){
+        // 어떤 대학명들이 있는지 보여주기 (디버깅용)
+        const sample = [...new Set(data.slice(0,20).map(r=>r['대학명']))].slice(0,5);
+        console.log(`[admissions] 시트 첫 5개 대학명 샘플:`, sample);
+      }
+    } else {
+      console.log(`[admissions] getAdmissions 응답이 배열이 아님:`, data);
     }
   } catch(e) { school = []; }
 
