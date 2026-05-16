@@ -3667,7 +3667,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const BULLETS = (items, dotColor) => items.map(s=>`
     <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 10px;background:rgba(255,255,255,.7);border-radius:7px;margin-bottom:4px;">
       <span style="width:5px;height:5px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:6px;"></span>
-      <span style="font-size:12.5px;color:#1e293b;line-height:1.6;">${escapeHtml(s.trim())}</span>
+      <span style="font-size:13px;color:#1e293b;line-height:1.65;">${escapeHtml(s.trim())}</span>
     </div>`).join('');
 
   // 번호 리스트
@@ -3842,30 +3842,30 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   </div>
 
   <!-- ② 점수 히어로 -->
-  <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:14px 18px;">
-    <!-- 상단 라인: 게이지 + 등급/한줄평 -->
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+  <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:16px 18px;">
+    <!-- 상단: 게이지 + 등급/한줄평 (가운데 정렬) -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:14px;">
       ${gauge}
-      <div style="flex:1;min-width:150px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+      <div style="min-width:180px;max-width:380px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
           <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${dispGrade(grade)} 등급</span>
           <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
         </div>
-        <div style="font-size:13px;color:#64748b;line-height:1.5;">${escapeHtml(obj.한줄평||'')}</div>
+        <div style="font-size:13px;color:#64748b;line-height:1.55;">${escapeHtml(obj.한줄평||'')}</div>
       </div>
     </div>
-    <!-- 하단: 핵심 지표 한 줄 가운데 정렬 (내 평균등급 + 전국 합격자 + 기타) -->
-    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
-      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:9px 16px;text-align:center;min-width:90px;flex:1;max-width:160px;">
-        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">📌 내 평균등급</div>
-        <div style="font-size:18px;font-weight:900;color:${t.c};line-height:1.2;">${meta.stuAvg.toFixed(2)}</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">전과목 환산</div>
+    <!-- 하단: 핵심 지표 가운데 정렬 (내 평균등급 + 전국 합격자) -->
+    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 20px;text-align:center;min-width:120px;">
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📌 내 평균등급</div>
+        <div style="font-size:20px;font-weight:900;color:${t.c};line-height:1.1;">${meta.stuAvg.toFixed(2)}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전과목 환산</div>
       </div>` : ''}
       ${metricItems.map(m=>`
-      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 16px;text-align:center;min-width:90px;flex:1;max-width:160px;">
-        <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:2px;">${m.icon} ${m.label}</div>
-        <div style="font-size:18px;font-weight:900;color:${m.color};line-height:1.2;">${m.val}</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${m.sub}</div>
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 20px;text-align:center;min-width:120px;">
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:600;margin-bottom:3px;">${m.icon} ${m.label}</div>
+        <div style="font-size:20px;font-weight:900;color:${m.color};line-height:1.1;">${m.val}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${m.sub}</div>
       </div>`).join('')}
     </div>
   </div>
@@ -3874,59 +3874,9 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   <div style="padding:12px 14px 4px;">
 
     ${ozenLine ? `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-      <div style="font-size:10px;color:#92400e;font-weight:800;margin-bottom:4px;letter-spacing:.5px;">💬 한줄 요약</div>
+      <div style="font-size:11px;color:#92400e;font-weight:800;margin-bottom:5px;letter-spacing:.5px;">💬 한줄 요약</div>
       <div style="font-size:13px;color:#78350f;font-weight:600;line-height:1.6;">${escapeHtml(ozenLine)}</div>
     </div>` : ''}
-
-    ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
-      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
-    )}
-
-    ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
-      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
-    )}
-    
-    ${actTypes.length ? SEC('🎯','맞춤 활동 추천','#7c2d12','#fff7ed','#fed7aa', `
-      <div style="font-size:11px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
-        학생 특성에 맞춘 ${actTypes.length}가지 방향. 각 카드를 클릭하면 상세 내용이 펼쳐집니다.
-      </div>
-      ${actTypes.map((t,idx)=>{
-        const act = richActs[t.key];
-        const detailId = `act_${Math.random().toString(36).substr(2,8)}_${idx}`;
-        return `<div style="background:rgba(255,255,255,.9);border-radius:10px;margin-bottom:6px;border-left:4px solid ${t.color};overflow:hidden;">
-          <div onclick="document.getElementById('${detailId}').style.display=document.getElementById('${detailId}').style.display==='none'?'block':'none';this.querySelector('.act-arrow').textContent=document.getElementById('${detailId}').style.display==='none'?'▼':'▲';" 
-               style="padding:10px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;">
-            <div style="background:${t.bg};color:${t.color};padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;flex-shrink:0;min-width:60px;text-align:center;">${t.emoji} ${t.key}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:800;color:#1e293b;line-height:1.45;margin-bottom:3px;">${escapeHtml(act.제목||'')}</div>
-              <div style="font-size:10px;color:#64748b;line-height:1.4;">${escapeHtml(t.desc)}${act.태그?` · <span style="color:${t.color};font-weight:600;">${escapeHtml(act.태그)}</span>`:''}</div>
-            </div>
-            <span class="act-arrow" style="color:#94a3b8;font-size:11px;flex-shrink:0;margin-top:2px;">▼</span>
-          </div>
-          <div id="${detailId}" style="display:none;padding:0 14px 12px;border-top:1px dashed #e2e8f0;">
-            ${act.선정이유 ? `<div style="margin-top:10px;">
-              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">💡 선정 이유</div>
-              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.선정이유)}</div>
-            </div>` : ''}
-            ${act.기존활동연결 ? `<div style="margin-top:10px;">
-              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">🔗 기존 활동 연결</div>
-              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.기존활동연결)}</div>
-            </div>` : ''}
-            ${act.진로관련성 ? `<div style="margin-top:10px;">
-              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">🎯 진로 관련성</div>
-              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.진로관련성)}</div>
-            </div>` : ''}
-            ${Object.entries(act).filter(([k])=>!['제목','태그','선정이유','기존활동연결','진로관련성'].includes(k)).map(([k,v])=>{
-              if(typeof v !== 'string' || !v) return '';
-              return `<div style="margin-top:10px;">
-                <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">📌 ${escapeHtml(k)}</div>
-                <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(v)}</div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-    `) : ''}
 
     ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가','#6d28d9','#faf5ff','#ddd6fe',`
       ${(ceScore!=null || ceTotal) ? `<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -3947,13 +3897,13 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           <div style="font-size:15px;font-weight:900;color:${c.color};">${escapeHtml(String(c.등급))}</div>
         </div>`).join('')}
       </div>` : ''}
-      ${ceOpinion ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:10px 13px;font-size:12.5px;color:#1e293b;line-height:1.7;">
+      ${ceOpinion ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:10px 13px;font-size:13px;color:#1e293b;line-height:1.7;">
         ${ceOpinion.includes('<b>') ? ceOpinion : escapeHtml(ceOpinion.substring(0,400))+(ceOpinion.length>400?'...':'')}
       </div>` : ''}
     `) : ''}
 
     ${SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd', (alumniPass.length || alumniFail.length) ? `
-      <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
+      <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         ${(()=>{
           // 평균등급 키 매핑: admissions 시트 = 평균등급, alumni 시트 = 내신평균
           const getG = r => parseFloat(r['평균등급']||r['환산등급']||r['내신평균']||r['내신']||0);
@@ -3968,7 +3918,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>
       
       ${yearStatsList.length>=2 ? `<div style="background:rgba(255,255,255,.8);border-radius:8px;padding:8px 11px;margin-bottom:8px;">
-        <div style="font-size:10px;color:#0c4a6e;font-weight:700;margin-bottom:5px;">📅 연도별 합격 현황</div>
+        <div style="font-size:11px;color:#0c4a6e;font-weight:700;margin-bottom:6px;">📅 연도별 합격 현황</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;">
           ${yearStatsList.map(s=>{
             const total = s.pass+s.fail;
@@ -3985,7 +3935,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>` : ''}
       
       ${bulTopReasons.length ? `<div style="background:rgba(254,242,242,.5);border-radius:8px;padding:8px 11px;margin-bottom:8px;border-left:3px solid #fca5a5;">
-        <div style="font-size:10px;color:#7f1d1d;font-weight:700;margin-bottom:4px;">⚠️ 주요 불합사유</div>
+        <div style="font-size:11px;color:#7f1d1d;font-weight:700;margin-bottom:5px;">⚠️ 주요 불합사유</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${bulTopReasons.map(([reason,cnt])=>`<span style="font-size:11px;background:#fee2e2;color:#7f1d1d;padding:2px 8px;border-radius:10px;font-weight:600;">${escapeHtml(reason)} <b>${cnt}건</b></span>`).join('')}
         </div>
@@ -4010,16 +3960,16 @@ function buildApplyCardHTML(obj, dateStr, isNew){
             subShort = subShort.substring(0,15);
           }
           return `<div style="display:flex;align-items:center;gap:6px;padding:7px 11px;background:rgba(255,255,255,.85);border-radius:7px;margin-bottom:4px;border-left:3px solid #10b981;flex-wrap:wrap;">
-            ${year?`<span style="font-size:10px;color:#0c4a6e;background:#e0f2fe;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0;">${year}</span>`:''}
+            ${year?`<span style="font-size:11px;color:#0c4a6e;background:#e0f2fe;padding:2px 7px;border-radius:4px;font-weight:700;flex-shrink:0;">${year}</span>`:''}
             <span style="font-size:11px;font-weight:700;color:#0c4a6e;background:#dbeafe;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${stuG.toFixed(2)}</span>
-            <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${subShort?` <span style="color:#7c3aed;font-size:10px;background:#ede9fe;padding:1px 5px;border-radius:4px;">${escapeHtml(subShort)}</span>`:type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
+            <span style="font-size:12.5px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${subShort?` <span style="color:#7c3aed;font-size:10px;background:#ede9fe;padding:1px 5px;border-radius:4px;">${escapeHtml(subShort)}</span>`:type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
             <span style="font-size:10px;color:${rsltColor};font-weight:700;background:${rsltBg};padding:2px 7px;border-radius:5px;flex-shrink:0;">${escapeHtml(result)}</span>
             ${regist==='등록'?'<span style="font-size:9px;color:#059669;background:#d1fae5;padding:1px 5px;border-radius:4px;font-weight:700;" title="실제 등록한 학생">★등록</span>':''}
           </div>`;
         }).join('')}
       </div>` : ''}
       ${alumniFail.length ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px;">⚠️ 불합격 사례 (참고용 — 사유 함께 확인)</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:5px;">⚠️ 불합격 사례 (참고용 — 사유 함께 확인)</div>
         ${alumniFail.map(r=>{
           const stuG = parseFloat(r['평균등급']||r['환산등급']||r['내신평균']||r['내신']||0);
           const univ_name = r['대학명']||r['지원대학']||'';
@@ -4037,9 +3987,9 @@ function buildApplyCardHTML(obj, dateStr, isNew){
             subShort = subShort.substring(0,15);
           }
           return `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(254,242,242,.6);border-radius:7px;margin-bottom:3px;border-left:3px solid #fca5a5;flex-wrap:wrap;">
-            ${year?`<span style="font-size:10px;color:#7f1d1d;background:#fee2e2;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0;">${year}</span>`:''}
+            ${year?`<span style="font-size:11px;color:#7f1d1d;background:#fee2e2;padding:2px 7px;border-radius:4px;font-weight:700;flex-shrink:0;">${year}</span>`:''}
             <span style="font-size:11px;font-weight:700;color:#7f1d1d;background:#fee2e2;padding:2px 7px;border-radius:5px;flex-shrink:0;min-width:55px;text-align:center;">내신 ${stuG.toFixed(2)}</span>
-            <span style="font-size:12px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${subShort?` <span style="color:#7c3aed;font-size:10px;background:#ede9fe;padding:1px 5px;border-radius:4px;">${escapeHtml(subShort)}</span>`:type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
+            <span style="font-size:12.5px;color:#1e293b;flex:1;min-width:0;">${escapeHtml(univ_name)} ${escapeHtml(dept_name)}${subShort?` <span style="color:#7c3aed;font-size:10px;background:#ede9fe;padding:1px 5px;border-radius:4px;">${escapeHtml(subShort)}</span>`:type?` <span style="color:#94a3b8;font-size:10px;">(${escapeHtml(String(type).substring(0,12))})</span>`:''}</span>
             <span style="font-size:10px;color:#dc2626;font-weight:700;flex-shrink:0;">${escapeHtml(result)}</span>
             ${bulSayu?`<span style="font-size:10px;color:#9a3412;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:600;flex-shrink:0;" title="불합사유">📌 ${escapeHtml(bulSayu)}</span>`:''}
           </div>`;
@@ -4053,7 +4003,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>`))}
 
     ${SEC('🗺','전국 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
-      <div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
+      <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         내 내신 ${meta.stuAvg ? meta.stuAvg.toFixed(2) : '?'}등급과 가까운 합격 사례 ${gbCases.length}건
       </div>
       ${gbCases.map(c=>{
@@ -4074,6 +4024,56 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         💡 전국 합불 데이터에서 유사 사례를 찾지 못했습니다.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
       </div>`))}
+
+    ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
+      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
+    )}
+
+    ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
+      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
+    )}
+    
+    ${actTypes.length ? SEC('🎯','맞춤 활동 추천','#7c2d12','#fff7ed','#fed7aa', `
+      <div style="font-size:12px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
+        학생 특성에 맞춘 ${actTypes.length}가지 방향. 각 카드를 클릭하면 상세 내용이 펼쳐집니다.
+      </div>
+      ${actTypes.map((t,idx)=>{
+        const act = richActs[t.key];
+        const detailId = `act_${Math.random().toString(36).substr(2,8)}_${idx}`;
+        return `<div style="background:rgba(255,255,255,.9);border-radius:10px;margin-bottom:6px;border-left:4px solid ${t.color};overflow:hidden;">
+          <div onclick="document.getElementById('${detailId}').style.display=document.getElementById('${detailId}').style.display==='none'?'block':'none';this.querySelector('.act-arrow').textContent=document.getElementById('${detailId}').style.display==='none'?'▼':'▲';" 
+               style="padding:10px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;">
+            <div style="background:${t.bg};color:${t.color};padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;flex-shrink:0;min-width:60px;text-align:center;">${t.emoji} ${t.key}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:800;color:#1e293b;line-height:1.45;margin-bottom:3px;">${escapeHtml(act.제목||'')}</div>
+              <div style="font-size:10px;color:#64748b;line-height:1.4;">${escapeHtml(t.desc)}${act.태그?` · <span style="color:${t.color};font-weight:600;">${escapeHtml(act.태그)}</span>`:''}</div>
+            </div>
+            <span class="act-arrow" style="color:#94a3b8;font-size:11px;flex-shrink:0;margin-top:2px;">▼</span>
+          </div>
+          <div id="${detailId}" style="display:none;padding:0 14px 12px;border-top:1px dashed #e2e8f0;">
+            ${act.선정이유 ? `<div style="margin-top:10px;">
+              <div style="font-size:11.5px;color:${t.color};font-weight:800;margin-bottom:4px;">💡 선정 이유</div>
+              <div style="font-size:12.5px;color:#334155;line-height:1.7;">${escapeHtml(act.선정이유)}</div>
+            </div>` : ''}
+            ${act.기존활동연결 ? `<div style="margin-top:10px;">
+              <div style="font-size:11.5px;color:${t.color};font-weight:800;margin-bottom:4px;">🔗 기존 활동 연결</div>
+              <div style="font-size:12.5px;color:#334155;line-height:1.7;">${escapeHtml(act.기존활동연결)}</div>
+            </div>` : ''}
+            ${act.진로관련성 ? `<div style="margin-top:10px;">
+              <div style="font-size:11.5px;color:${t.color};font-weight:800;margin-bottom:4px;">🎯 진로 관련성</div>
+              <div style="font-size:12.5px;color:#334155;line-height:1.7;">${escapeHtml(act.진로관련성)}</div>
+            </div>` : ''}
+            ${Object.entries(act).filter(([k])=>!['제목','태그','선정이유','기존활동연결','진로관련성'].includes(k)).map(([k,v])=>{
+              if(typeof v !== 'string' || !v) return '';
+              return `<div style="margin-top:10px;">
+                <div style="font-size:11.5px;color:${t.color};font-weight:800;margin-bottom:4px;">📌 ${escapeHtml(k)}</div>
+                <div style="font-size:12.5px;color:#334155;line-height:1.7;">${escapeHtml(v)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    `) : ''}
 
     ${yearData.length >= 1 ? SEC('📈','컷오프 추이','#0c4a6e','#f0f9ff','#bae6fd',`
       <table style="width:100%;border-collapse:collapse;font-size:12px;background:rgba(255,255,255,.85);border-radius:8px;overflow:hidden;">
@@ -4111,9 +4111,17 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       })()}
     `) : ''}
 
+    ${(()=>{
+      // 🆕 학종 합격사례 벤치마크 (종합역량평가 탭과 동일 — 학생 진로 기반)
+      try {
+        const sc = renderSuccessCasesSection();
+        return sc ? `<div style="margin-bottom:10px;">${sc}</div>` : '';
+      } catch(e){ return ''; }
+    })()}
+
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
       <span style="font-size:14px;flex-shrink:0;">ℹ️</span>
-      <span style="font-size:12px;color:#9a3412;line-height:1.55;">이 분석은 저장된 데이터 기반 참고용입니다. 실제 지원 전 담임 선생님과 최종 상담하세요.</span>
+      <span style="font-size:12.5px;color:#9a3412;line-height:1.6;">이 분석은 저장된 데이터 기반 참고용입니다. 실제 지원 전 담임 선생님과 최종 상담하세요.</span>
     </div>
 
   </div>
