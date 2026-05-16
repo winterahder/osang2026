@@ -4101,7 +4101,24 @@ function showApplyResult(h){
   document.getElementById('applyUniv').value = h.univ || h.result?.univ || '';
   document.getElementById('applyDept').value = h.dept || h.result?.dept || '';
   document.getElementById('applyType').value = h.type || h.result?.type || '종합';
-  document.getElementById('applyResult').innerHTML = buildApplyCardHTML(h.result, h.date, false);
+  
+  // 🆕 이력에서 클릭한 옛 분석은 _meta에 evalRich/compEval이 없음
+  // 지금 현재 학생의 데이터로 즉석 보충해줌
+  const result = h.result || {};
+  if(!result._meta) result._meta = {};
+  const hak = String(currentStu?.hak || '');
+  const ev = evalData[hak];
+  if(ev && !result._meta.evalRich){
+    result._meta.evalRich = {
+      강점보완점: ev?.강점보완점 || null,
+      맞춤활동추천: ev?.맞춤활동추천 || null,
+    };
+  }
+  if(ev && !result._meta.compEval){
+    result._meta.compEval = ev?.종합역량평가 || null;
+  }
+  
+  document.getElementById('applyResult').innerHTML = buildApplyCardHTML(result, h.date, false);
 }
 
 async function deleteApplyHistory(id){
