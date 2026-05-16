@@ -3499,6 +3499,17 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const score = obj.적합도점수 || 0;
   const grade = obj.적합도;
   
+  // 🔍 진단 로그 (한 번에 모든 데이터 흐름 확인)
+  console.log('━━━━━━━ buildApplyCardHTML 진단 ━━━━━━━');
+  console.log('[A] obj 키:', Object.keys(obj));
+  console.log('[B] meta 키:', Object.keys(meta));
+  console.log('[C] meta.evalRich:', meta.evalRich);
+  console.log('[D] meta.evalRich?.강점보완점:', meta.evalRich?.강점보완점);
+  console.log('[E] meta.evalRich?.맞춤활동추천:', meta.evalRich?.맞춤활동추천);
+  console.log('[F] meta.compEval:', meta.compEval);
+  console.log('[G] meta.admCases?.school?.length:', meta.admCases?.school?.length);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
 
 
   const T = {
