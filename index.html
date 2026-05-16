@@ -3514,8 +3514,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const r=42, cx=50, cy=50, circ=(2*Math.PI*r);
   const filled = (circ * score/100).toFixed(1);
   const gauge = `
-    <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
-      <svg viewBox="0 0 100 100" width="110" height="110">
+    <div style="position:relative;width:92px;height:92px;flex-shrink:0;">
+      <svg viewBox="0 0 100 100" width="92" height="92">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.barBg}" stroke-width="9"/>
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${t.accent}" stroke-width="9"
           stroke-linecap="round"
@@ -3524,8 +3524,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           transform="rotate(-90 ${cx} ${cy})"/>
       </svg>
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
-        <span style="font-size:26px;font-weight:900;color:${t.c};line-height:1;letter-spacing:-1px;">${score}</span>
-        <span style="font-size:10px;color:#94a3b8;font-weight:600;">/100점</span>
+        <span style="font-size:23px;font-weight:900;color:${t.c};line-height:1;letter-spacing:-1px;">${score}</span>
+        <span style="font-size:9px;color:#94a3b8;font-weight:600;">/100점</span>
       </div>
     </div>`;
 
@@ -3579,19 +3579,19 @@ function buildApplyCardHTML(obj, dateStr, isNew){
 
   // 섹션 헬퍼 — 좌측 컬러 라인 + 배경 구분
   const SEC = (emoji, title, titleColor, bgColor, borderColor, body) => `
-    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:16px 18px;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:15px;line-height:1;">${emoji}</span>
-        <span style="font-size:13px;font-weight:800;color:${titleColor};letter-spacing:.4px;">${title}</span>
+    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:11px;padding:13px 15px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+        <span style="font-size:14px;line-height:1;">${emoji}</span>
+        <span style="font-size:13px;font-weight:800;color:${titleColor};letter-spacing:.3px;">${title}</span>
       </div>
       ${body}
     </div>`;
 
   // 불릿 리스트
   const BULLETS = (items, dotColor) => items.map(s=>`
-    <div style="display:flex;gap:9px;align-items:flex-start;padding:7px 10px;background:rgba(255,255,255,.7);border-radius:8px;margin-bottom:5px;">
-      <span style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:6px;"></span>
-      <span style="font-size:13px;color:#1e293b;line-height:1.65;">${escapeHtml(s.trim())}</span>
+    <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 10px;background:rgba(255,255,255,.7);border-radius:7px;margin-bottom:4px;">
+      <span style="width:5px;height:5px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:6px;"></span>
+      <span style="font-size:12.5px;color:#1e293b;line-height:1.6;">${escapeHtml(s.trim())}</span>
     </div>`).join('');
 
   // 번호 리스트
@@ -3742,16 +3742,14 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     {key:'차별화형', emoji:'🟣', color:'#7c3aed', bg:'#ede9fe', desc:'독창적 도전 활동'},
     {key:'실천형', emoji:'🟠', color:'#d97706', bg:'#fed7aa', desc:'외부 인증·실행'},
   ].filter(t => richActs[t.key]) : [];
-  const strategies = (obj.추천전략||'').split('\n').filter(s=>s.trim());
-  const analysis   = (obj.전형분석||'').split(/\.(?:\s|\n)/).map(s=>s.trim()).filter(s=>s.length>2).map(s=>s+'.');
-  const cautions   = (obj.주의사항||'').split('\n').filter(s=>s.trim());
+  // (전형분석/추천전략/주의사항 섹션 제거됨 — 변수도 미사용)
 
   return `
 <div style="font-family:'Pretendard',-apple-system,'Noto Sans KR',sans-serif;background:#f8fafc;border-radius:16px;overflow:hidden;border:1.5px solid ${t.border};box-shadow:0 6px 28px rgba(0,0,0,.07);">
 
   <!-- ① 헤더 바 -->
-  <div style="background:${t.bg};border-bottom:2px solid ${t.border};padding:16px 20px 14px;">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+  <div style="background:${t.bg};border-bottom:2px solid ${t.border};padding:14px 18px 12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
         <div style="font-size:18px;font-weight:900;color:#0f172a;letter-spacing:-.3px;margin-bottom:6px;">
           ${escapeHtml(obj.univ)} <span style="color:#94a3b8;font-weight:300;">|</span> <span style="color:#1e40af;">${escapeHtml(obj.dept)}</span>
@@ -3763,12 +3761,16 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           ${dateStr?`<span style="color:#94a3b8;font-size:11px;margin-left:2px;">${dateStr}</span>`:''}
         </div>
       </div>
+      ${meta.stuAvg!=null ? `<div style="text-align:center;background:#fff;border:1.5px solid ${t.border};border-radius:12px;padding:8px 14px;flex-shrink:0;">
+        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:2px;">학생 평균등급</div>
+        <div style="font-size:22px;font-weight:900;color:${t.c};line-height:1;">${meta.stuAvg.toFixed(2)}</div>
+      </div>` : ''}
     </div>
     ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
   </div>
 
   <!-- ② 점수 히어로 -->
-  <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:18px 20px;">
+  <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:14px 18px;">
     <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
       ${gauge}
       <div style="flex:1;min-width:160px;">
@@ -3790,8 +3792,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     </div>
   </div>
 
-  <!-- ③~⑦ 본문 섹션들 -->
-  <div style="padding:14px 16px 6px;">
+  <!-- 본문 섹션들 -->
+  <div style="padding:12px 14px 4px;">
 
     ${ozenLine ? `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
       <div style="font-size:10px;color:#92400e;font-weight:800;margin-bottom:4px;letter-spacing:.5px;">💬 한줄 요약</div>
@@ -4027,17 +4029,10 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       })()}
     `) : ''}
 
-    ${SEC('📋','전형 분석','#334155','#f1f5f9','#e2e8f0',
-      TEXTBLOCK(analysis,'#475569')
-    )}
-
-    ${SEC('💡','추천 전략','#1d4ed8','#eff6ff','#bfdbfe',
-      strategies.length ? NUMBERS(strategies) : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">비교과 분석 후 전략이 구체화됩니다.</div>'
-    )}
-
-    ${SEC('🔴','주의사항','#9f1239','#fff1f2','#fecaca',
-      cautions.length ? BULLETS(cautions,'#f43f5e') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">없음</div>'
-    )}
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;flex-shrink:0;">ℹ️</span>
+      <span style="font-size:12px;color:#9a3412;line-height:1.55;">이 분석은 저장된 데이터 기반 참고용입니다. 실제 지원 전 담임 선생님과 최종 상담하세요.</span>
+    </div>
 
   </div>
 
