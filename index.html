@@ -7111,8 +7111,8 @@ function renderSuccessCasesSection() {
         + '</div>'
       : '';
 
-    return '<div style="border:1px solid #e5e7eb;border-radius:10px;background:#fff;overflow:hidden;">'
-      + '<div onclick="toggleSuccessCase(\'' + uid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:#fff;transition:background .15s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;background:#fff;width:100%;box-sizing:border-box;">'
+      + '<div onclick="toggleSuccessCase(\'' + uid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:#fff;transition:background .15s;width:100%;box-sizing:border-box;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'
       + '<div style="display:flex;flex-direction:column;align-items:center;background:#f5f3ff;padding:6px 10px;border-radius:8px;min-width:55px;">'
       + '<span style="font-size:18px;font-weight:900;color:#6d28d9;line-height:1;">' + innerAvg + '</span>'
       + '<span style="font-size:19px;color:#94a3b8;font-weight:600;margin-top:2px;">내신</span>'
@@ -7145,10 +7145,10 @@ function renderSuccessCasesSection() {
       + '<div style="font-size:18px;color:#334155;">국' + (c['수능_국어']||'-') + ' 수' + (c['수능_수학']||'-') + ' 영' + (c['수능_영어']||'-') + ' 탐' + (c['수능_탐구1']||'-') + '/' + (c['수능_탐구2']||'-') + ' 한' + (c['수능_한국사']||'-') + '</div>'
       + (c['수능_선택과목'] ? '<div style="font-size:18px;color:#94a3b8;margin-top:2px;">' + escapeHtml(c['수능_선택과목']) + '</div>' : '')
       + '</div></div>'
-      + (c['교과세특'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['교과세특']) + '</div></div>' : '')
-      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['동아리']) + '</div></div>' : '')
-      + (c['자율봉사진로'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['자율봉사진로']) + '</div></div>' : '')
-      + (c['독서'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(c['독서']) + '</div></div>' : '')
+      + (c['교과세특'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">📖 교과 세특</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['교과세특'])) + '</div></div>' : '')
+      + (c['동아리'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">🎭 동아리</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['동아리'])) + '</div></div>' : '')
+      + (c['자율봉사진로'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">🚀 자율·봉사·진로</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['자율봉사진로'])) + '</div></div>' : '')
+      + (c['독서'] ? '<div style="width:100%;margin-bottom:12px;"><div style="font-size:19px;font-weight:700;color:#475569;margin-bottom:4px;">📚 독서</div><div style="font-size:18px;color:#334155;line-height:1.65;white-space:pre-line;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f1f5f9;">' + escapeHtml(cleanCaseText(c['독서'])) + '</div></div>' : '')
       + '</div></div>';
   }).join('');
 
@@ -7171,10 +7171,30 @@ function renderSuccessCasesSection() {
     + '</div>'
     + '<div class="sc-print-hide">'
     + (gapBlock ? '<div style="padding:14px 18px;border-bottom:1px solid #ddd6fe;">' + gapBlock + '</div>' : '')
-    + '<div style="padding:14px;display:flex;flex-direction:column;gap:8px;">' + caseCards + '</div>'
+    + '<div style="padding:14px;display:block;">' + caseCards + '</div>'
     + '<div style="padding:8px 18px;background:#f5f3ff;font-size:18px;color:#94a3b8;text-align:right;">※ 학생 내신과 가까운 순 정렬 · 🤖 = AI 분석 완료 사례 · 사례 클릭 시 펼쳐집니다</div>'
     + '</div>'
     + '</div>';
+}
+
+
+// 합격사례 텍스트 정제 (잘린 줄바꿈 이어붙이기)
+function cleanCaseText(text) {
+  if(!text) return '';
+  // 줄 단위로 분리
+  const lines = text.split('\n');
+  const result = [];
+  for(let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if(!line) { result.push(''); continue; }
+    // 이전 줄이 있고, 현재 줄이 짧으며(20자 미만), '.' 또는 '-' 로 시작 안 하면 이어붙임
+    if(result.length > 0 && line.length < 25 && !line.startsWith('-') && !line.match(/^\d/) && !line.startsWith('(')) {
+      result[result.length-1] = result[result.length-1] + line;
+    } else {
+      result.push(line);
+    }
+  }
+  return result.join('\n');
 }
 
 function toggleSuccessCase(uid) {
