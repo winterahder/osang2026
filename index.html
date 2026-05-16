@@ -3502,6 +3502,16 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const meta = obj._meta || {};
   const score = obj.적합도점수 || 0;
   const grade = obj.적합도;
+  
+  // 🐛 디버깅: 데이터가 어디서 끊기는지 추적
+  console.log('🔵 buildApplyCardHTML 시작');
+  console.log('  obj.적합도:', grade);
+  console.log('  meta 키:', Object.keys(meta));
+  console.log('  meta.admCases 존재?:', !!meta.admCases);
+  console.log('  meta.admCases.school:', meta.admCases?.school);
+  console.log('  meta.admCases.school?.length:', meta.admCases?.school?.length);
+  console.log('  meta.compEval 존재?:', !!meta.compEval);
+  console.log('  meta.compEval:', meta.compEval);
 
   const T = {
     '상': { c:'#065f46', bg:'#ecfdf5', accent:'#10b981', border:'#6ee7b7', tagBg:'#059669', barBg:'#d1fae5' },
@@ -3620,6 +3630,13 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     const v = String(r['최종단계']||r['최종결과']||r['결과']||'');
     return v.includes('불합격');
   });
+  console.log('🔵 schoolCases.length:', schoolCases.length);
+  console.log('🔵 schoolPass.length:', schoolPass.length, schoolPass);
+  console.log('🔵 schoolFail.length:', schoolFail.length, schoolFail);
+  if(schoolCases.length > 0){
+    console.log('🔵 첫번째 case 최종단계:', JSON.stringify(schoolCases[0]['최종단계']));
+    console.log('🔵 첫번째 case 키들:', Object.keys(schoolCases[0]));
+  }
   // 연도 추출 헬퍼
   const getYear = r => String(r['연도']||'').trim();
   // 최근 연도 순으로 정렬 (있을 경우)
