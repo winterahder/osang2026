@@ -2624,21 +2624,11 @@ async function fetchAdmissionCases(univ, dept) {
         const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
         return univMatch && deptMatch;
       });
-      // 디버깅 정보 콘솔 출력
-      console.log(`[admissions] 매칭 시도: univ="${univ}" (정규화:"${univNorm}"), dept="${dept}" (정규화:"${deptNorm}")`);
-      console.log(`[admissions] 데이터 ${data.length}건 중 ${school.length}건 매칭됨`);
-      if(school.length === 0 && data.length > 0){
-        // 어떤 대학명들이 있는지 보여주기 (디버깅용)
-        const sample = [...new Set(data.slice(0,20).map(r=>r['대학명']))].slice(0,5);
-        console.log(`[admissions] 시트 첫 5개 대학명 샘플:`, sample);
-      }
-    } else {
-      console.warn(`⚠️ [admissions] getAdmissions 응답이 배열이 아님:`, typeof data, data);
+    } else if(data !== null && data !== undefined){
+      console.warn(`[admissions] 응답이 배열이 아님:`, typeof data);
     }
   } catch(e) {
-    console.error(`❌ [admissions] getAdmissions 실패:`, e.message || e);
-    console.warn('💡 가능한 원인: (1) Apps Script timeout (2) ERR_QUIC_PROTOCOL_ERROR (3) 권한 문제');
-    console.warn('💡 해결법: chrome://flags 에서 QUIC 비활성화 또는 페이지 새로고침');
+    console.warn(`[admissions] fetch 실패 - 재시도 권장:`, e.message || e);
     school = [];
   }
 
@@ -3011,7 +3001,13 @@ async function computeApplyResult(hak, univ, dept, type, note, subType=''){
     전형분석: comments.typeAnalysis,
     추천전략: comments.strategy,
     주의사항: comments.caution,
-    _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore, univWeights, compEval, hak, type, subType }
+    _meta: { cutoff: effectiveCutoff, gbCutoff, alumniResult, admCases, stuAvg, majorScore, univWeights, compEval, hak, type, subType, compScore,
+      // 🆕 담임 평가의 풍부한 데이터
+      evalRich: {
+        강점보완점: evalData[hak]?.강점보완점 || null,
+        맞춤활동추천: evalData[hak]?.맞춤활동추천 || null,
+      }
+    }
   };
 }
 
@@ -3503,15 +3499,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const score = obj.적합도점수 || 0;
   const grade = obj.적합도;
   
-  // 🐛 디버깅: 데이터가 어디서 끊기는지 추적
-  console.log('🔵 buildApplyCardHTML 시작');
-  console.log('  obj.적합도:', grade);
-  console.log('  meta 키:', Object.keys(meta));
-  console.log('  meta.admCases 존재?:', !!meta.admCases);
-  console.log('  meta.admCases.school:', meta.admCases?.school);
-  console.log('  meta.admCases.school?.length:', meta.admCases?.school?.length);
-  console.log('  meta.compEval 존재?:', !!meta.compEval);
-  console.log('  meta.compEval:', meta.compEval);
+
 
   const T = {
     '상': { c:'#065f46', bg:'#ecfdf5', accent:'#10b981', border:'#6ee7b7', tagBg:'#059669', barBg:'#d1fae5' },
@@ -3630,13 +3618,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     const v = String(r['최종단계']||r['최종결과']||r['결과']||'');
     return v.includes('불합격');
   });
-  console.log('🔵 schoolCases.length:', schoolCases.length);
-  console.log('🔵 schoolPass.length:', schoolPass.length, schoolPass);
-  console.log('🔵 schoolFail.length:', schoolFail.length, schoolFail);
-  if(schoolCases.length > 0){
-    console.log('🔵 첫번째 case 최종단계:', JSON.stringify(schoolCases[0]['최종단계']));
-    console.log('🔵 첫번째 case 키들:', Object.keys(schoolCases[0]));
-  }
+
   // 연도 추출 헬퍼
   const getYear = r => String(r['연도']||'').trim();
   // 최근 연도 순으로 정렬 (있을 경우)
@@ -3722,11 +3704,12 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   if(getGrade(ce.진로역량)) ceItems.push({label:'진로역량', 등급:getGrade(ce.진로역량), color:'#7c3aed', emoji:'🎯'});
   if(getGrade(ce.공동체역량)) ceItems.push({label:'공동체역량', 등급:getGrade(ce.공동체역량), color:'#059669', emoji:'🤝'});
   
-  // 종합점수는 _meta.compScore 활용 (계산된 점수)
-  const ceScore = meta.compScore || null;
+  // 종합 정보 (담임 평가 데이터 직접 사용)
+  const ceScore = ce.종합점수 || meta.compScore || null;
+  const ceTotal = ce.종합등급 || null;
   
-  // 종합의견: 종합.종합의견 또는 종합의견, 또는 각 역량 서브의견 통합
-  let ceOpinion = ce.종합?.종합의견 || ce.종합의견 || ce.종합?.comment || '';
+  // 종합의견: ce.종합의견 직접
+  let ceOpinion = ce.종합의견 || ce.종합?.종합의견 || '';
   if(!ceOpinion && ceItems.length){
     // 각 역량 첫 서브의견 모아서 요약
     const parts = [];
@@ -3743,8 +3726,21 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     if(parts.length) ceOpinion = parts.join('<br><br>');
   }
   
-  const strengths  = (obj.강점||'').split('\n').filter(s=>s.trim());
-  const weaknesses = (obj.보완점||'').split('\n').filter(s=>s.trim());
+  // 🆕 담임 평가의 강점/보완점 우선 사용 (배열로 미리 정리되어 있음)
+  const richSP = meta.evalRich?.강점보완점 || null;
+  const strengths  = (richSP?.강점?.length) ? richSP.강점 : (obj.강점||'').split('\n').filter(s=>s.trim());
+  const weaknesses = (richSP?.보완점?.length) ? richSP.보완점 : (obj.보완점||'').split('\n').filter(s=>s.trim());
+  const ozenLine = richSP?.한줄요약 || '';
+  const usingTeacherEval = !!(richSP?.강점?.length || richSP?.보완점?.length);
+  
+  // 🆕 맞춤활동추천 (4가지 타입)
+  const richActs = meta.evalRich?.맞춤활동추천 || null;
+  const actTypes = richActs ? [
+    {key:'안정형', emoji:'🟢', color:'#059669', bg:'#d1fae5', desc:'기존 활동 완성·심화'},
+    {key:'심화형', emoji:'🔵', color:'#0369a1', bg:'#dbeafe', desc:'학술적 깊이 확장'},
+    {key:'차별화형', emoji:'🟣', color:'#7c3aed', bg:'#ede9fe', desc:'독창적 도전 활동'},
+    {key:'실천형', emoji:'🟠', color:'#d97706', bg:'#fed7aa', desc:'외부 인증·실행'},
+  ].filter(t => richActs[t.key]) : [];
   const strategies = (obj.추천전략||'').split('\n').filter(s=>s.trim());
   const analysis   = (obj.전형분석||'').split(/\.(?:\s|\n)/).map(s=>s.trim()).filter(s=>s.length>2).map(s=>s+'.');
   const cautions   = (obj.주의사항||'').split('\n').filter(s=>s.trim());
@@ -3796,19 +3792,73 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   <!-- ③~⑦ 본문 섹션들 -->
   <div style="padding:14px 16px 6px;">
 
-    ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
+    ${ozenLine ? `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+      <div style="font-size:10px;color:#92400e;font-weight:800;margin-bottom:4px;letter-spacing:.5px;">💬 담임 한줄 요약</div>
+      <div style="font-size:13px;color:#78350f;font-weight:600;line-height:1.6;">${escapeHtml(ozenLine)}</div>
+    </div>` : ''}
+
+    ${SEC(usingTeacherEval?'✅':'✅', usingTeacherEval?'강점 (담임 평가)':'강점','#065f46','#f0fdf4','#bbf7d0',
       strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
     )}
 
-    ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
+    ${SEC('⚠️', usingTeacherEval?'보완점 (담임 평가)':'보완점','#92400e','#fffbeb','#fcd34d',
       weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
     )}
+    
+    ${actTypes.length ? SEC('🎯','맞춤 활동 추천 (담임 평가)','#7c2d12','#fff7ed','#fed7aa', `
+      <div style="font-size:11px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
+        담임 선생님이 학생 특성에 맞춰 추천하는 ${actTypes.length}가지 방향. 각 카드를 클릭하면 상세 내용이 펼쳐집니다.
+      </div>
+      ${actTypes.map((t,idx)=>{
+        const act = richActs[t.key];
+        const detailId = `act_${Math.random().toString(36).substr(2,8)}_${idx}`;
+        return `<div style="background:rgba(255,255,255,.9);border-radius:10px;margin-bottom:6px;border-left:4px solid ${t.color};overflow:hidden;">
+          <div onclick="document.getElementById('${detailId}').style.display=document.getElementById('${detailId}').style.display==='none'?'block':'none';this.querySelector('.act-arrow').textContent=document.getElementById('${detailId}').style.display==='none'?'▼':'▲';" 
+               style="padding:10px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;">
+            <div style="background:${t.bg};color:${t.color};padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;flex-shrink:0;min-width:60px;text-align:center;">${t.emoji} ${t.key}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:800;color:#1e293b;line-height:1.45;margin-bottom:3px;">${escapeHtml(act.제목||'')}</div>
+              <div style="font-size:10px;color:#64748b;line-height:1.4;">${escapeHtml(t.desc)}${act.태그?` · <span style="color:${t.color};font-weight:600;">${escapeHtml(act.태그)}</span>`:''}</div>
+            </div>
+            <span class="act-arrow" style="color:#94a3b8;font-size:11px;flex-shrink:0;margin-top:2px;">▼</span>
+          </div>
+          <div id="${detailId}" style="display:none;padding:0 14px 12px;border-top:1px dashed #e2e8f0;">
+            ${act.선정이유 ? `<div style="margin-top:10px;">
+              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">💡 선정 이유</div>
+              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.선정이유)}</div>
+            </div>` : ''}
+            ${act.기존활동연결 ? `<div style="margin-top:10px;">
+              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">🔗 기존 활동 연결</div>
+              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.기존활동연결)}</div>
+            </div>` : ''}
+            ${act.진로관련성 ? `<div style="margin-top:10px;">
+              <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">🎯 진로 관련성</div>
+              <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(act.진로관련성)}</div>
+            </div>` : ''}
+            ${Object.entries(act).filter(([k])=>!['제목','태그','선정이유','기존활동연결','진로관련성'].includes(k)).map(([k,v])=>{
+              if(typeof v !== 'string' || !v) return '';
+              return `<div style="margin-top:10px;">
+                <div style="font-size:10px;color:${t.color};font-weight:800;margin-bottom:3px;">📌 ${escapeHtml(k)}</div>
+                <div style="font-size:12px;color:#334155;line-height:1.65;">${escapeHtml(v)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    `) : ''}
 
     ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가 (담임 평가)','#6d28d9','#faf5ff','#ddd6fe',`
-      ${ceScore!=null ? `<div style="background:rgba(255,255,255,.8);border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:11px;color:#64748b;font-weight:700;">종합 점수</span>
-        <span style="font-size:18px;font-weight:900;color:#6d28d9;">${ceScore}점</span>
-        <span style="font-size:10px;color:#94a3b8;">(가중치 ${meta.univWeights?.학업||40}·${meta.univWeights?.진로||40}·${meta.univWeights?.공동체||20})</span>
+      ${(ceScore!=null || ceTotal) ? `<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        ${ceTotal ? `<div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:#64748b;font-weight:700;">종합등급</span>
+          <span style="background:#6d28d9;color:#fff;padding:3px 12px;border-radius:20px;font-size:14px;font-weight:900;letter-spacing:.5px;">${escapeHtml(String(ceTotal))}</span>
+        </div>` : ''}
+        ${ceScore!=null ? `<div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:#64748b;font-weight:700;">점수</span>
+          <span style="font-size:18px;font-weight:900;color:#6d28d9;">${ceScore}</span>
+          <span style="font-size:10px;color:#94a3b8;">/100</span>
+        </div>` : ''}
+        ${meta.univWeights ? `<div style="margin-left:auto;font-size:10px;color:#94a3b8;">가중치 ${meta.univWeights.학업||40}·${meta.univWeights.진로||40}·${meta.univWeights.공동체||20}</div>` : ''}
       </div>` : ''}
       ${ceItems.length ? `<div style="display:grid;grid-template-columns:repeat(${ceItems.length},1fr);gap:6px;margin-bottom:${ceOpinion?'8px':'0'};">
         ${ceItems.map(c=>`<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:8px 10px;text-align:center;">
