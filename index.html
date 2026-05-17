@@ -3374,10 +3374,10 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
     // 2순위: 전국 합불 데이터 추정 50컷
     const diff = gbCutoff.cut50 - stuAvg;
     if(diff >= 0)
-      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 전국표본) 대비 ${diff.toFixed(2)}등급 여유`);
+      strengths.push(`내신 ${stuAvg.toFixed(2)}등급으로 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 경북권표본) 대비 ${diff.toFixed(2)}등급 여유`);
   } else if(stuAvg && gbPassAvg && stuAvg <= parseFloat(gbPassAvg)){
-    // 3순위: 전국 합격자 평균
-    strengths.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 우위 (학생: ${stuAvg.toFixed(2)}등급)`);
+    // 3순위: 경북권 합격자 평균
+    strengths.push(`경북권 합격자 평균(${gbPassAvg}등급) 대비 내신 우위 (학생: ${stuAvg.toFixed(2)}등급)`);
   }
   // 비교과 핵심근거
   if(근거들.length) strengths.push(...근거들.slice(0,3));
@@ -3409,10 +3409,10 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
     // 2순위: 전국 합불 데이터 추정 50컷
     const diff = stuAvg - gbCutoff.cut50;
     if(diff > 0)
-      weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 전국표본)보다 ${diff.toFixed(2)}등급 부족`);
+      weaknesses.push(`내신 ${stuAvg.toFixed(2)}등급이 추정 50컷(${gbCutoff.cut50.toFixed(2)}, 경북권표본)보다 ${diff.toFixed(2)}등급 부족`);
   } else if(stuAvg && gbPassAvg && stuAvg > parseFloat(gbPassAvg)+0.3){
-    // 3순위: 전국 합격자 평균
-    weaknesses.push(`전국 합격자 평균(${gbPassAvg}등급) 대비 내신 부족 (학생: ${stuAvg.toFixed(2)}등급)`);
+    // 3순위: 경북권 합격자 평균
+    weaknesses.push(`경북권 합격자 평균(${gbPassAvg}등급) 대비 내신 부족 (학생: ${stuAvg.toFixed(2)}등급)`);
   }
   if(약점들.length) weaknesses.push(...약점들.slice(0,2));
  
@@ -3430,33 +3430,33 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
   // ─── 전형 분석 ───
   let typeAnalysis = '';
   const avg  = stuAvg ? stuAvg.toFixed(2) : '-';
-  const c50  = cutoff?.cut50 ? cutoff.cut50.toFixed(2) : (gbCutoff?.cut50 ? `~${gbCutoff.cut50.toFixed(2)}(전국추정)` : '-');
-  const c70  = cutoff?.cut70 ? cutoff.cut70.toFixed(2) : (gbCutoff?.cut70 ? `~${gbCutoff.cut70.toFixed(2)}(전국추정)` : '-');
+  const c50  = cutoff?.cut50 ? cutoff.cut50.toFixed(2) : (gbCutoff?.cut50 ? `~${gbCutoff.cut50.toFixed(2)}(경북권추정)` : '-');
+  const c70  = cutoff?.cut70 ? cutoff.cut70.toFixed(2) : (gbCutoff?.cut70 ? `~${gbCutoff.cut70.toFixed(2)}(경북권추정)` : '-');
 
   if(type === '교과'){
     typeAnalysis = `학생부교과전형 — 내신 ${avg}등급 기준. 50컷 ${c50}등급, 70컷 ${c70}등급.`;
     if(alumniResult.pass.length > 0)
       typeAnalysis += ` 우리학교 선배 합격 ${alumniResult.pass.length}건(합격 평균 ${alumniResult.passAvg?.toFixed(2)||'-'}등급), 불합격 ${alumniResult.fail.length}건.`;
     else if(gbTotal > 0)
-      typeAnalysis += ` 전국 ${gbTotal}건 데이터 기준 합격자(${gbPass.length}건) 등급 범위 ${gbPassMin}~${gbPassMax}.`;
+      typeAnalysis += ` 경북권 ${gbTotal}건 기준 합격자(${gbPass.length}건) 등급 범위 ${gbPassMin}~${gbPassMax}.`;
     else typeAnalysis += ' 우리학교 선배 이력 없음.';
   } else if(type === '종합'){
     const compG = compEval ? `종합역량 ${compScore}점(학업${compAg||'-'}/진로${compJg||'-'}/공동체${compCg||'-'})` : '종합역량 데이터 없음';
     const majG  = majorEntry ? `전공적합성 ${majorEntry[1]?.전공적합성||'-'}등급` : '비교과 미분석';
     typeAnalysis = `학생부종합전형 — 서류 중심 정성평가. ${compG}, ${majG}.`;
     if(gbTotal > 0)
-      typeAnalysis += ` 전국 ${gbTotal}건 기준 합격자(${gbPass.length}건) 평균내신 ${gbPassAvg||'-'}등급(범위 ${gbPassMin}~${gbPassMax}).`;
+      typeAnalysis += ` 경북권 ${gbTotal}건 기준 합격자(${gbPass.length}건) 평균내신 ${gbPassAvg||'-'}등급(범위 ${gbPassMin}~${gbPassMax}).`;
     if(alumniResult.total > 0)
       typeAnalysis += ` 우리학교 선배 ${alumniResult.total}건 지원(합격 ${alumniResult.pass.length}건).`;
     else typeAnalysis += ' 우리학교 선배 이력 없음 — 추가 조사 권장.';
   } else if(type === '논술'){
     typeAnalysis = `논술전형 — 논술 성적이 합격에 결정적(60~80% 반영). 내신 비중 낮음(20~30%).`;
     if(cutoff?.cut50) typeAnalysis += ` 내신 참고 커트 ${cutoff.cut50.toFixed(2)}등급.`;
-    if(gbTotal > 0) typeAnalysis += ` 전국 ${gbPass.length}건 합격자 내신 평균 ${gbPassAvg||'-'}등급.`;
+    if(gbTotal > 0) typeAnalysis += ` 경북권 ${gbPass.length}건 합격자 내신 평균 ${gbPassAvg||'-'}등급.`;
   } else {
     typeAnalysis = `${type}전형 — `;
     typeAnalysis += cutoff?.cut50 ? `50컷 ${c50}등급, 70컷 ${c70}등급.` : '입결 데이터 없음.';
-    if(gbTotal > 0) typeAnalysis += ` 전국 ${gbTotal}건 기준 합격자 평균 ${gbPassAvg||'-'}등급.`;
+    if(gbTotal > 0) typeAnalysis += ` 경북권 ${gbTotal}건 기준 합격자 평균 ${gbPassAvg||'-'}등급.`;
   }
 
   // ─── 추천 전략 ───
@@ -3480,15 +3480,15 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
     else if(diff < -1.0) strategy.push('내신 격차 과다 — 상향 소신 1장으로 활용, 중위권 안전 대학 복수 확보 필수');
   } else if(stuAvg && gbPassAvg){
     const diff = parseFloat(gbPassAvg) - stuAvg;
-    if(diff >= 0) strategy.push(`전국 합격자 평균(${gbPassAvg}) 대비 우위 — 적극 지원 검토 가능`);
-    else strategy.push(`전국 합격자 평균(${gbPassAvg}) 대비 내신 부족 — 전형 특성상 서류/논술로 보완 전략 수립`);
+    if(diff >= 0) strategy.push(`경북권 합격자 평균(${gbPassAvg}) 대비 우위 — 적극 지원 검토 가능`);
+    else strategy.push(`경북권 합격자 평균(${gbPassAvg}) 대비 내신 부족 — 전형 특성상 서류/논술로 보완 전략 수립`);
   }
 
   if(alumniResult.total >= 5)
     strategy.push(`우리학교 선배 ${alumniResult.total}명 지원 경험 — 담임 선생님께 구체 사례 상담 요청`);
 
   if(gbTotal >= 20)
-    strategy.push(`전국 ${gbTotal}건 합불 데이터 분석 — 합격자 내신 범위 ${gbPassMin}~${gbPassMax}등급 참고하여 목표 등급 설정`);
+    strategy.push(`경북권 ${gbTotal}건 합불 데이터 분석 — 합격자 내신 범위 ${gbPassMin}~${gbPassMax}등급 참고하여 목표 등급 설정`);
 
   // 세특 기반 전략
   if(sewtukOverall && (type==='종합'||type==='종합+교과')){
@@ -3502,8 +3502,8 @@ function buildComments({stuAvg, cutoff, gbCutoff, type,
   let cautionParts = [];
   if(suneungResult.status==='확인필요') cautionParts.push(suneungResult.reason);
   if(!cutoff && !gbCutoff) cautionParts.push(`${univ} ${dept} 입결 DB 미수록 — 학교 홈페이지 직접 확인 필요`);
-  else if(cutoff?.source==='gb') cautionParts.push('입결은 전국 합불 데이터 기반 추정치 — 공식 입결표와 비교 필요');
-  if(!alumniResult.total) cautionParts.push('우리학교 선배 합불 데이터 없음 — 본 분석은 전국 데이터 기반 참고용');
+  else if(cutoff?.source==='gb') cautionParts.push('입결은 경북권 지원 데이터 기반 추정치 — 공식 입결표와 비교 필요');
+  if(!alumniResult.total) cautionParts.push('우리학교 선배 합불 데이터 없음 — 본 분석은 경북권 지원 데이터 기반 참고용');
   cautionParts.push('이 분석은 저장된 데이터 기반 참고용이며, 실제 지원 전 담임 선생님과 최종 상담 필수');
   const caution = cautionParts.join('.\n');
 
@@ -3635,8 +3635,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   const uw = meta.univWeights||{학업:40,진로:40,공동체:20};
   const srcBadges = [
     meta.cutoff && meta.cutoff.source!=='gb' ? '📊 입결DB' : '',
-    meta.cutoff?.source==='gb'               ? '📊 전국추정' : '',
-    gbCount                                  ? `🗂 전국 ${gbCount}건` : '',
+    meta.cutoff?.source==='gb'               ? '📊 경북권추정' : '',
+    gbCount                                  ? `🗂 경북권 ${gbCount}건` : '',
     meta.alumniResult?.total                 ? `👥 선배 ${meta.alumniResult.total}명` : '',
     meta.majorScore!=null                    ? '🧬 비교과 반영' : '',
     uw.source                                ? `⚖ ${uw.학업}·${uw.진로}·${uw.공동체}` : '',
@@ -3652,7 +3652,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     } : null,
     majGrade ? { label:'전공적합성', icon:'🧬', val:`${majGrade}등급`, sub:'비교과 분석', color:majColor } : null,
     gbPassAvg
-      ? { label:'전국 합격자', icon:'📊', val:`${gbPassAvg}`, sub:`범위 ${gbPassMin}~${gbPassMax}`, color:'#0369a1' }
+      ? { label:'경북권 합격자', icon:'📊', val:`${gbPassAvg}`, sub:`범위 ${gbPassMin}~${gbPassMax}`, color:'#0369a1' }
       : (meta.alumniResult?.passAvg
           ? { label:'선배 합격 평균', icon:'👥', val:`${meta.alumniResult.passAvg.toFixed(2)}등급`, sub:`${meta.alumniResult.pass.length}명`, color:'#0369a1' }
           : null),
@@ -3718,7 +3718,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       else if(c70!=null && sAvg<=c70){ posText='50~70%컷 사이 (경계)'; posColor='#d97706'; }
       else { posText='70%컷 바깥 (도전)'; posColor='#dc2626'; }
     } else if(sAvg!=null && gbPassG.length>=5){
-      anchor='전국 합격분포';
+      anchor='경북권 합격분포';
       const below=gbPassG.filter(v=>v>=sAvg).length; // 내 등급보다 낮은(나쁜) 합격자 비율 ≈ 내 위치
       posPct=Math.round(100*below/gbPassG.length);
       if(posPct>=70){ posText='합격자 분포 상위권'; posColor='#059669'; }
@@ -3918,7 +3918,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${POS.c70!=null?`70컷 ${POS.c70.toFixed(2)}`:'합격선'}</div>
       </div>` : ''}
       ${POS.gbPassN>=3 ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
-        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">🗂 전국 합격자</div>
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">🗂 경북권 합격자</div>
         <div style="font-size:21px;font-weight:900;color:#0369a1;line-height:1.1;">${(POS.gbPassG.reduce((a,b)=>a+b,0)/POS.gbPassG.length).toFixed(2)}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">n=${POS.gbPassN} (${POS.gbPassG[0].toFixed(1)}~${POS.gbPassG[POS.gbPassG.length-1].toFixed(1)})</div>
       </div>` : ''}
@@ -4000,7 +4000,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>` : ''}
       
       ${(POS.reasonTop.length || bulTopReasons.length) ? `<div style="background:rgba(254,242,242,.5);border-radius:8px;padding:9px 12px;margin-bottom:8px;border-left:3px solid #fca5a5;">
-        <div style="font-size:11px;color:#7f1d1d;font-weight:700;margin-bottom:6px;">⚠️ 이 학과 불합격 사유 분포 ${POS.gbFailTot? `<span style="font-weight:600;color:#b91c1c;">(전국 불합격 ${POS.gbFailTot}건 기준)</span>`:''}</div>
+        <div style="font-size:11px;color:#7f1d1d;font-weight:700;margin-bottom:6px;">⚠️ 이 학과 불합격 사유 분포 ${POS.gbFailTot? `<span style="font-weight:600;color:#b91c1c;">(경북권 지원 불합격 ${POS.gbFailTot}건 기준)</span>`:''}</div>
+        ${POS.gbFailTot? `<div style="font-size:10px;color:#94a3b8;margin-bottom:6px;line-height:1.5;">※ 경북 지역 학생들의 지원 기록 기반입니다. 해당 대학 전체(전국) 입결이 아니라 경북권 수험생 모집단의 경향입니다.</div>`:''}
         ${POS.reasonTop.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:${bulTopReasons.length?'6px':'0'};">
           ${POS.reasonTop.map(([reason,cnt])=>{
             const pct=POS.gbFailTot?Math.round(100*cnt/POS.gbFailTot):0;
@@ -4075,7 +4076,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         <span style="font-size:11px;color:#94a3b8;">→ 같은 계열 다른 대학 또는 같은 대학 다른 학과 합격사례를 함께 검토해보세요.</span>
       </div>`), 10)}
 
-    ${SEC('🗺','전국·경북 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
+    ${SEC('🗺','경북권 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
       <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         내 내신 ${meta.stuAvg ? meta.stuAvg.toFixed(2) : '?'}등급과 가까운 합격 사례 ${gbCases.length}건
       </div>
@@ -4092,9 +4093,9 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         </div>`;
       }).join('')}
     ` : (meta.admPending ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:14px;font-size:12px;color:#64748b;line-height:1.6;text-align:center;">
-        <span class="apply-spinner" style="vertical-align:middle;"></span> 전국 합불 데이터를 조회하고 있습니다...
+        <span class="apply-spinner" style="vertical-align:middle;"></span> 경북권 지원 데이터를 조회하고 있습니다...
       </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
-        💡 전국 합불 데이터에서 유사 사례를 찾지 못했습니다.<br>
+        💡 경북권 지원 데이터에서 유사 사례를 찾지 못했습니다.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
       </div>`), 30)}
 
