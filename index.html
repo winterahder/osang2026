@@ -7658,6 +7658,47 @@ function renderMajorAdmissions() {
   }
 
   const myAvg = calcStudentAvg9(currentStu);
+
+  // ── 수능최저 매칭 헬퍼 (학과 카드용) ──
+  const _mockG = _getStudentMockGrades(String(currentStu?.hak||''));
+  const _snNorm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'')
+    .replace(/대학교$|대학$/,'').replace(/학과$|학부$|전공$|학전공$|계열$/,'');
+  function _suneungForCard(univ, dept, jeonhyeong){
+    if(!suneungMin || !suneungMin.length) return null;
+    const uN=_snNorm(univ), dN=_snNorm(dept);
+    const rows = suneungMin.filter(r=>{
+      const ru=_snNorm(r['대학']);
+      return ru.includes(uN)||uN.includes(ru);
+    });
+    if(!rows.length) return null;
+    const tg = /종합/.test(jeonhyeong)?'종합' : /교과/.test(jeonhyeong)?'교과' : /논술/.test(jeonhyeong)?'논술' : '';
+    const scored = rows.map(r=>{
+      let sc=0;
+      const rg=String(r['전형군']||'');
+      if(tg && rg===tg) sc+=4; else if(rg==='전체') sc+=1;
+      if(/일반/.test(r['전형명']||'')) sc+=1;
+      const blob=_snNorm((r['단과대학']||'')+(r['비고']||''));
+      if(dN && dN.length>=2 && (blob.includes(dN)||dN.includes(blob))) sc+=3;
+      return {r,sc};
+    }).sort((a,b)=>b.sc-a.sc);
+    const best=scored[0];
+    if(!best || best.sc<=0) return null;
+    const r=best.r;
+    if(String(r['최저적용'])==='없음') return { none:true };
+    const ev = _evalSuneungRule(r, _mockG);
+    // 간단 표기용: "N합 X" 형태 추출
+    const m=String(r['최저기준_설명']||'').match(/등급\s*합\s*(\d+)/);
+    const shortLabel = m ? ('합 '+m[1]) : (String(r['규칙_등급합']||'')? ('합 '+r['규칙_등급합']) : '기준확인');
+    return {
+      none:false,
+      label: shortLabel,
+      desc: r['최저기준_설명']||'',
+      judged: ev.judged,
+      pass: ev.pass,
+      mySum: ev.sum!=null ? ev.sum : null,
+      detail: ev.detail||''
+    };
+  }
   const is9native = isStudent9Grade(currentStu);
   const scaleNote = is9native ? '' : ' <span style="font-size:10px;color:#9333ea;font-weight:600;">(9등급 환산)</span>';
 
@@ -7785,6 +7826,25 @@ function renderMajorAdmissions() {
     const cut70 = r.cut70_2026 || r.cut70_2025 || r.cut70_2024;
     const cutYear = r.cut50_2026 ? '26년' : r.cut50_2025 ? '25년' : '24년';
 
+    // ── 수능최저 표시 ──
+    const sn = _suneungForCard(r['대학'], r['모집단위'], (r['전형']||'')+(r['세부전형명']||''));
+    let snHtml = '';
+    if(sn){
+      if(sn.none){
+        snHtml = '<div style="font-size:10px;color:#15803d;background:#f0fdf4;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:3px;font-weight:600;">최저 없음</div>';
+      } else if(sn.judged){
+        const ok = sn.pass;
+        const col = ok ? '#15803d' : '#dc2626';
+        const bg  = ok ? '#f0fdf4' : '#fef2f2';
+        const icon= ok ? '✓' : '⚠';
+        const myTxt = sn.mySum!=null ? (' · 내 ' + sn.mySum) : '';
+        snHtml = '<div style="font-size:10px;color:' + col + ';background:' + bg + ';padding:1px 6px;border-radius:4px;display:inline-block;margin-top:3px;font-weight:700;" title="' + escapeHtml(sn.desc) + '">'
+          + '최저 ' + escapeHtml(sn.label) + myTxt + ' ' + icon + (ok?' 충족':' 미달') + '</div>';
+      } else {
+        snHtml = '<div style="font-size:10px;color:#92400e;background:#fffbeb;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:3px;font-weight:600;" title="' + escapeHtml(sn.desc) + '">최저 ' + escapeHtml(sn.label) + ' (모의 확인)</div>';
+      }
+    }
+
     const admHtml = r.adm
       ? '<span onclick="showAdmissionsPopup(' + JSON.stringify(r['대학']) + ',' + JSON.stringify(r['모집단위']) + ')" style="font-size:10px;background:#f0fdf4;color:#15803d;padding:1px 6px;border-radius:4px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">🟢 우리학교 합격 ' + parseInt(r.adm['합격건수']||0) + '건 · ' + parseFloat(r.adm['합격평균등급']).toFixed(2) + '등급 ▾</span>'
       : '';
@@ -7804,6 +7864,7 @@ function renderMajorAdmissions() {
       + (cut50 ? '<div style="font-size:22px;font-weight:900;color:#1e293b;">' + cut50.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;font-weight:400;">' + cutYear + ' 50컷</span></div>' : (admAvg ? '<div style="font-size:15px;font-weight:700;color:#64748b;">' + admAvg.toFixed(2) + ' <span style="font-size:9px;color:#94a3b8;">합격평균</span></div>' : ''))
       + (cut70 ? '<div style="font-size:11px;color:#94a3b8;">70컷 ' + cut70.toFixed(2) + '</div>' : '')
       + (r['경쟁률'] ? '<div style="font-size:10px;color:#94a3b8;">경쟁률 ' + parseFloat(r['경쟁률']).toFixed(1) + '</div>' : '')
+      + snHtml
       + '</div>'
       + '</div>';
   }).join('');
