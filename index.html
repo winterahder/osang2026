@@ -3659,8 +3659,8 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   ].filter(Boolean);
 
   // 섹션 헬퍼 — 좌측 컬러 라인 + 배경 구분
-  const SEC = (emoji, title, titleColor, bgColor, borderColor, body) => `
-    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:11px;padding:13px 15px;margin-bottom:8px;">
+  const SEC = (emoji, title, titleColor, bgColor, borderColor, body, order) => `
+    <div style="order:${order||30};background:${bgColor};border:1px solid ${borderColor};border-radius:11px;padding:13px 15px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
         <span style="font-size:14px;line-height:1;">${emoji}</span>
         <span style="font-size:13px;font-weight:800;color:${titleColor};letter-spacing:.3px;">${title}</span>
@@ -3687,6 +3687,58 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     <div style="background:rgba(255,255,255,.65);border-radius:8px;padding:12px 14px;">
       ${lines.map(l=>`<div style="font-size:13px;color:${lineColor};line-height:1.85;padding:1px 0;">${escapeHtml(l)}</div>`).join('')}
     </div>`;
+
+  // ════════════════════════════════════════════════════════════
+  // 🆕 위계 기반 "분포 내 위치 + 갭 + 처방" 계산
+  //    신뢰도 위계: 입결컷 > 우리학교/경북 선배(admissions_all) > 외부사례집 > 클로드점수
+  // ════════════════════════════════════════════════════════════
+  const POS = (()=>{
+    const sAvg = meta.stuAvg;
+    const c50 = meta.cutoff?.cut50 ?? null;
+    const c70 = meta.cutoff?.cut70 ?? null;
+    // admissions_all(gb) = 전국+경북 방대 데이터 (불합사유 포함)
+    const gbAll = meta.admCases?.gb || [];
+    const gbPassG = gbAll.filter(r=>{const v=String(r.최종결과||'');return v.includes('합격')||v.includes('충원');})
+      .map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0).sort((a,b)=>a-b);
+    const gbFailRows = gbAll.filter(r=>String(r.최종결과||'').includes('불합'));
+    const gbFailG = gbFailRows.map(r=>parseFloat(r.환산등급)).filter(v=>!isNaN(v)&&v>0);
+    // 불합사유 분포 (전국 — 표본 큼)
+    const reasonCnt = {};
+    gbFailRows.forEach(r=>{ const x=String(r.불합사유||'').trim(); if(x) reasonCnt[x]=(reasonCnt[x]||0)+1; });
+    const reasonTop = Object.entries(reasonCnt).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    const gbFailTot = gbFailRows.length;
+
+    // 위치 판정 (입결컷 우선, 없으면 전국 합격분포)
+    let posText='', posColor='#64748b', posPct=null, anchor='';
+    if(sAvg!=null && c50!=null){
+      const d50=(c50-sAvg);
+      anchor='입결컷';
+      if(d50>=0.3){ posText='합격자 상위권 위치'; posColor='#059669'; }
+      else if(d50>=0){ posText='합격선 50%컷 안쪽'; posColor='#0891b2'; }
+      else if(c70!=null && sAvg<=c70){ posText='50~70%컷 사이 (경계)'; posColor='#d97706'; }
+      else { posText='70%컷 바깥 (도전)'; posColor='#dc2626'; }
+    } else if(sAvg!=null && gbPassG.length>=5){
+      anchor='전국 합격분포';
+      const below=gbPassG.filter(v=>v>=sAvg).length; // 내 등급보다 낮은(나쁜) 합격자 비율 ≈ 내 위치
+      posPct=Math.round(100*below/gbPassG.length);
+      if(posPct>=70){ posText='합격자 분포 상위권'; posColor='#059669'; }
+      else if(posPct>=40){ posText='합격자 분포 중위권'; posColor='#0891b2'; }
+      else if(posPct>=15){ posText='합격자 분포 하위권'; posColor='#d97706'; }
+      else { posText='합격자 분포 밖 (도전)'; posColor='#dc2626'; }
+    }
+
+    // 갭 계산 (목표=50%컷, 없으면 합격자 중앙값)
+    let gapText=null, gapVal=null;
+    const target = c50 ?? (gbPassG.length? gbPassG[Math.floor(gbPassG.length*0.5)] : null);
+    if(sAvg!=null && target!=null){
+      gapVal=+(sAvg-target).toFixed(2);
+      if(gapVal<=0) gapText=`내신은 합격선 충족 (목표 ${target.toFixed(2)} / 내 ${sAvg.toFixed(2)})`;
+      else gapText=`내신 ${gapVal.toFixed(2)}등급 부족 (목표 ${target.toFixed(2)} / 내 ${sAvg.toFixed(2)})`;
+    }
+    return { sAvg, c50, c70, gbPassG, gbFailG, gbFailTot, reasonTop,
+             posText, posColor, posPct, anchor, gapText, gapVal, target,
+             gbPassN: gbPassG.length };
+  })();
 
   // 🆕 우리 학교 학생들의 합불 자료 (admissions 시트 우선, alumni 시트 fallback)
   // admissions 시트 키: 학번, 이름, 연도, 대학명, 모집단위, 전형유형, 세부유형,
@@ -3846,41 +3898,52 @@ function buildApplyCardHTML(obj, dateStr, isNew){
     ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
   </div>
 
-  <!-- ② 점수 히어로: 게이지 + 등급/한줄평 + 핵심지표 한 라인 -->
+  <!-- ② 위치 히어로: 입결컷·전국분포 대비 내 위치 + 갭 (클로드 점수 아님) -->
   <div style="background:${t.bg};border-bottom:1.5px solid ${t.border};padding:16px 18px;">
-    <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
-      ${gauge}
-      <div style="min-width:170px;max-width:340px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
-          <span style="background:${t.tagBg};color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:800;">${dispGrade(grade)} 등급</span>
-          <span style="font-size:15px;font-weight:800;color:${t.c};">${gradeLabel}</span>
-        </div>
-        <div style="font-size:13px;color:#64748b;line-height:1.55;">${escapeHtml(obj.한줄평||'')}</div>
+    ${POS.posText ? `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="background:#fff;border:2px solid ${POS.posColor};border-radius:12px;padding:12px 20px;text-align:center;min-width:200px;flex:1;">
+        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:4px;">📍 ${escapeHtml(POS.anchor)} 기준 내 위치</div>
+        <div style="font-size:19px;font-weight:900;color:${POS.posColor};line-height:1.2;">${escapeHtml(POS.posText)}</div>
+        ${POS.posPct!=null ? `<div style="font-size:11px;color:#64748b;margin-top:3px;">합격자 분포 상위 약 ${100-POS.posPct}% 지점</div>` : ''}
       </div>
-      <!-- 핵심 지표: 등급/한줄평 바로 옆 같은 라인 -->
-      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:9px 18px;text-align:center;min-width:110px;">
+      ${meta.stuAvg!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
         <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📌 내 평균등급</div>
-        <div style="font-size:20px;font-weight:900;color:${t.c};line-height:1.1;">${meta.stuAvg.toFixed(2)}</div>
+        <div style="font-size:21px;font-weight:900;color:#1e293b;line-height:1.1;">${meta.stuAvg.toFixed(2)}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전과목 환산</div>
       </div>` : ''}
-      ${metricItems.map(m=>`
-      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 18px;text-align:center;min-width:110px;">
-        <div style="font-size:10.5px;color:#94a3b8;font-weight:600;margin-bottom:3px;">${m.icon} ${m.label}</div>
-        <div style="font-size:20px;font-weight:900;color:${m.color};line-height:1.1;">${m.val}</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${m.sub}</div>
-      </div>`).join('')}
+      ${POS.c50!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📊 입결 50%컷</div>
+        <div style="font-size:21px;font-weight:900;color:#0369a1;line-height:1.1;">${POS.c50.toFixed(2)}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${POS.c70!=null?`70컷 ${POS.c70.toFixed(2)}`:'합격선'}</div>
+      </div>` : ''}
+      ${POS.gbPassN>=3 ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">🗂 전국 합격자</div>
+        <div style="font-size:21px;font-weight:900;color:#0369a1;line-height:1.1;">${(POS.gbPassG.reduce((a,b)=>a+b,0)/POS.gbPassG.length).toFixed(2)}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">n=${POS.gbPassN} (${POS.gbPassG[0].toFixed(1)}~${POS.gbPassG[POS.gbPassG.length-1].toFixed(1)})</div>
+      </div>` : ''}
     </div>
+    ${POS.gapText ? `<div style="background:${POS.gapVal>0?'#fffbeb':'#ecfdf5'};border:1px solid ${POS.gapVal>0?'#fcd34d':'#6ee7b7'};border-radius:9px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:15px;">${POS.gapVal>0?'📈':'✅'}</span>
+      <span style="font-size:13px;font-weight:700;color:${POS.gapVal>0?'#92400e':'#065f46'};">${escapeHtml(POS.gapText)}</span>
+    </div>` : ''}
+    ` : `<div style="background:#fff;border:1px solid ${t.border};border-radius:10px;padding:14px;text-align:center;color:#94a3b8;font-size:13px;">
+      이 대학·학과·전형의 입결컷·합불 데이터가 부족해 위치를 산출할 수 없습니다. 아래 사례를 참고하세요.
+    </div>`}
   </div>
 
-  <!-- 본문 섹션들 -->
-  <div style="padding:12px 14px 4px;">
+  <!-- 본문 섹션들 (위계 order: 선배/입결=10~20, 처방=25, 합격사례=40, 종합역량=60) -->
+  <div style="padding:12px 14px 4px;display:flex;flex-direction:column;">
 
-    ${ozenLine ? `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+    ${ozenLine ? `<div style="order:5;background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
       <div style="font-size:11px;color:#92400e;font-weight:800;margin-bottom:5px;letter-spacing:.5px;">💬 한줄 요약</div>
       <div style="font-size:13px;color:#78350f;font-weight:600;line-height:1.6;">${escapeHtml(ozenLine)}</div>
     </div>` : ''}
 
-    ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가','#6d28d9','#faf5ff','#ddd6fe',`
+    ${ceItems.length || ceOpinion ? SEC('📊','종합역량평가 <span style="font-size:10px;font-weight:600;color:#a78bfa;">(보조 참고 — 합불 예측 아님)</span>','#6d28d9','#faf5ff','#ddd6fe',`
+      <div style="background:rgba(167,139,250,.12);border-radius:7px;padding:7px 11px;margin-bottom:8px;font-size:11px;color:#6d28d9;line-height:1.55;">
+        ℹ️ 이 평가는 생기부 기반 <b>역량 진단</b>입니다. 합·불은 위의 입결컷·선배 사례로 판단하고, 이 점수는 강점·보완 방향 참고용으로만 보세요.
+      </div>
       ${(ceScore!=null || ceTotal) ? `<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
         ${ceTotal ? `<div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;color:#64748b;font-weight:700;">종합등급</span>
@@ -3902,7 +3965,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       ${ceOpinion ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:10px 13px;font-size:13px;color:#1e293b;line-height:1.7;">
         ${ceOpinion.includes('<b>') ? ceOpinion : escapeHtml(ceOpinion.substring(0,400))+(ceOpinion.length>400?'...':'')}
       </div>` : ''}
-    `) : ''}
+    `, 60) : ''}
 
     ${SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd', (alumniPass.length || alumniFail.length) ? `
       <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
@@ -3936,11 +3999,19 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         </div>
       </div>` : ''}
       
-      ${bulTopReasons.length ? `<div style="background:rgba(254,242,242,.5);border-radius:8px;padding:8px 11px;margin-bottom:8px;border-left:3px solid #fca5a5;">
-        <div style="font-size:11px;color:#7f1d1d;font-weight:700;margin-bottom:5px;">⚠️ 주요 불합사유</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${bulTopReasons.map(([reason,cnt])=>`<span style="font-size:11px;background:#fee2e2;color:#7f1d1d;padding:2px 8px;border-radius:10px;font-weight:600;">${escapeHtml(reason)} <b>${cnt}건</b></span>`).join('')}
-        </div>
+      ${(POS.reasonTop.length || bulTopReasons.length) ? `<div style="background:rgba(254,242,242,.5);border-radius:8px;padding:9px 12px;margin-bottom:8px;border-left:3px solid #fca5a5;">
+        <div style="font-size:11px;color:#7f1d1d;font-weight:700;margin-bottom:6px;">⚠️ 이 학과 불합격 사유 분포 ${POS.gbFailTot? `<span style="font-weight:600;color:#b91c1c;">(전국 불합격 ${POS.gbFailTot}건 기준)</span>`:''}</div>
+        ${POS.reasonTop.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:${bulTopReasons.length?'6px':'0'};">
+          ${POS.reasonTop.map(([reason,cnt])=>{
+            const pct=POS.gbFailTot?Math.round(100*cnt/POS.gbFailTot):0;
+            const hot=/최저|수능/.test(reason);
+            return `<span style="font-size:11px;background:${hot?'#fef08a':'#fee2e2'};color:#7f1d1d;padding:3px 9px;border-radius:10px;font-weight:700;">${escapeHtml(reason)} <b>${cnt}건 (${pct}%)</b></span>`;
+          }).join('')}
+        </div>` : ''}
+        ${(()=>{ const hot=POS.reasonTop.find(([r])=>/최저|수능/.test(r)); 
+          return hot && POS.gbFailTot && (hot[1]/POS.gbFailTot)>=0.25
+          ? `<div style="font-size:11px;color:#92400e;background:#fffbeb;border-radius:6px;padding:6px 9px;margin-top:4px;">💡 이 학과 불합격의 상당수가 <b>수능최저 미충족</b>입니다. 내신·생기부보다 <b>수능최저 충족 가능성</b>을 먼저 확인하세요.</div>` : ''; })()}
+        ${bulTopReasons.length ? `<div style="font-size:10px;color:#94a3b8;margin-top:5px;">우리 학교 선배 기준: ${bulTopReasons.map(([r,c])=>escapeHtml(r)+' '+c).join(' · ')}</div>` : ''}
       </div>` : ''}
       ${alumniPass.length ? `<div style="margin-bottom:${alumniFail.length?'8px':'0'};">
         ${alumniPass.map(r=>{
@@ -4002,9 +4073,9 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 우리 학교(오상고) 선배 중 이 대학·학과에 지원한 이력이 <b>없습니다</b>.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 같은 계열 다른 대학 또는 같은 대학 다른 학과 합격사례를 함께 검토해보세요.</span>
-      </div>`))}
+      </div>`), 10)}
 
-    ${SEC('🗺','전국 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
+    ${SEC('🗺','전국·경북 유사 합격 사례','#5b21b6','#faf5ff','#ddd6fe', gbCases.length ? `
       <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
         내 내신 ${meta.stuAvg ? meta.stuAvg.toFixed(2) : '?'}등급과 가까운 합격 사례 ${gbCases.length}건
       </div>
@@ -4025,15 +4096,13 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 전국 합불 데이터에서 유사 사례를 찾지 못했습니다.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
-      </div>`))}
+      </div>`), 30)}
 
     ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
-      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>'
-    )}
+      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>', 25)}
 
     ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
-      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>'
-    )}
+      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>', 26)}
     
     ${actTypes.length ? SEC('🎯','맞춤 활동 추천','#7c2d12','#fff7ed','#fed7aa', `
       <div style="font-size:12px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
@@ -4075,7 +4144,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
           </div>
         </div>`;
       }).join('')}
-    `) : ''}
+    `, 45) : ''}
 
     ${yearData.length >= 1 ? SEC('📈','컷오프 추이','#0c4a6e','#f0f9ff','#bae6fd',`
       <table style="width:100%;border-collapse:collapse;font-size:12px;background:rgba(255,255,255,.85);border-radius:8px;overflow:hidden;">
@@ -4111,13 +4180,13 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         const trendColor = trend>0.1 ? '#dc2626' : trend<-0.1 ? '#059669' : '#64748b';
         return `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.7);border-radius:7px;font-size:11.5px;color:${trendColor};font-weight:600;line-height:1.5;">${trendText}</div>`;
       })()}
-    `) : ''}
+    `, 15) : ''}
 
     ${(()=>{
-      // 🆕 학종 합격사례 벤치마크 (종합역량평가 탭과 동일 — 학생 진로 기반)
+      // 🆕 학종 합격사례 벤치마크 (위계 order:40 — 선배·입결 다음, 종합역량 위)
       try {
         const sc = renderSuccessCasesSection();
-        return sc ? `<div style="margin-bottom:10px;">${sc}</div>` : '';
+        return sc ? `<div style="order:40;margin-bottom:10px;">${sc}</div>` : '';
       } catch(e){ return ''; }
     })()}
 
