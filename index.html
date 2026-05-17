@@ -3199,17 +3199,15 @@ function checkSuneung(univ, dept, type, grade, subType){
     if(sh.length<3) return false;
     return lo.includes(sh);
   };
-
+ 
   // ── ① suneung_min 우선 (단과대·전형별 정밀 기준) ──
   if(suneungMin && suneungMin.length){
     const rows = suneungMin.filter(r=> univMatch(r['대학']));
     if(rows.length){
-      // 전형군 매핑: type(종합/교과/논술) → 전형군
       const tg = type==='종합'||type==='종합+교과' ? '종합'
                : type==='교과' ? '교과'
                : type==='논술' ? '논술'
                : type;
-      // 학과/단과대 매칭은 비고·단과대 텍스트에 학과 키워드 포함 여부로 보조 (불완전 시 전형군만)
       const dN = norm(dept);
       const scored = rows.map(r=>{
         let sc=0;
@@ -3217,11 +3215,8 @@ function checkSuneung(univ, dept, type, grade, subType){
         if(rg===tg) sc+=4;
         else if(rg==='전체') sc+=1;
         const rname=norm(r['전형명']);
-        // subType/전형명 근접
         if(subType){ const st=norm(subType); if(st&&(rname.includes(st)||st.includes(rname))) sc+=3; }
-        // 일반학생 전형 기본 가중
         if(rg===tg && /일반/.test(r['전형명']||'') ) sc+=1;
-        // 단과대/비고에 학과 키워드
         const blob=norm((r['단과대학']||'')+(r['비고']||''));
         if(dN && dN.length>=2 && (blob.includes(dN)||dN.includes(blob))) sc+=2;
         return {r, sc};
@@ -3229,11 +3224,57 @@ function checkSuneung(univ, dept, type, grade, subType){
       const best = scored[0];
       if(best && best.sc>0){
         const r=best.r;
+        const mg = _getStudentMockGrades(String(currentStu?.hak||''));
+ 
+        // ★★★ B안 추가 블록: OR그룹 처리 ★★★
+        // best 행이 '규칙_OR그룹' 값을 가지면, 같은 그룹의 모든 행을 모아
+        // 하나라도 충족이면 '충족예상'으로 반환(둘 중 택1 = OR).
+        const orKey = String(r['규칙_OR그룹']||'').trim();
+        if(orKey){
+          // 같은 OR그룹 행 전체 (univMatch로 이미 좁혀진 rows 안에서)
+          const groupRows = rows.filter(x=> String(x['규칙_OR그룹']||'').trim() === orKey);
+          const evals = groupRows.map(gr=>({
+            gr,
+            desc: gr['최저기준_설명']||'',
+            ev: _evalSuneungRule(gr, mg)
+          }));
+          const judged = evals.filter(e=> e.ev.judged);
+          if(judged.length){
+            const passed = judged.find(e=> e.ev.pass);
+            if(passed){
+              // 하나라도 충족 → 충족 (어느 경로로 충족인지 함께 표기)
+              const others = judged.filter(e=> e!==passed && !e.ev.pass);
+              return {
+                status:'충족예상',
+                reason:`수능최저 충족 예상 (둘 중 하나 충족) — ${escapeHtml(passed.desc)} / 내 모의: ${escapeHtml(passed.ev.detail)}`,
+                source:'suneung_min', desc:passed.desc, detail:passed.ev.detail
+              };
+            }
+            // 판정된 경로가 있지만 전부 미달 → 미충족위험 (가장 근접한 경로 안내)
+            const near = judged.slice().sort((a,b)=>{
+              const da = (a.ev.sum!=null && a.ev.need!=null) ? (a.ev.sum-a.ev.need) : 99;
+              const db = (b.ev.sum!=null && b.ev.need!=null) ? (b.ev.sum-b.ev.need) : 99;
+              return da-db;
+            })[0];
+            return {
+              status:'미충족위험',
+              reason:`⚠️ 수능최저 미충족 위험 (인문·자연 두 경로 모두 미달) — ${escapeHtml(near.desc)} / 내 모의: ${escapeHtml(near.ev.detail)}`,
+              source:'suneung_min', desc:near.desc, detail:near.ev.detail
+            };
+          }
+          // 그룹 내 어떤 경로도 자동판정 불가 → 확인필요 (대표 설명 노출)
+          return {
+            status:'확인필요',
+            reason:`수능최저 기준(인문 또는 자연 중 택1): ${escapeHtml(groupRows[0]['최저기준_설명']||'')} 등 — 모의고사 등급 확인 필요`,
+            source:'suneung_min', desc:groupRows[0]['최저기준_설명']||''
+          };
+        }
+        // ★★★ OR그룹 블록 끝 — 이 아래는 기존 코드 그대로 ★★★
+ 
         if(String(r['최저적용'])==='없음'){
           return { status:'해당없음', reason:'수능최저 없음 (서류/면접 100%)', source:'suneung_min' };
         }
         const desc = r['최저기준_설명']||'';
-        const mg = _getStudentMockGrades(String(currentStu?.hak||''));
         const ev = _evalSuneungRule(r, mg);
         if(ev.judged){
           return {
@@ -3248,7 +3289,7 @@ function checkSuneung(univ, dept, type, grade, subType){
       }
     }
   }
-
+ 
   // ── ② fallback: 기존 kb_univ 방식 ──
   const kbEntry = kbUniv.find(r=>{
     const u = norm(r['대학명']||'');
