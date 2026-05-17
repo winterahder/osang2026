@@ -3024,6 +3024,8 @@ async function computeApplyResult(hak, univ, dept, type, note, subType='', skipA
     한줄평: score.summary,
     수능최저충족: suneungResult.status,
     수능최저근거: suneungResult.reason,
+    수능최저조건: suneungResult.desc || '',
+    수능최저내점수: suneungResult.detail || '',
     강점: comments.strengths,
     보완점: comments.weaknesses,
     전형분석: comments.typeAnalysis,
@@ -4064,6 +4066,16 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>
     </div>
     ${srcBadges ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${srcBadges}</div>` : ''}
+    ${(obj.수능최저충족==='충족예상'||obj.수능최저충족==='미충족위험'||obj.수능최저충족==='확인필요') && obj.수능최저조건 ? `
+    <div style="margin-top:10px;background:${obj.수능최저충족==='충족예상'?'#f0fdf4':obj.수능최저충족==='미충족위험'?'#fef2f2':'#fffbeb'};border:1px solid ${obj.수능최저충족==='충족예상'?'#bbf7d0':obj.수능최저충족==='미충족위험'?'#fecaca':'#fde68a'};border-radius:9px;padding:10px 13px;">
+      <div style="font-size:11px;font-weight:800;color:${obj.수능최저충족==='충족예상'?'#15803d':obj.수능최저충족==='미충족위험'?'#b91c1c':'#92400e'};margin-bottom:5px;">
+        ${obj.수능최저충족==='충족예상'?'✓ 수능최저 충족 예상':obj.수능최저충족==='미충족위험'?'⚠ 수능최저 미충족 위험':'⚠ 수능최저 확인 필요'}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:12px;color:#475569;"><span style="color:#94a3b8;font-weight:700;">기준</span> &nbsp;${escapeHtml(obj.수능최저조건)}</div>
+        ${obj.수능최저내점수 ? `<div style="font-size:13px;color:#0f172a;font-weight:700;"><span style="color:#94a3b8;font-weight:700;font-size:12px;">내 모의고사</span> &nbsp;${escapeHtml(obj.수능최저내점수)}</div>` : `<div style="font-size:11px;color:#92400e;">모의고사 등급 데이터가 부족해 자동 계산이 어렵습니다. 모의고사 탭에서 성적을 확인하세요.</div>`}
+      </div>
+    </div>` : ''}
   </div>
 
   <!-- ② 위치 히어로: 입결컷·전국분포 대비 내 위치 + 갭 (클로드 점수 아님) -->
@@ -7686,9 +7698,26 @@ function renderMajorAdmissions() {
     const r=best.r;
     if(String(r['최저적용'])==='없음') return { none:true };
     const ev = _evalSuneungRule(r, _mockG);
-    // 간단 표기용: "N합 X" 형태 추출
+    // "N개 합 X" 형태 — 영역 개수 명시
     const m=String(r['최저기준_설명']||'').match(/등급\s*합\s*(\d+)/);
-    const shortLabel = m ? ('합 '+m[1]) : (String(r['규칙_등급합']||'')? ('합 '+r['규칙_등급합']) : '기준확인');
+    const gsum = m ? m[1] : String(r['규칙_등급합']||'');
+    let topN = String(r['규칙_상위N']||'').trim();
+    const must = String(r['규칙_필수']||'').trim();
+    let cntTxt = '';
+    if(gsum){
+      if(/^\d+$/.test(topN)){
+        let n = parseInt(topN);
+        if(must) n += 1;  // 필수과목(수학 등) 포함 시 +1
+        cntTxt = n + '개 ';
+      } else if(topN==='all'){
+        const poolN = String(r['규칙_풀과목']||'').split(',').filter(Boolean).length;
+        if(poolN) cntTxt = poolN + '개 ';
+      }
+    }
+    const single = String(r['규칙_단일등급']||'').trim();
+    const shortLabel = single
+      ? ('상위1개 ' + single + '등급')
+      : (gsum ? (cntTxt + '합 ' + gsum) : '기준확인');
     return {
       none:false,
       label: shortLabel,
