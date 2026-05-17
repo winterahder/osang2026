@@ -3359,10 +3359,11 @@ function getSubTypeProfile(subType){
     } else if(is종합){
       if(diff >= 0.5)       score += Math.round(18 * 내신가중);
       else if(diff >= 0)    score += Math.round(10 * 내신가중);
-      else if(diff >= -0.5) score -= Math.round(5  * 내신가중);
-      else if(diff >= -1.0) score -= Math.round(10 * 내신가중);
-      else if(diff >= -1.5) score -= Math.round(15 * 내신가중);
-      else                  score -= Math.round(20 * 내신가중);
+      else if(diff >= -0.3) score -= Math.round(8  * 내신가중);
+      else if(diff >= -0.5) score -= Math.round(14 * 내신가중);
+      else if(diff >= -1.0) score -= Math.round(24 * 내신가중);
+      else if(diff >= -1.5) score -= Math.round(32 * 내신가중);
+      else                  score -= Math.round(40 * 내신가중);
 
     } else if(is논술){
       // 논술: 내신 영향 매우 작음 (±10점)
@@ -3439,6 +3440,22 @@ function getSubTypeProfile(subType){
   if(suneungResult?.status === '확인필요') score -= 5;
 
   score = Math.max(5, Math.min(95, Math.round(score)));
+
+  // ── 입결컷 상한선: 70%컷 바깥이면 비교과·종합역량이 높아도 '상' 불가 ──
+  // (입결컷은 합불의 1차 관문 — 약한 신호인 클로드 점수가 덮지 못하게)
+  let cutoffCap = null; // 점수 상한 (이 값 초과 불가)
+  if(stuAvg){
+    const c50 = cutoff?.cut50, c70 = cutoff?.cut70;
+    if(c70 != null){
+      if(stuAvg > c70 + 0.5)      cutoffCap = 43; // 70%컷보다 0.5등급+ 미달 → '하'권
+      else if(stuAvg > c70)       cutoffCap = 58; // 70%컷 바깥 → 최대 '중'
+    } else if(c50 != null){
+      // 70컷 없으면 50컷 기준 보수 적용
+      if(stuAvg > c50 + 0.8)      cutoffCap = 43;
+      else if(stuAvg > c50 + 0.5) cutoffCap = 58;
+    }
+  }
+  if(cutoffCap != null && score > cutoffCap) score = cutoffCap;
 
   // 등급 기준 (전형별로 다르게)
   let 상기준 = 68, 중기준 = 44;
