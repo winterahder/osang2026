@@ -4039,15 +4039,17 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         <div style="font-size:21px;font-weight:900;color:#1e293b;line-height:1.1;">${meta.stuAvg.toFixed(2)}</div>
         <div style="font-size:10px;color:#94a3b8;margin-top:2px;">전과목 환산</div>
       </div>` : ''}
-      ${POS.c50!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
-        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📊 입결 50%컷</div>
-        <div style="font-size:21px;font-weight:900;color:#0369a1;line-height:1.1;">${POS.c50.toFixed(2)}</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${POS.c70!=null?`70컷 ${POS.c70.toFixed(2)}`:'합격선'}</div>
+      ${POS.c50!=null ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:120px;">
+        <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">📊 입결 합격선</div>
+        <div style="font-size:24px;font-weight:900;color:#0369a1;line-height:1.05;">${POS.c50.toFixed(2)}</div>
+        <div style="font-size:9.5px;color:#94a3b8;font-weight:600;margin-top:0px;">50%컷</div>
+        ${POS.c70!=null?`<div style="font-size:12px;color:#64748b;font-weight:700;margin-top:4px;border-top:1px dashed #e2e8f0;padding-top:4px;">70%컷 ${POS.c70.toFixed(2)}</div>`:''}
       </div>` : ''}
-      ${POS.gbPassN>=3 ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:108px;">
+      ${POS.gbPassN>=3 ? `<div style="background:#fff;border:1.5px solid ${t.border};border-radius:10px;padding:10px 18px;text-align:center;min-width:120px;">
         <div style="font-size:10.5px;color:#94a3b8;font-weight:700;margin-bottom:3px;">🗂 경북권 합격자</div>
         <div style="font-size:21px;font-weight:900;color:#0369a1;line-height:1.1;">${(POS.gbPassG.reduce((a,b)=>a+b,0)/POS.gbPassG.length).toFixed(2)}</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">n=${POS.gbPassN} (${POS.gbPassG[0].toFixed(1)}~${POS.gbPassG[POS.gbPassG.length-1].toFixed(1)})</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">평균 · n=${POS.gbPassN}</div>
+        <div style="font-size:9.5px;color:#94a3b8;margin-top:2px;border-top:1px dashed #e2e8f0;padding-top:3px;">범위 ${POS.gbPassG[0].toFixed(1)}~${POS.gbPassG[POS.gbPassG.length-1].toFixed(1)}${POS.c50!=null?` · 입결50% ${POS.c50.toFixed(2)}`:''}</div>
       </div>` : ''}
     </div>
     ${POS.gapText ? `<div style="background:${POS.gapVal>0?'#fffbeb':'#ecfdf5'};border:1px solid ${POS.gapVal>0?'#fcd34d':'#6ee7b7'};border-radius:9px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
@@ -4062,7 +4064,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   <!-- 본문 섹션들 (위계 order: 선배/입결=10~20, 처방=25, 합격사례=40, 종합역량=60) -->
   <div style="padding:12px 14px 4px;display:flex;flex-direction:column;">
 
-    ${ozenLine ? `<div style="order:5;background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+    ${ozenLine ? `<div style="order:35;background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
       <div style="font-size:11px;color:#92400e;font-weight:800;margin-bottom:5px;letter-spacing:.5px;">💬 한줄 요약</div>
       <div style="font-size:13px;color:#78350f;font-weight:600;line-height:1.6;">${escapeHtml(ozenLine)}</div>
     </div>` : ''}
@@ -4092,7 +4094,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       ${ceOpinion ? `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:10px 13px;font-size:13px;color:#1e293b;line-height:1.7;">
         ${ceOpinion.includes('<b>') ? ceOpinion : escapeHtml(ceOpinion.substring(0,400))+(ceOpinion.length>400?'...':'')}
       </div>` : ''}
-    `, 60) : ''}
+    `, 30) : ''}
 
     ${SEC('👥','우리 학교 선배 사례','#0c4a6e','#f0f9ff','#bae6fd', (alumniPass.length || alumniFail.length) ? `
       <div style="font-size:12.5px;color:#475569;margin-bottom:8px;line-height:1.5;">
@@ -4224,13 +4226,13 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       </div>` : `<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.7;">
         💡 경북권 지원 데이터에서 유사 사례를 찾지 못했습니다.<br>
         <span style="font-size:11px;color:#94a3b8;">→ 합격자 평균 내신 정보는 위 점수 카드의 메타 지표를 참고하세요.</span>
-      </div>`), 30)}
+      </div>`), 20)}
 
     ${SEC('✅','강점','#065f46','#f0fdf4','#bbf7d0',
-      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>', 25)}
+      strengths.length ? BULLETS(strengths,'#10b981') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">분석 데이터 없음</div>', 40)}
 
     ${SEC('⚠️','보완점','#92400e','#fffbeb','#fcd34d',
-      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>', 26)}
+      weaknesses.length ? BULLETS(weaknesses,'#f59e0b') : '<div style="color:#94a3b8;font-size:13px;padding:4px 0;">주요 보완점 없음</div>', 42)}
     
     ${actTypes.length ? SEC('🎯','맞춤 활동 추천','#7c2d12','#fff7ed','#fed7aa', `
       <div style="font-size:12px;color:#9a3412;margin-bottom:10px;line-height:1.5;">
@@ -4308,14 +4310,11 @@ function buildApplyCardHTML(obj, dateStr, isNew){
         const trendColor = trend>0.1 ? '#dc2626' : trend<-0.1 ? '#059669' : '#64748b';
         return `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.7);border-radius:7px;font-size:11.5px;color:${trendColor};font-weight:600;line-height:1.5;">${trendText}</div>`;
       })()}
-    `, 15) : ''}
+    `, 46) : ''}
 
     ${(()=>{
-      // 🆕 학종 합격사례 벤치마크 (위계 order:40 — 선배·입결 다음, 종합역량 위)
-      try {
-        const sc = renderSuccessCasesSection();
-        return sc ? `<div style="order:40;margin-bottom:10px;">${sc}</div>` : '';
-      } catch(e){ return ''; }
+      // 학종 합격사례 벤치마크: 모의지원에서는 제거 (종합역량평가 탭에서만 노출)
+      return '';
     })()}
 
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
