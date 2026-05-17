@@ -2617,15 +2617,19 @@ async function fetchAdmissionCases(univ, dept) {
     if (Array.isArray(data) && data.length) {
       const norm = s => String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
       const normUniv = s => { let v = norm(s); v = v.replace(/대학교|대학원|대학/g, ''); return v; };
-      const univNorm = normUniv(univ);
+      const univNorm = normUniv(univ);   // 접미사 제거된 검색 대학명 (예: "연세대"→"연세")
       const deptNorm = norm(dept);
       school = data.filter(r => {
-        const u_raw = norm(r['대학명'] || '');
-        const u = normUniv(r['대학명'] || '');
+        const u_raw = norm(r['대학명'] || '');      // 괄호 지역명 등 포함 (예: "영남대경산")
+        const u = normUniv(r['대학명'] || '');       // 접미사 제거 (예: "연세대학교"→"연세")
         const d = norm(r['모집단위'] || '');
-        const univMatch = univNorm.length >= 2 && (
-          u.includes(univNorm) || univNorm.includes(u) || 
-          u_raw.includes(univNorm) || univNorm.includes(u_raw.replace(/[가-힣]+$/, ''))
+        // ── 대학 매칭 ──
+        // 정규화된 핵심 대학명 기준 양방향 포함.
+        // ※ 과거 버그: u_raw.replace(/[가-힣]+$/,'') 가 한글-only 대학명을 ''로 만들어
+        //   univNorm.includes('') === true 가 되며 모든 대학이 매칭되던 문제 → 제거함.
+        const univMatch = univNorm.length >= 2 && u.length >= 2 && (
+          u.includes(univNorm) || univNorm.includes(u) ||
+          u_raw.includes(univNorm)
         );
         const deptMatch = deptNorm.length < 2 || d.includes(deptNorm) || (deptNorm.length >= 3 && deptNorm.includes(d));
         return univMatch && deptMatch;
