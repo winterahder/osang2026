@@ -3184,14 +3184,25 @@ function _evalSuneungRule(rule, mg){
 
 function checkSuneung(univ, dept, type, grade, subType){
   const norm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'').replace(/대학교$|대학$/,'');
+  const uniKey = s=>{
+    let x=String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
+    return x.replace(/대학교$/,'').replace(/대학$/,'').replace(/대$/,'');
+  };
   const uN = norm(univ);
+  const uK = uniKey(univ);
+  const univMatch = rUniRaw=>{
+    const rK=uniKey(rUniRaw);
+    if(!rK||!uK) return false;
+    if(rK===uK) return true;
+    const sh = uK.length<=rK.length?uK:rK;
+    const lo = uK.length<=rK.length?rK:uK;
+    if(sh.length<3) return false;
+    return lo.includes(sh);
+  };
 
   // ── ① suneung_min 우선 (단과대·전형별 정밀 기준) ──
   if(suneungMin && suneungMin.length){
-    const rows = suneungMin.filter(r=> {
-      const ru = norm(r['대학']);
-      return ru.includes(uN)||uN.includes(ru);
-    });
+    const rows = suneungMin.filter(r=> univMatch(r['대학']));
     if(rows.length){
       // 전형군 매핑: type(종합/교과/논술) → 전형군
       const tg = type==='종합'||type==='종합+교과' ? '종합'
@@ -7674,14 +7685,28 @@ function renderMajorAdmissions() {
   // ── 수능최저 매칭 헬퍼 (학과 카드용) ──
   const _mockG = _getStudentMockGrades(String(currentStu?.hak||''));
   const _snNorm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'')
-    .replace(/대학교$|대학$/,'').replace(/학과$|학부$|전공$|학전공$|계열$/,'');
+    .replace(/학과$|학부$|전공$|학전공$|계열$/,'');
+  // 대학명 전용 정규화: "서울대학교"="서울대"="서울대학" 통일 (끝 대학교/대학/대 제거 후 핵심어만)
+  const _uniKey = s=>{
+    let x=String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'');
+    x=x.replace(/대학교$/,'').replace(/대학$/,'').replace(/대$/,'');
+    return x;
+  };
   function _suneungForCard(univ, dept, jeonhyeong){
     if(!suneungMin || !suneungMin.length) return null;
     const uN=_snNorm(univ), dN=_snNorm(dept);
-    const rows = suneungMin.filter(r=>{
-      const ru=_snNorm(r['대학']);
-      return ru.includes(uN)||uN.includes(ru);
-    });
+    const uKey=_uniKey(univ);
+    const _univMatch = (rUniRaw) => {
+      const rKey=_uniKey(rUniRaw);
+      if(!rKey || !uKey) return false;
+      if(rKey === uKey) return true;
+      // 부분포함은 짧은쪽 3글자 이상일 때만 (서울 vs 서울과기 오매칭 방지)
+      const shorter = uKey.length <= rKey.length ? uKey : rKey;
+      const longer  = uKey.length <= rKey.length ? rKey : uKey;
+      if(shorter.length < 3) return false;
+      return longer.includes(shorter);
+    };
+    const rows = suneungMin.filter(r=> _univMatch(r['대학']));
     if(!rows.length) return null;
     const tg = /종합/.test(jeonhyeong)?'종합' : /교과/.test(jeonhyeong)?'교과' : /논술/.test(jeonhyeong)?'논술' : '';
     const scored = rows.map(r=>{
