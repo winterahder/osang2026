@@ -3821,8 +3821,49 @@ function buildApplyCardHTML(obj, dateStr, isNew){
   // ════════════════════════════════════════════════════════════
   const POS = (()=>{
     const sAvg = meta.stuAvg;
-    const c50 = meta.cutoff?.cut50 ?? null;
-    const c70 = meta.cutoff?.cut70 ?? null;
+    let c50 = meta.cutoff?.cut50 ?? null;
+    let c70 = meta.cutoff?.cut70 ?? null;
+    let cutSrc = (c50!=null) ? '입결DB' : null;
+
+    // ── 폴백: 서버 cutoff 매칭 실패 시 클라이언트 cutoffDB 직접 매칭 ──
+    if(c50==null && Array.isArray(cutoffDB) && cutoffDB.length){
+      const nm = s=>String(s||'').trim().toLowerCase().replace(/\s/g,'').replace(/[()（）]/g,'')
+        .replace(/대학교$|대학$/,'').replace(/학과$|학부$|전공$|학전공$|계열$/,'');
+      const uN=nm(obj.univ), dN=nm(obj.dept);
+      const tWant = (obj.type==='종합'||obj.type==='종합+교과') ? '종합'
+                  : obj.type==='교과' ? '교과'
+                  : obj.type==='논술' ? '논술' : '';
+      const stWant = nm(obj.subType||'');
+      const cand = cutoffDB.filter(r=>{
+        const t=String(r['전형']||'');
+        if(t.includes('정시')||t.includes('수능')) return false;
+        if(!(r['50컷_2026']||r['50컷_2025']||r['50컷_2024'])) return false;
+        const ru=nm(r['대학']), rm=nm(r['모집단위']);
+        const uOk = ru.includes(uN)||uN.includes(ru);
+        const dOk = !dN || rm.includes(dN)||dN.includes(rm);
+        return uOk && dOk;
+      });
+      if(cand.length){
+        // 전형군 일치 우선, 그 안에서 세부전형명 근접 우선
+        const scored = cand.map(r=>{
+          let sc=0;
+          const t=String(r['전형']||'');
+          if(tWant && t.includes(tWant)) sc+=4;
+          const stv=nm(r['세부전형명']);
+          if(stWant && stv && (stv.includes(stWant)||stWant.includes(stv))) sc+=3;
+          if(/일반/.test(r['세부전형명']||'')) sc+=1; // 일반전형 기본 가중
+          return {r,sc};
+        }).sort((a,b)=>b.sc-a.sc);
+        const top = scored[0];
+        if(top){
+          const r=top.r;
+          const v50=[r['50컷_2026'],r['50컷_2025'],r['50컷_2024']].map(parseFloat).filter(v=>!isNaN(v));
+          const v70=[r['70컷_2026'],r['70컷_2025'],r['70컷_2024']].map(parseFloat).filter(v=>!isNaN(v));
+          if(v50.length){ c50=v50.reduce((a,b)=>a+b,0)/v50.length; cutSrc='입결DB'; }
+          if(v70.length){ c70=v70.reduce((a,b)=>a+b,0)/v70.length; }
+        }
+      }
+    }
     // admissions_all(gb) = 전국+경북 방대 데이터 (불합사유 포함)
     const gbAll = meta.admCases?.gb || [];
     const gbPassG = gbAll.filter(r=>{const v=String(r.최종결과||'');return v.includes('합격')||v.includes('충원');})
@@ -3863,7 +3904,7 @@ function buildApplyCardHTML(obj, dateStr, isNew){
       else gapText=`내신 ${gapVal.toFixed(2)}등급 부족 (목표 ${target.toFixed(2)} / 내 ${sAvg.toFixed(2)})`;
     }
     return { sAvg, c50, c70, gbPassG, gbFailG, gbFailTot, reasonTop,
-             posText, posColor, posPct, anchor, gapText, gapVal, target,
+             posText, posColor, posPct, anchor, gapText, gapVal, target, cutSrc,
              gbPassN: gbPassG.length };
   })();
 
